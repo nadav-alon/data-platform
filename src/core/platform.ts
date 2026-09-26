@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { semverSchema } from "./semver.ts";
+import packageJson from "../../package.json" with { type: "json" };
+import { semver, semverSchema } from "./semver.ts";
 
 /** Written by each household deploy; apps compare it against their own version. */
 export const PLATFORM_DOC_PATH = "meta/platform";
@@ -18,15 +18,8 @@ export type PlatformMeta = z.infer<typeof platformMetaSchema>;
  */
 export type PlatformCheck = "ok" | "outdated" | "missing";
 
-const packageJson = JSON.parse(
-  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-) as { version: unknown };
-if (typeof packageJson.version !== "string") {
-  throw new Error(`package.json has no string "version": ${JSON.stringify(packageJson.version)}`);
-}
-
 /** This package's own version, from `package.json`: the default `required` for `checkPlatform`. */
-export const PACKAGE_VERSION = packageJson.version;
+export const PACKAGE_VERSION = semver(packageJson.version);
 
 /** Compares a deployed `meta/platform` version against the version an app requires. */
 export function checkPlatform(
