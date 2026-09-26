@@ -13,6 +13,10 @@ export function memberDocPath(uid: Uid): string {
 
 export const memberSchema = z.object({
   email: emailSchema,
+  /**
+   * Validates the shape Firestore returns on read. A write using the `serverTimestamp()`
+   * sentinel won't parse against this schema; that's expected — this schema is for reads.
+   */
   addedAt: firestoreTimestampSchema,
 });
 
