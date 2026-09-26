@@ -62,3 +62,9 @@ test("checkPlatform: defaults required to the platform version this build requir
 test("checkPlatform: a malformed deployed value cannot be constructed", () => {
   assert.throws(() => semver("v1"), /Not a Semver/);
 });
+
+// Pins today's major-only comparison: pre-1.0, semver treats a minor bump as the breaking
+// change, but checkPlatform only compares majors, so this is "ok" rather than "outdated".
+test("checkPlatform: pre-1.0, a trailing minor is ok even though semver treats it as breaking", () => {
+  assert.equal(checkPlatform(semver("0.1.0"), semver("0.2.0")), "ok");
+});
