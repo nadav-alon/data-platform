@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import type { Uid } from "../../src/core/uid.ts";
 
 export type RulesVerdict = "accept" | "reject";
 
@@ -13,7 +14,7 @@ export interface RulesFixture {
   readonly collection: string;
   readonly schema: ZodType;
   readonly doc: { readonly id: string; readonly data: Record<string, unknown> };
-  readonly auth: { readonly uid: string } | null;
+  readonly auth: { readonly uid: Uid } | null;
   readonly expected: RulesVerdict;
 }
 
@@ -33,7 +34,7 @@ export interface RulesFixtureDoc {
 export interface RulesBatchFixture {
   readonly name: string;
   readonly docs: readonly RulesFixtureDoc[];
-  readonly auth: { readonly uid: string } | null;
+  readonly auth: { readonly uid: Uid } | null;
   readonly expected: RulesVerdict;
 }
 

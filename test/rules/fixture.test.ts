@@ -6,7 +6,10 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { z } from "zod";
+import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
+
+const alice = uid("alice");
 
 // A scratch schema, not a real collection's: these tests exercise the
 // harness itself.
@@ -60,7 +63,7 @@ test("fails naming the fixture when the emulator disagrees with the expected ver
     collection: "widgets",
     schema: widget,
     doc: { id: "w1", data: { name: "gizmo" } },
-    auth: { uid: "alice" },
+    auth: { uid: alice },
     expected: "accept",
   };
 
