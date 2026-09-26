@@ -6,6 +6,14 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
+import { householdMetaSchema } from "../../src/core/household.ts";
+import { memberSchema } from "../../src/core/members.ts";
+import { assertBatchFixture, type RulesBatchFixture } from "./fixture.ts";
+
+const validMemberData = {
+  email: "member@example.com",
+  addedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+};
 
 let testEnv: RulesTestEnvironment;
 
@@ -36,14 +44,16 @@ after(async () => {
 /** Seeds `members/{uid}` directly, bypassing rules, so a test can assume a Member exists. */
 async function seedMember(uid: string): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`members/${uid}`)
-      .set({
-        email: "member@example.com",
-        addedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
-      });
+    await context.firestore().doc(`members/${uid}`).set(validMemberData);
   });
+}
+
+/** Seeds a claimed Household directly, bypassing rules, so a test can start post-bootstrap. */
+async function seedHousehold(owner: string): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("meta/household").set({ owner });
+  });
+  await seedMember(owner);
 }
 
 test("isMember() gate: an unauthenticated read of meta/household is denied", async () => {
@@ -84,4 +94,52 @@ test("isMember() gate: a Member's read of another Member's doc is allowed", asyn
   await seedMember("bob");
   const context = testEnv.authenticatedContext("bob");
   await assertSucceeds(context.firestore().doc("members/alice").get());
+});
+
+test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
+  const fixture: RulesBatchFixture = {
+    name: "alice claims the household and her own membership together",
+    docs: [
+      {
+        collection: "meta",
+        id: "household",
+        schema: householdMetaSchema,
+        data: { owner: "alice" },
+      },
+      {
+        collection: "members",
+        id: "alice",
+        schema: memberSchema,
+        data: validMemberData,
+      },
+    ],
+    auth: { uid: "alice" },
+    expected: "accept",
+  };
+
+  await assertBatchFixture(fixture, testEnv);
+});
+
+test("first-claim bootstrap: creating meta/household without the claimant's own members doc in the same batch is denied", async () => {
+  const context = testEnv.authenticatedContext("alice");
+  await assertFails(
+    context.firestore().doc("meta/household").set({ owner: "alice" }),
+  );
+});
+
+test("first-claim bootstrap: creating a members doc without meta/household in the same batch is denied", async () => {
+  const context = testEnv.authenticatedContext("alice");
+  await assertFails(
+    context.firestore().doc("members/alice").set(validMemberData),
+  );
+});
+
+test("first-claim bootstrap: once meta/household exists, a second user can't claim it", async () => {
+  await seedHousehold("alice");
+
+  const context = testEnv.authenticatedContext("mallory");
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc("meta/household"), { owner: "mallory" });
+  batch.set(context.firestore().doc("members/mallory"), validMemberData);
+  await assertFails(batch.commit());
 });
