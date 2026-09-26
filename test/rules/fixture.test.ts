@@ -52,9 +52,9 @@ test("passes a fixture zod and the emulator both reject", async () => {
 });
 
 test("fails naming the fixture when the emulator disagrees with the expected verdict", async () => {
-  // TODO[#6]: firestore.rules denies everything until the membership gate
-  // lands, so a fixture expecting "accept" here is exactly the zod/rules
-  // disagreement this harness exists to catch.
+  // "widgets" isn't wired into any match block, so it falls through to the
+  // default-deny catch-all: a fixture expecting "accept" here is exactly the
+  // zod/rules disagreement this harness exists to catch.
   const fixture: RulesFixture = {
     name: "widget accepted by zod but denied by firestore.rules",
     collection: "widgets",
