@@ -31,7 +31,9 @@ jobs:
           node-version: 22
       - name: Determine the pending release tag
         id: pending
-        run: echo "tag=$(node scripts/release/pending-tag.ts)" >> "$GITHUB_OUTPUT"
+        run: |
+          tag="$(node scripts/release/pending-tag.ts)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Build dist/ and push the release tag
         if: steps.pending.outputs.tag != ''
         env:
