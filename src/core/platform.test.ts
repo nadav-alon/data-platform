@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PACKAGE_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
+import { semver } from "./semver.ts";
 
 test("doc path", () => {
   assert.equal(PLATFORM_DOC_PATH, "meta/platform");
@@ -29,25 +30,29 @@ test("rejects a non-string version", () => {
 });
 
 test("checkPlatform: ok when the deployed version equals the required one", () => {
-  assert.equal(checkPlatform("1.2.3", "1.2.3"), "ok");
+  assert.equal(checkPlatform(semver("1.2.3"), semver("1.2.3")), "ok");
 });
 
 test("checkPlatform: ok when the deployed minor trails the required one", () => {
-  assert.equal(checkPlatform("1.1.0", "1.2.3"), "ok");
+  assert.equal(checkPlatform(semver("1.1.0"), semver("1.2.3")), "ok");
 });
 
 test("checkPlatform: outdated when the deployed major trails the required one", () => {
-  assert.equal(checkPlatform("1.9.9", "2.0.0"), "outdated");
+  assert.equal(checkPlatform(semver("1.9.9"), semver("2.0.0")), "outdated");
 });
 
 test("checkPlatform: ok when the deployed version is newer than required", () => {
-  assert.equal(checkPlatform("3.0.0", "2.0.0"), "ok");
+  assert.equal(checkPlatform(semver("3.0.0"), semver("2.0.0")), "ok");
 });
 
 test("checkPlatform: missing when nothing has been deployed", () => {
-  assert.equal(checkPlatform(undefined, "1.0.0"), "missing");
+  assert.equal(checkPlatform(undefined, semver("1.0.0")), "missing");
 });
 
 test("checkPlatform: defaults required to this package's own version", () => {
   assert.equal(checkPlatform(PACKAGE_VERSION), "ok");
+});
+
+test("checkPlatform: a malformed deployed value cannot be constructed", () => {
+  assert.throws(() => semver("v1"), /Not a Semver/);
 });

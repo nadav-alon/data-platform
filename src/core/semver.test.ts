@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isSemver, semver } from "./semver.ts";
+import { isSemver, semver, semverMajor } from "./semver.ts";
 
 test("accepts a major.minor.patch version", () => {
   assert.equal(isSemver("1.2.3"), true);
@@ -18,4 +18,9 @@ test("rejects a version missing a patch number", () => {
 
 test("rejects a leading v", () => {
   assert.equal(isSemver("v1.2.3"), false);
+});
+
+test("semverMajor reads the leading component", () => {
+  assert.equal(semverMajor(semver("2.10.4")), 2);
+  assert.equal(semverMajor(semver("0.1.0")), 0);
 });

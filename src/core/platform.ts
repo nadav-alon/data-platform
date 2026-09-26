@@ -1,6 +1,6 @@
 import { z } from "zod";
 import packageJson from "../../package.json" with { type: "json" };
-import { semver, semverSchema } from "./semver.ts";
+import { semver, semverMajor, semverSchema, type Semver } from "./semver.ts";
 
 /** Written by each household deploy; apps compare it against their own version. */
 export const PLATFORM_DOC_PATH = "meta/platform";
@@ -23,15 +23,11 @@ export const PACKAGE_VERSION = semver(packageJson.version);
 
 /** Compares a deployed `meta/platform` version against the version an app requires. */
 export function checkPlatform(
-  deployed: string | undefined,
-  required: string = PACKAGE_VERSION,
+  deployed: Semver | undefined,
+  required: Semver = PACKAGE_VERSION,
 ): PlatformCheck {
   if (deployed === undefined) {
     return "missing";
   }
-  return major(deployed) < major(required) ? "outdated" : "ok";
-}
-
-function major(version: string): number {
-  return Number(version.split(".")[0]);
+  return semverMajor(deployed) < semverMajor(required) ? "outdated" : "ok";
 }
