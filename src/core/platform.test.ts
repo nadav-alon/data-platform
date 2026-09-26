@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
+import { PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
 
 test("doc path", () => {
   assert.equal(PLATFORM_DOC_PATH, "meta/platform");
@@ -26,4 +26,24 @@ test("rejects a non-semver version", () => {
 
 test("rejects a non-string version", () => {
   assert.equal(platformMetaSchema.safeParse({ version: 1 }).success, false);
+});
+
+test("checkPlatform: ok when the deployed version equals the required one", () => {
+  assert.equal(checkPlatform("1.2.3", "1.2.3"), "ok");
+});
+
+test("checkPlatform: ok when the deployed minor trails the required one", () => {
+  assert.equal(checkPlatform("1.1.0", "1.2.3"), "ok");
+});
+
+test("checkPlatform: outdated when the deployed major trails the required one", () => {
+  assert.equal(checkPlatform("1.9.9", "2.0.0"), "outdated");
+});
+
+test("checkPlatform: ok when the deployed version is newer than required", () => {
+  assert.equal(checkPlatform("3.0.0", "2.0.0"), "ok");
+});
+
+test("checkPlatform: missing when nothing has been deployed", () => {
+  assert.equal(checkPlatform(undefined, "1.0.0"), "missing");
 });
