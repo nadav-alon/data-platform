@@ -22,8 +22,8 @@ test("accepts a valid member", () => {
 
 test("tolerates unknown fields", () => {
   const result = memberSchema.safeParse({ ...validMember, role: "owner" });
-  assert.equal(result.success, true);
-  assert.equal("role" in (result.success ? result.data : {}), false);
+  assert.ok(result.success);
+  assert.equal("role" in result.data, false);
 });
 
 test("rejects a missing email", () => {
