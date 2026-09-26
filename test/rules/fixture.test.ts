@@ -15,8 +15,15 @@ const widget = z.object({ name: z.string() });
 let testEnv: RulesTestEnvironment;
 
 before(async () => {
+  const projectId = process.env.GCLOUD_PROJECT;
+  if (!projectId) {
+    throw new Error(
+      "GCLOUD_PROJECT is not set; run this suite through `npm run test:rules`",
+    );
+  }
+
   testEnv = await initializeTestEnvironment({
-    projectId: "demo-data-platform-rules-test",
+    projectId,
     firestore: {
       rules: readFileSync("firestore.rules", "utf8"),
     },
