@@ -5,4 +5,6 @@ export { isUid, uid, uidSchema } from "./uid.ts";
 export type { Uid } from "./uid.ts";
 export { isEmail, email, emailSchema } from "./email.ts";
 export type { Email } from "./email.ts";
+export { isSemver, semver, semverSchema } from "./semver.ts";
+export type { Semver } from "./semver.ts";
 
