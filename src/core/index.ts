@@ -9,4 +9,6 @@ export { isSemver, semver, semverSchema } from "./semver.ts";
 export type { Semver } from "./semver.ts";
 export { firestoreTimestampSchema } from "./timestamp.ts";
 export type { FirestoreTimestamp } from "./timestamp.ts";
+export { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
+export type { Member } from "./members.ts";
 
