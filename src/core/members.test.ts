@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
+import { MEMBERS_COLLECTION, memberDocPath, memberSchema } from "./members.ts";
+import { uid } from "./uid.ts";
 
 const validMember = {
   email: "owner@example.com",
@@ -9,6 +10,10 @@ const validMember = {
 
 test("collection name", () => {
   assert.equal(MEMBERS_COLLECTION, "members");
+});
+
+test("doc path", () => {
+  assert.equal(memberDocPath(uid("abc123")), "members/abc123");
 });
 
 test("accepts a valid member", () => {
