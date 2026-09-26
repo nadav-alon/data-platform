@@ -1,0 +1,49 @@
+# Tags a release when a push to main carries a package.json version with no
+# release tag yet (scripts/release). The tag points at a commit made just for
+# it — dist/ built and force-added despite .gitignore — so
+# `npm install github:nadav-alon/data-platform#v<version>` gets built JS and
+# type declarations with no build step of its own. Only the tag is pushed,
+# never main itself: main's own history stays free of dist/ (RELEASING.md).
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history and tags: scripts/release/pending-tag.ts checks
+          # every past release tag, not just what a shallow clone would see.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Determine the pending release tag
+        id: pending
+        run: |
+          tag="$(node scripts/release/pending-tag.ts)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Build dist/ and push the release tag
+        if: steps.pending.outputs.tag != ''
+        env:
+          TAG: ${{ steps.pending.outputs.tag }}
+        run: |
+          npm ci
+          npm run build
+          git add -f dist
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Release $TAG"
+          git tag "$TAG"
+          git push origin "$TAG"
