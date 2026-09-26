@@ -1,10 +1,64 @@
 rules_version = '2';
 
-// Every collection is denied.
-// TODO[#6]: open the membership gate.
 // TODO[#7]: add per-collection validation matching this repo's zod schemas.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** A Household's gate: signed in, and recorded as `members/{uid}`. */
+    function isMember() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    /**
+     * First-claim: while `meta/household` doesn't exist, a signed-in user may create it as
+     * long as the same batch also creates their own `members/{uid}` doc — see
+     * `claimsOwnMembership()`. `allow create` alone already restricts this to a Household
+     * that doesn't yet exist.
+     */
+    function claimsHousehold() {
+      return isSignedIn()
+        && request.resource.data.owner == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    /** The other half of first-claim: `uid`'s own doc, batched with `claimsHousehold()`. */
+    function claimsOwnMembership(uid) {
+      return isSignedIn() && uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/meta/household)
+        && existsAfter(/databases/$(database)/documents/meta/household)
+        && getAfter(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
+    }
+
+    /** The Member who claimed the Household; same data access as any Member. */
+    function isOwner() {
+      return isMember()
+        && get(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
+    }
+
+    match /meta/{doc} {
+      allow read: if isMember();
+    }
+
+    match /meta/household {
+      allow create: if claimsHousehold();
+      allow update, delete: if false;
+    }
+
+    match /meta/platform {
+      // TODO[#9]: household deploy writes this.
+      allow write: if false;
+    }
+
+    match /members/{uid} {
+      allow read: if isMember();
+      allow create: if claimsOwnMembership(uid) || isOwner();
+      allow update, delete: if isOwner();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
