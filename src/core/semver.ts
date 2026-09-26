@@ -21,4 +21,9 @@ export function semver(value: string): Semver {
   return result.data;
 }
 
+/** The major version, e.g. `2` for `2.0.0`. */
+export function semverMajor(value: Semver): number {
+  return Number(value.split(".")[0]);
+}
+
 export { semverSchema };
