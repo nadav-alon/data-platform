@@ -16,3 +16,40 @@ test("rejects a plain Date", () => {
 test("rejects a value missing nanoseconds", () => {
   assert.equal(firestoreTimestampSchema.safeParse({ seconds: 1 }).success, false);
 });
+
+test("rejects negative nanoseconds", () => {
+  assert.equal(
+    firestoreTimestampSchema.safeParse({ seconds: 1, nanoseconds: -5 }).success,
+    false,
+  );
+});
+
+test("rejects nanoseconds at or above one billion", () => {
+  assert.equal(
+    firestoreTimestampSchema.safeParse({ seconds: 1, nanoseconds: 1e9 }).success,
+    false,
+  );
+});
+
+test("rejects a fractional seconds value", () => {
+  assert.equal(
+    firestoreTimestampSchema.safeParse({ seconds: 1.5, nanoseconds: 0 }).success,
+    false,
+  );
+});
+
+test("rejects NaN and Infinity", () => {
+  assert.equal(
+    firestoreTimestampSchema.safeParse({ seconds: NaN, nanoseconds: 0 }).success,
+    false,
+  );
+  assert.equal(
+    firestoreTimestampSchema.safeParse({ seconds: Infinity, nanoseconds: 0 }).success,
+    false,
+  );
+});
+
+test("rejects an array carrying both properties", () => {
+  const value = Object.assign([], { seconds: 1, nanoseconds: 0 });
+  assert.equal(firestoreTimestampSchema.safeParse(value).success, false);
+});
