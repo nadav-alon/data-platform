@@ -1,0 +1,15 @@
+import { z } from "zod";
+export declare const CATALOGUE_ITEMS_COLLECTION = "catalogueItems";
+/**
+ * Keyed by Core Item id. `shopId`, when set, overrides the Category's default.
+ */
+export declare const catalogueItemSchema: z.ZodObject<{
+    categoryId: z.ZodString & z.ZodType<import("./category.ts").CategoryId, string, z.core.$ZodTypeInternals<import("./category.ts").CategoryId, string>>;
+    necessity: z.ZodEnum<{
+        essential: "essential";
+        important: "important";
+        optional: "optional";
+    }>;
+    shopId: z.ZodOptional<z.ZodString & z.ZodType<import("./shop.ts").ShopId, string, z.core.$ZodTypeInternals<import("./shop.ts").ShopId, string>>>;
+}, z.core.$loose>;
+export type CatalogueItem = z.infer<typeof catalogueItemSchema>;
