@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ITEMS_COLLECTION, itemSchema } from "./item.ts";
+import { ITEMS_COLLECTION, isItemId, itemId, itemIdSchema, itemSchema } from "./item.ts";
 
 test("accepts an Item with only the required fields", () => {
   const item = itemSchema.parse({ name: "Dish soap", state: "enough" });
@@ -64,4 +64,28 @@ test("rejects a state outside the State enum", () => {
 
 test("ITEMS_COLLECTION is stable", () => {
   assert.equal(ITEMS_COLLECTION, "items");
+});
+
+test("isItemId accepts a non-empty string", () => {
+  assert.equal(isItemId("dish-soap"), true);
+});
+
+test("isItemId rejects an empty string", () => {
+  assert.equal(isItemId(""), false);
+});
+
+test("itemId narrows a valid value", () => {
+  assert.equal(itemId("dish-soap"), "dish-soap");
+});
+
+test("itemId throws on an empty value, naming the value", () => {
+  assert.throws(() => itemId(""), /""/);
+});
+
+test("itemIdSchema accepts a non-empty string", () => {
+  assert.equal(itemIdSchema.parse("dish-soap"), "dish-soap");
+});
+
+test("itemIdSchema rejects an empty string", () => {
+  assert.throws(() => itemIdSchema.parse(""));
 });
