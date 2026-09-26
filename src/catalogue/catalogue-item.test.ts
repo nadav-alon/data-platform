@@ -16,9 +16,9 @@ test("accepts a CatalogueItem with a shopId override", () => {
   const catalogueItem = catalogueItemSchema.parse({
     categoryId: "medicine",
     necessity: "essential",
-    shopId: "corner-pharmacy",
+    shopId: "grocery",
   });
-  assert.equal(catalogueItem.shopId, "corner-pharmacy");
+  assert.equal(catalogueItem.shopId, "grocery");
 });
 
 test("tolerates an unknown field", () => {
