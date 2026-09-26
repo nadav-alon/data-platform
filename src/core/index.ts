@@ -7,4 +7,6 @@ export { isEmail, email, emailSchema } from "./email.ts";
 export type { Email } from "./email.ts";
 export { isSemver, semver, semverSchema } from "./semver.ts";
 export type { Semver } from "./semver.ts";
+export { firestoreTimestampSchema } from "./timestamp.ts";
+export type { FirestoreTimestamp } from "./timestamp.ts";
 
