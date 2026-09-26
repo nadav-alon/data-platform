@@ -1,0 +1,45 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { SHOPS_COLLECTION, isShopId, shopId, shopSchema } from "./shop.ts";
+
+test("accepts a Shop with a name", () => {
+  const shop = shopSchema.parse({ name: "Pharmacy" });
+  assert.equal(shop.name, "Pharmacy");
+});
+
+test("tolerates an unknown field", () => {
+  const shop = shopSchema.parse({ name: "Pharmacy", unexpected: true });
+  assert.equal(shop.unexpected, true);
+});
+
+test("rejects an empty name", () => {
+  assert.throws(() => shopSchema.parse({ name: "" }));
+});
+
+test("rejects a missing name", () => {
+  assert.throws(() => shopSchema.parse({}));
+});
+
+test("rejects a non-string name", () => {
+  assert.throws(() => shopSchema.parse({ name: 123 }));
+});
+
+test("SHOPS_COLLECTION is stable", () => {
+  assert.equal(SHOPS_COLLECTION, "shops");
+});
+
+test("isShopId accepts a non-empty string", () => {
+  assert.equal(isShopId("pharmacy"), true);
+});
+
+test("isShopId rejects an empty string", () => {
+  assert.equal(isShopId(""), false);
+});
+
+test("shopId narrows a valid value", () => {
+  assert.equal(shopId("pharmacy"), "pharmacy");
+});
+
+test("shopId throws on an empty value", () => {
+  assert.throws(() => shopId(""));
+});

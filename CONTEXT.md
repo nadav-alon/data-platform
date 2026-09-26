@@ -45,3 +45,19 @@ _Avoid_: have / almost gone / need, stock level
 
 **State history**:
 Every State change, timestamped by the server, append-only.
+
+### Catalogue entities
+
+**Shop**:
+A kind of place a CatalogueItem is bought at (pharmacy, grocery), not a specific store.
+_Avoid_: store
+
+**Category**:
+A grouping of CatalogueItems, carrying the default Shop they're bought at.
+
+**CatalogueItem**:
+Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, and an
+optional Shop override that takes precedence over the Category's default.
+
+**Necessity**:
+How essential a CatalogueItem is: `essential` / `important` / `optional`.

@@ -1,0 +1,28 @@
+import { z } from "zod";
+import { shopIdSchema } from "./shop.ts";
+
+export const CATEGORIES_COLLECTION = "categories";
+
+declare const categoryIdBrand: unique symbol;
+
+export type CategoryId = string & { readonly [categoryIdBrand]: true };
+
+export function isCategoryId(value: string): value is CategoryId {
+  return value.length > 0;
+}
+
+export function categoryId(value: string): CategoryId {
+  if (!isCategoryId(value)) {
+    throw new Error(`CategoryId must not be empty, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+export const categoryIdSchema = z.string().refine(isCategoryId, "CategoryId must not be empty");
+
+export const categorySchema = z.looseObject({
+  name: z.string().min(1),
+  defaultShopId: shopIdSchema,
+});
+
+export type Category = z.infer<typeof categorySchema>;
