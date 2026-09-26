@@ -71,6 +71,11 @@ service cloud.firestore {
         && (!('shopId' in data) || isNonEmptyString(data.shopId));
     }
 
+    /** Matches `categorySchema`. */
+    function isValidCategory(data) {
+      return isNonEmptyString(data.name) && isNonEmptyString(data.defaultShopId);
+    }
+
     match /meta/{doc} {
       allow read: if isMember();
     }
@@ -106,6 +111,12 @@ service cloud.firestore {
     match /catalogueItems/{itemId} {
       allow read: if isMember();
       allow create, update: if isMember() && isValidCatalogueItem(request.resource.data);
+      allow delete: if isMember();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidCategory(request.resource.data);
       allow delete: if isMember();
     }
 
