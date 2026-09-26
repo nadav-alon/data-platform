@@ -33,6 +33,12 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
     }
 
+    /** The Member who claimed the Household; same data access as any Member. */
+    function isOwner() {
+      return isMember()
+        && get(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
+    }
+
     match /meta/household {
       allow read: if isMember();
       allow create: if claimsHousehold();
@@ -47,8 +53,8 @@ service cloud.firestore {
 
     match /members/{uid} {
       allow read: if isMember();
-      allow create: if claimsOwnMembership(uid);
-      allow update, delete: if false;
+      allow create: if claimsOwnMembership(uid) || isOwner();
+      allow update, delete: if isOwner();
     }
 
     match /{document=**} {

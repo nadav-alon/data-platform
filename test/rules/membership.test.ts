@@ -8,7 +8,12 @@ import {
 } from "@firebase/rules-unit-testing";
 import { householdMetaSchema } from "../../src/core/household.ts";
 import { memberSchema } from "../../src/core/members.ts";
-import { assertBatchFixture, type RulesBatchFixture } from "./fixture.ts";
+import {
+  assertBatchFixture,
+  assertFixture,
+  type RulesBatchFixture,
+  type RulesFixture,
+} from "./fixture.ts";
 
 const validMemberData = {
   email: "member@example.com",
@@ -142,4 +147,65 @@ test("first-claim bootstrap: once meta/household exists, a second user can't cla
   batch.set(context.firestore().doc("meta/household"), { owner: "mallory" });
   batch.set(context.firestore().doc("members/mallory"), validMemberData);
   await assertFails(batch.commit());
+});
+
+test("owner-only members: the owner creating another member's doc is accepted", async () => {
+  await seedHousehold("alice");
+
+  const fixture: RulesFixture = {
+    name: "alice invites bob",
+    collection: "members",
+    schema: memberSchema,
+    doc: { id: "bob", data: validMemberData },
+    auth: { uid: "alice" },
+    expected: "accept",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("owner-only members: a non-owner Member creating another member's doc is denied", async () => {
+  await seedHousehold("alice");
+  await seedMember("bob");
+
+  const context = testEnv.authenticatedContext("bob");
+  await assertFails(
+    context.firestore().doc("members/carol").set(validMemberData),
+  );
+});
+
+test("owner-only members: the owner updating a member's doc is accepted", async () => {
+  await seedHousehold("alice");
+  await seedMember("bob");
+
+  const context = testEnv.authenticatedContext("alice");
+  await assertSucceeds(
+    context.firestore().doc("members/bob").update({ email: "new@example.com" }),
+  );
+});
+
+test("owner-only members: a non-owner Member updating a member's doc is denied", async () => {
+  await seedHousehold("alice");
+  await seedMember("bob");
+
+  const context = testEnv.authenticatedContext("bob");
+  await assertFails(
+    context.firestore().doc("members/alice").update({ email: "new@example.com" }),
+  );
+});
+
+test("owner-only members: the owner deleting a member's doc is accepted", async () => {
+  await seedHousehold("alice");
+  await seedMember("bob");
+
+  const context = testEnv.authenticatedContext("alice");
+  await assertSucceeds(context.firestore().doc("members/bob").delete());
+});
+
+test("owner-only members: a non-owner Member deleting a member's doc is denied", async () => {
+  await seedHousehold("alice");
+  await seedMember("bob");
+
+  const context = testEnv.authenticatedContext("bob");
+  await assertFails(context.firestore().doc("members/alice").delete());
 });
