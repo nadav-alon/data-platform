@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ITEMS_COLLECTION, itemSchema } from "./item.ts";
+import { ITEMS_COLLECTION, isItemId, itemId, itemIdSchema, itemSchema, type ItemId } from "./item.ts";
+import { core } from "../index.ts";
 
 test("accepts an Item with only the required fields", () => {
   const item = itemSchema.parse({ name: "Dish soap", state: "enough" });
@@ -64,4 +65,37 @@ test("rejects a state outside the State enum", () => {
 
 test("ITEMS_COLLECTION is stable", () => {
   assert.equal(ITEMS_COLLECTION, "items");
+});
+
+test("isItemId accepts a non-empty string", () => {
+  assert.equal(isItemId("dish-soap"), true);
+});
+
+test("isItemId rejects an empty string", () => {
+  assert.equal(isItemId(""), false);
+});
+
+test("itemId narrows a valid value", () => {
+  assert.equal(itemId("dish-soap"), "dish-soap");
+});
+
+test("itemId throws on an empty value, naming the value", () => {
+  assert.throws(() => itemId(""), /got ""/);
+});
+
+test("itemIdSchema accepts a non-empty string", () => {
+  const parsed: ItemId = itemIdSchema.parse("dish-soap");
+  assert.equal(parsed, "dish-soap");
+});
+
+test("itemIdSchema rejects an empty string", () => {
+  assert.throws(() => itemIdSchema.parse(""));
+});
+
+test("ItemId's guard, constructor and schema are reachable through core", () => {
+  const id: core.ItemId = itemId("dish-soap");
+  assert.equal(id, "dish-soap");
+  assert.equal(core.isItemId, isItemId);
+  assert.equal(core.itemId, itemId);
+  assert.equal(core.itemIdSchema, itemIdSchema);
 });
