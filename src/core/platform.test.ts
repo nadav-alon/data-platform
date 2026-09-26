@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import packageJson from "../../package.json" with { type: "json" };
 import { PLATFORM_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
-import { semver } from "./semver.ts";
+import { semver, semverMajor } from "./semver.ts";
 
 test("doc path", () => {
   assert.equal(PLATFORM_DOC_PATH, "meta/platform");
@@ -50,7 +51,12 @@ test("checkPlatform: missing when nothing has been deployed", () => {
 });
 
 test("checkPlatform: defaults required to the platform version this build requires", () => {
-  assert.equal(checkPlatform(PLATFORM_VERSION), "ok");
+  assert.equal(PLATFORM_VERSION, packageJson.version);
+
+  const sameMajor = semver(`${semverMajor(PLATFORM_VERSION)}.0.0`);
+  const newerMajor = semver(`${semverMajor(PLATFORM_VERSION) + 1}.0.0`);
+  assert.equal(checkPlatform(sameMajor), checkPlatform(sameMajor, PLATFORM_VERSION));
+  assert.notEqual(checkPlatform(sameMajor), checkPlatform(sameMajor, newerMajor));
 });
 
 test("checkPlatform: a malformed deployed value cannot be constructed", () => {
