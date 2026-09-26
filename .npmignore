@@ -1,0 +1,4 @@
+# Empty on purpose. Its mere presence stops npm from falling back to
+# .gitignore when deciding what a git-dependency install includes, which
+# would otherwise drop the release tag's committed dist/ (#10) even though
+# the tag's tree genuinely contains it.
