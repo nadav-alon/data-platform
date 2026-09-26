@@ -17,6 +17,14 @@ export interface RulesFixture {
   readonly expected: RulesVerdict;
 }
 
+/** One document in a batch fixture: where it's written, and what it must validate against. */
+export interface RulesFixtureDoc {
+  readonly collection: string;
+  readonly id: string;
+  readonly schema: ZodType;
+  readonly data: Record<string, unknown>;
+}
+
 /**
  * Like `RulesFixture`, but for writes that must land as one Firestore batch — e.g. the
  * Household first-claim, which creates `meta/household` and the claimant's own
@@ -24,12 +32,7 @@ export interface RulesFixture {
  */
 export interface RulesBatchFixture {
   readonly name: string;
-  readonly docs: readonly {
-    readonly collection: string;
-    readonly id: string;
-    readonly schema: ZodType;
-    readonly data: Record<string, unknown>;
-  }[];
+  readonly docs: readonly RulesFixtureDoc[];
   readonly auth: { readonly uid: string } | null;
   readonly expected: RulesVerdict;
 }
@@ -70,24 +73,20 @@ export async function assertBatchFixture(
   }
 }
 
+/** The single-doc case of `assertBatchFixture`, with the same contract. */
 export async function assertFixture(
   fixture: RulesFixture,
   testEnv: RulesTestEnvironment,
 ): Promise<void> {
+  const doc: RulesFixtureDoc = {
+    collection: fixture.collection,
+    id: fixture.doc.id,
+    schema: fixture.schema,
+    data: fixture.doc.data,
+  };
+
   await assertBatchFixture(
-    {
-      name: fixture.name,
-      docs: [
-        {
-          collection: fixture.collection,
-          id: fixture.doc.id,
-          schema: fixture.schema,
-          data: fixture.doc.data,
-        },
-      ],
-      auth: fixture.auth,
-      expected: fixture.expected,
-    },
+    { name: fixture.name, docs: [doc], auth: fixture.auth, expected: fixture.expected },
     testEnv,
   );
 }
