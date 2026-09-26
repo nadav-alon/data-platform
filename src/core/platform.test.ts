@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
+import { PACKAGE_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
 
 test("doc path", () => {
   assert.equal(PLATFORM_DOC_PATH, "meta/platform");
@@ -46,4 +46,8 @@ test("checkPlatform: ok when the deployed version is newer than required", () =>
 
 test("checkPlatform: missing when nothing has been deployed", () => {
   assert.equal(checkPlatform(undefined, "1.0.0"), "missing");
+});
+
+test("checkPlatform: defaults required to this package's own version", () => {
+  assert.equal(checkPlatform(PACKAGE_VERSION), "ok");
 });
