@@ -60,6 +60,17 @@ service cloud.firestore {
       return isState(data.state) && data.at == request.time;
     }
 
+    function isNecessity(value) {
+      return value in ['essential', 'important', 'optional'];
+    }
+
+    /** Matches `catalogueItemSchema`. */
+    function isValidCatalogueItem(data) {
+      return isNonEmptyString(data.categoryId)
+        && isNecessity(data.necessity)
+        && (!('shopId' in data) || isNonEmptyString(data.shopId));
+    }
+
     match /meta/{doc} {
       allow read: if isMember();
     }
@@ -90,6 +101,12 @@ service cloud.firestore {
         allow create: if isMember() && isValidStateHistoryEntry(request.resource.data);
         allow update, delete: if false;
       }
+    }
+
+    match /catalogueItems/{itemId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidCatalogueItem(request.resource.data);
+      allow delete: if isMember();
     }
 
     match /{document=**} {
