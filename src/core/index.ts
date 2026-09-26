@@ -13,4 +13,5 @@ export { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
 export type { Member } from "./members.ts";
 export { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
 export type { HouseholdMeta } from "./household.ts";
-
+export { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
+export type { PlatformMeta } from "./platform.ts";
