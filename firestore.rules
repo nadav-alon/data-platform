@@ -39,14 +39,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
     }
 
-    match /meta/household {
+    match /meta/{doc} {
       allow read: if isMember();
+    }
+
+    match /meta/household {
       allow create: if claimsHousehold();
       allow update, delete: if false;
     }
 
     match /meta/platform {
-      allow read: if isMember();
       // TODO[#9]: household deploy writes this.
       allow write: if false;
     }
