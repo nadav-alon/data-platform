@@ -155,6 +155,33 @@ test("first-claim bootstrap: once meta/household exists, a second user can't cla
   await assertFails(batch.commit());
 });
 
+test("isMember() gate: once the household is claimed, a signed-in non-member can't self-enrol as a member", async () => {
+  await seedHousehold(alice);
+
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(
+    context.firestore().doc(memberDocPath(mallory)).set(validMemberData),
+  );
+});
+
+test("isMember() gate: once the household is claimed, a signed-in non-member can't create another member's doc", async () => {
+  await seedHousehold(alice);
+
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set(validMemberData),
+  );
+});
+
+test("isMember() gate: once the household is claimed, a signed-in non-member's write of meta/platform is denied", async () => {
+  await seedHousehold(alice);
+
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(
+    context.firestore().doc("meta/platform").set({ version: "1.0.0" }),
+  );
+});
+
 test("owner-only members: the owner adding another member's doc is accepted", async () => {
   await seedHousehold(alice);
 
