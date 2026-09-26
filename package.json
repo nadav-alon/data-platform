@@ -14,7 +14,7 @@
     "prepare": "npm run build",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "node --test 'src/**/*.test.ts'",
+    "test": "node --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
     "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only firestore \"node --test 'test/rules/**/*.test.ts'\""
   },
   "dependencies": {
