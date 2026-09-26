@@ -20,9 +20,8 @@ test("accepts an Item with its optional fields set", () => {
 });
 
 test("tolerates an unknown field", () => {
-  assert.doesNotThrow(() =>
-    itemSchema.parse({ name: "Dish soap", state: "enough", unexpected: true }),
-  );
+  const item = itemSchema.parse({ name: "Dish soap", state: "enough", unexpected: true });
+  assert.equal(item.unexpected, true);
 });
 
 test("rejects an empty name", () => {

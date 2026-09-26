@@ -10,9 +10,8 @@ test("accepts a State history entry", () => {
 });
 
 test("tolerates an unknown field", () => {
-  assert.doesNotThrow(() =>
-    stateHistoryEntrySchema.parse({ state: "out", at: new Date(), unexpected: true }),
-  );
+  const entry = stateHistoryEntrySchema.parse({ state: "out", at: new Date(), unexpected: true });
+  assert.equal(entry.unexpected, true);
 });
 
 test("rejects a missing at", () => {
