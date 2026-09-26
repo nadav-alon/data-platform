@@ -1,9 +1,5 @@
 import type { ZodType } from "zod";
-import {
-  assertFails,
-  assertSucceeds,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
+import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 
 export type RulesVerdict = "accept" | "reject";
 
@@ -21,9 +17,9 @@ export interface RulesFixture {
 }
 
 /**
- * Fails naming `fixture.name` the moment either side stops agreeing with
- * `fixture.expected`, rather than reporting a bare assertion the fixture list
- * gets long enough to make anonymous.
+ * Fails naming `fixture.name` and both verdicts once either side stops
+ * agreeing with `fixture.expected`, so a mistyped fixture (rules agree with
+ * zod) can be told apart from real drift (rules and zod disagree).
  */
 export async function assertFixture(
   fixture: RulesFixture,
@@ -33,11 +29,6 @@ export async function assertFixture(
   const zodVerdict: RulesVerdict = schema.safeParse(fixture.doc.data).success
     ? "accept"
     : "reject";
-  if (zodVerdict !== fixture.expected) {
-    throw new Error(
-      `fixture "${fixture.name}": zod would ${zodVerdict} this document, expected ${fixture.expected}`,
-    );
-  }
 
   const context =
     fixture.auth === null
@@ -48,17 +39,14 @@ export async function assertFixture(
     .collection(fixture.collection)
     .doc(fixture.doc.id)
     .set(fixture.doc.data);
+  const rulesVerdict: RulesVerdict = await write.then(
+    () => "accept",
+    () => "reject",
+  );
 
-  try {
-    if (fixture.expected === "accept") {
-      await assertSucceeds(write);
-    } else {
-      await assertFails(write);
-    }
-  } catch (cause) {
+  if (zodVerdict !== fixture.expected || rulesVerdict !== fixture.expected) {
     throw new Error(
-      `fixture "${fixture.name}": firestore.rules would not ${fixture.expected} this document`,
-      { cause },
+      `fixture "${fixture.name}": expected ${fixture.expected}, zod ${zodVerdict}, rules ${rulesVerdict}`,
     );
   }
 }
