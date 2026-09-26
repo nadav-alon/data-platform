@@ -18,7 +18,7 @@ test("resolves to the CatalogueItem's override when set", () => {
   const catalogueItem = catalogueItemSchema.parse({
     categoryId: "medicine",
     necessity: "essential",
-    shopId: "corner-pharmacy",
+    shopId: "grocery",
   });
-  assert.equal(resolveShop(catalogueItem, category), "corner-pharmacy");
+  assert.equal(resolveShop(catalogueItem, category), "grocery");
 });
