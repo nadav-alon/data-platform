@@ -11,6 +11,7 @@ export type RulesVerdict = "accept" | "reject";
 export interface RulesFixture {
   readonly name: string;
   readonly collection: string;
+  readonly schema: ZodType;
   readonly doc: { readonly id: string; readonly data: Record<string, unknown> };
   readonly auth: { readonly uid: string } | null;
   readonly expected: RulesVerdict;
@@ -23,10 +24,10 @@ export interface RulesFixture {
  */
 export async function assertFixture(
   fixture: RulesFixture,
-  schema: ZodType,
   testEnv: RulesTestEnvironment,
 ): Promise<void> {
-  const zodVerdict: RulesVerdict = schema.safeParse(fixture.doc.data).success
+  const zodVerdict: RulesVerdict = fixture.schema.safeParse(fixture.doc.data)
+    .success
     ? "accept"
     : "reject";
 

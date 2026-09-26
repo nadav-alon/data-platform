@@ -35,12 +35,13 @@ test("passes a fixture zod and the emulator both reject", async () => {
   const fixture: RulesFixture = {
     name: "widget missing its name is rejected",
     collection: "widgets",
+    schema: widget,
     doc: { id: "w1", data: {} },
     auth: null,
     expected: "reject",
   };
 
-  await assertFixture(fixture, widget, testEnv);
+  await assertFixture(fixture, testEnv);
 });
 
 test("fails naming the fixture when the emulator disagrees with the expected verdict", async () => {
@@ -50,13 +51,14 @@ test("fails naming the fixture when the emulator disagrees with the expected ver
   const fixture: RulesFixture = {
     name: "widget accepted by zod but denied by firestore.rules",
     collection: "widgets",
+    schema: widget,
     doc: { id: "w1", data: { name: "gizmo" } },
     auth: { uid: "alice" },
     expected: "accept",
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, widget, testEnv),
+    () => assertFixture(fixture, testEnv),
     /widget accepted by zod but denied by firestore\.rules/,
   );
 });
@@ -65,13 +67,14 @@ test("fails naming the fixture when zod disagrees with the expected verdict", as
   const fixture: RulesFixture = {
     name: "widget missing its name is expected to be accepted",
     collection: "widgets",
+    schema: widget,
     doc: { id: "w1", data: {} },
     auth: null,
     expected: "accept",
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, widget, testEnv),
+    () => assertFixture(fixture, testEnv),
     /widget missing its name is expected to be accepted/,
   );
 });
