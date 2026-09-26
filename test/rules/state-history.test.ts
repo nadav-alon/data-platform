@@ -6,8 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import firebase from "firebase/compat/app";
-import "firebase/compat/firestore";
+import { serverTimestamp } from "firebase/firestore";
 import { ITEMS_COLLECTION } from "../../src/core/item.ts";
 import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "../../src/core/state-history.ts";
 import { uid } from "../../src/core/uid.ts";
@@ -87,7 +86,7 @@ test("create-only history: a Member creating a stateHistory entry with the serve
   await assertSucceeds(
     context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
       state: "out",
-      at: firebase.firestore.FieldValue.serverTimestamp(),
+      at: serverTimestamp(),
     }),
   );
 });
@@ -111,7 +110,7 @@ test("isMember() gate: a signed-in non-member creating a stateHistory entry is d
   await assertFails(
     context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
       state: "out",
-      at: firebase.firestore.FieldValue.serverTimestamp(),
+      at: serverTimestamp(),
     }),
   );
 });
