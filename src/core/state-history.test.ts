@@ -9,6 +9,12 @@ test("accepts a State history entry", () => {
   assert.deepEqual(entry.at, at);
 });
 
+test("accepts a Firestore Timestamp-shaped at", () => {
+  const at = { seconds: 1_700_000_000, nanoseconds: 0 };
+  const entry = stateHistoryEntrySchema.parse({ state: "out", at });
+  assert.deepEqual(entry.at, at);
+});
+
 test("tolerates an unknown field", () => {
   const entry = stateHistoryEntrySchema.parse({ state: "out", at: new Date(), unexpected: true });
   assert.equal(entry.unexpected, true);
