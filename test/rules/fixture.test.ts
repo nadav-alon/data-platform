@@ -8,8 +8,8 @@ import {
 import { z } from "zod";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 
-// A scratch schema standing in for a real collection's: #2 only has to prove
-// the harness catches drift, not ship a collection of its own.
+// A scratch schema, not a real collection's: these tests exercise the
+// harness itself.
 const widget = z.object({ name: z.string() });
 
 let testEnv: RulesTestEnvironment;
@@ -45,9 +45,9 @@ test("passes a fixture zod and the emulator both reject", async () => {
 });
 
 test("fails naming the fixture when the emulator disagrees with the expected verdict", async () => {
-  // firestore.rules denies everything at this point (#6/#7 open it up), so a
-  // fixture expecting "accept" is exactly the zod/rules disagreement #2's
-  // acceptance criteria calls for.
+  // TODO[#6]: firestore.rules denies everything until the membership gate
+  // lands, so a fixture expecting "accept" here is exactly the zod/rules
+  // disagreement this harness exists to catch.
   const fixture: RulesFixture = {
     name: "widget accepted by zod but denied by firestore.rules",
     collection: "widgets",
