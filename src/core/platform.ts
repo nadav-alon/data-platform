@@ -1,6 +1,6 @@
 import { z } from "zod";
 import packageJson from "../../package.json" with { type: "json" };
-import { semver, semverMajor, semverSchema, type Semver } from "./semver.ts";
+import { semver, semverMajor, semverMinor, semverSchema, type Semver } from "./semver.ts";
 
 /** Written by each household deploy; apps compare it against their own version. */
 export const PLATFORM_DOC_PATH = "meta/platform";
@@ -12,9 +12,9 @@ export const platformMetaSchema = z.object({
 export type PlatformMeta = z.infer<typeof platformMetaSchema>;
 
 /**
- * `ok`: the deployed platform's major supports `required`. `outdated`: the household hasn't
- * deployed a platform major new enough for `required` yet. `missing`: nothing has deployed
- * `meta/platform` at all.
+ * `ok`: the deployed platform's breaking digit (the major, or pre-1.0 the minor) supports
+ * `required`. `outdated`: the household hasn't deployed a platform new enough for `required`
+ * yet. `missing`: nothing has deployed `meta/platform` at all.
  */
 export type PlatformCheck = "ok" | "outdated" | "missing";
 
@@ -29,5 +29,15 @@ export function checkPlatform(
   if (deployed === undefined) {
     return "missing";
   }
-  return semverMajor(deployed) < semverMajor(required) ? "outdated" : "ok";
+  const deployedMajor = semverMajor(deployed);
+  const requiredMajor = semverMajor(required);
+  if (deployedMajor !== requiredMajor) {
+    return deployedMajor < requiredMajor ? "outdated" : "ok";
+  }
+  // Pre-1.0, the API has no stable shape yet, so semver moves the breaking digit from the
+  // major (pinned at 0) down to the minor.
+  if (requiredMajor === 0) {
+    return semverMinor(deployed) < semverMinor(required) ? "outdated" : "ok";
+  }
+  return "ok";
 }

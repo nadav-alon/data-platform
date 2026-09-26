@@ -63,8 +63,24 @@ test("checkPlatform: a malformed deployed value cannot be constructed", () => {
   assert.throws(() => semver("v1"), /Not a Semver/);
 });
 
-// Pins today's major-only comparison: pre-1.0, semver treats a minor bump as the breaking
-// change, but checkPlatform only compares majors, so this is "ok" rather than "outdated".
-test("checkPlatform: pre-1.0, a trailing minor is ok even though semver treats it as breaking", () => {
-  assert.equal(checkPlatform(semver("0.1.0"), semver("0.2.0")), "ok");
+// Pre-1.0, there's no stable public API yet, so semver's convention moves the breaking change
+// down to the minor: the major stays pinned at 0 until the API is declared stable.
+test("checkPlatform: pre-1.0, an older minor is outdated", () => {
+  assert.equal(checkPlatform(semver("0.1.0"), semver("0.2.0")), "outdated");
+});
+
+test("checkPlatform: pre-1.0, an equal minor is ok", () => {
+  assert.equal(checkPlatform(semver("0.2.0"), semver("0.2.0")), "ok");
+});
+
+test("checkPlatform: pre-1.0, a newer minor is ok", () => {
+  assert.equal(checkPlatform(semver("0.3.0"), semver("0.2.0")), "ok");
+});
+
+test("checkPlatform: pre-1.0 deployed against a non-zero required major is outdated regardless of minor", () => {
+  assert.equal(checkPlatform(semver("0.9.0"), semver("1.0.0")), "outdated");
+});
+
+test("checkPlatform: a non-zero deployed major against a pre-1.0 required major is ok regardless of minor", () => {
+  assert.equal(checkPlatform(semver("1.0.0"), semver("0.9.0")), "ok");
 });
