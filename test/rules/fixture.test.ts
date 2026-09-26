@@ -63,7 +63,7 @@ test("fails naming the fixture when the emulator disagrees with the expected ver
   );
 });
 
-test("fails naming the fixture when zod disagrees with the expected verdict", async () => {
+test("fails naming the fixture when zod and rules agree, but not with the expected verdict", async () => {
   const fixture: RulesFixture = {
     name: "widget missing its name is expected to be accepted",
     collection: "widgets",
