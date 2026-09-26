@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ITEMS_COLLECTION, isItemId, itemId, itemIdSchema, itemSchema } from "./item.ts";
+import { ITEMS_COLLECTION, isItemId, itemId, itemIdSchema, itemSchema, type ItemId } from "./item.ts";
+import { core } from "../index.ts";
 
 test("accepts an Item with only the required fields", () => {
   const item = itemSchema.parse({ name: "Dish soap", state: "enough" });
@@ -79,13 +80,22 @@ test("itemId narrows a valid value", () => {
 });
 
 test("itemId throws on an empty value, naming the value", () => {
-  assert.throws(() => itemId(""), /""/);
+  assert.throws(() => itemId(""), /got ""/);
 });
 
 test("itemIdSchema accepts a non-empty string", () => {
-  assert.equal(itemIdSchema.parse("dish-soap"), "dish-soap");
+  const parsed: ItemId = itemIdSchema.parse("dish-soap");
+  assert.equal(parsed, "dish-soap");
 });
 
 test("itemIdSchema rejects an empty string", () => {
   assert.throws(() => itemIdSchema.parse(""));
+});
+
+test("ItemId's guard, constructor and schema are reachable through core", () => {
+  const id: core.ItemId = itemId("dish-soap");
+  assert.equal(id, "dish-soap");
+  assert.equal(core.isItemId, isItemId);
+  assert.equal(core.itemId, itemId);
+  assert.equal(core.itemIdSchema, itemIdSchema);
 });
