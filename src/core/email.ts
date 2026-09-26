@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** A member's sign-in email, the identity a `members/{uid}` doc records for its owner. */
+/** A member's sign-in email, the identity a `members/{uid}` doc records for that Member. */
 const emailSchema = z.email().brand<"Email">();
 
 export type Email = z.infer<typeof emailSchema>;
