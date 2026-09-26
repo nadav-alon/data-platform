@@ -55,6 +55,11 @@ service cloud.firestore {
         && (!('barcodes' in data) || data.barcodes is list);
     }
 
+    /** Matches `stateHistoryEntrySchema`; `at` must be the server's own commit time. */
+    function isValidStateHistoryEntry(data) {
+      return isState(data.state) && data.at == request.time;
+    }
+
     match /meta/{doc} {
       allow read: if isMember();
     }
@@ -79,6 +84,12 @@ service cloud.firestore {
       allow read: if isMember();
       allow create, update: if isMember() && isValidItem(request.resource.data);
       allow delete: if isMember();
+
+      match /stateHistory/{entryId} {
+        allow read: if isMember();
+        allow create: if isMember() && isValidStateHistoryEntry(request.resource.data);
+        allow update, delete: if false;
+      }
     }
 
     match /{document=**} {
