@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PACKAGE_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
+import { PLATFORM_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
 import { semver } from "./semver.ts";
 
 test("doc path", () => {
@@ -49,8 +49,8 @@ test("checkPlatform: missing when nothing has been deployed", () => {
   assert.equal(checkPlatform(undefined, semver("1.0.0")), "missing");
 });
 
-test("checkPlatform: defaults required to this package's own version", () => {
-  assert.equal(checkPlatform(PACKAGE_VERSION), "ok");
+test("checkPlatform: defaults required to the platform version this build requires", () => {
+  assert.equal(checkPlatform(PLATFORM_VERSION), "ok");
 });
 
 test("checkPlatform: a malformed deployed value cannot be constructed", () => {

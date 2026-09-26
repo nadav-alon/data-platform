@@ -18,13 +18,13 @@ export type PlatformMeta = z.infer<typeof platformMetaSchema>;
  */
 export type PlatformCheck = "ok" | "outdated" | "missing";
 
-/** This package's own version, from `package.json`: the default `required` for `checkPlatform`. */
-export const PACKAGE_VERSION = semver(packageJson.version);
+/** The platform version this build requires, from `package.json`: the default `required` for `checkPlatform`. */
+export const PLATFORM_VERSION = semver(packageJson.version);
 
 /** Compares a deployed `meta/platform` version against the version an app requires. */
 export function checkPlatform(
   deployed: Semver | undefined,
-  required: Semver = PACKAGE_VERSION,
+  required: Semver = PLATFORM_VERSION,
 ): PlatformCheck {
   if (deployed === undefined) {
     return "missing";
