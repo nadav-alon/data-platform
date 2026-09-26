@@ -11,4 +11,6 @@ export { firestoreTimestampSchema } from "./timestamp.ts";
 export type { FirestoreTimestamp } from "./timestamp.ts";
 export { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
 export type { Member } from "./members.ts";
+export { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
+export type { HouseholdMeta } from "./household.ts";
 
