@@ -5,8 +5,21 @@ declare const releaseTagBrand: unique symbol;
 /** A git tag naming a release: `v` followed by the released `PackageVersion`. */
 export type ReleaseTag = string & { readonly [releaseTagBrand]: true };
 
-export function releaseTagFor(version: PackageVersion): ReleaseTag {
-  return `v${version}` as ReleaseTag;
+const RELEASE_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
+
+export function isReleaseTag(value: string): value is ReleaseTag {
+  return RELEASE_TAG_PATTERN.test(value);
+}
+
+export function releaseTag(value: string): ReleaseTag {
+  if (!isReleaseTag(value)) {
+    throw new Error(`Not a release tag (expected v<version>): ${value}`);
+  }
+  return value;
+}
+
+export function tagForVersion(version: PackageVersion): ReleaseTag {
+  return releaseTag(`v${version}`);
 }
 
 /**
@@ -15,8 +28,8 @@ export function releaseTagFor(version: PackageVersion): ReleaseTag {
  */
 export function pendingReleaseTag(
   version: PackageVersion,
-  existingTags: readonly string[],
+  existingTags: readonly ReleaseTag[],
 ): ReleaseTag | null {
-  const tag = releaseTagFor(version);
+  const tag = tagForVersion(version);
   return existingTags.includes(tag) ? null : tag;
 }
