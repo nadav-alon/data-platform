@@ -205,6 +205,16 @@ test("owner-only members: the owner updating a member's doc is accepted", async 
   await assertFixture(fixture, testEnv);
 });
 
+test("owner-only members: the owner's partial update({ email }) that doesn't resend addedAt is accepted", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(memberDocPath(bob)).update({ email: "new@example.com" }),
+  );
+});
+
 test("owner-only members: the owner's set() dropping addedAt from a member's doc is denied", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
