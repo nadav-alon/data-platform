@@ -2,7 +2,7 @@ import { z } from "zod";
 import packageJson from "../../package.json" with { type: "json" };
 import { semver, semverMajor, semverMinor, semverSchema, type Semver } from "./semver.ts";
 
-/** Written by each household deploy; apps compare it against their own version. */
+/** Written by each household deploy; apps check it with `checkPlatform` against the platform version they were built against. */
 export const PLATFORM_DOC_PATH = "meta/platform";
 
 export const platformMetaSchema = z.object({
