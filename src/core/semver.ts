@@ -26,4 +26,9 @@ export function semverMajor(value: Semver): number {
   return Number(value.split(".")[0]);
 }
 
+/** The minor version, e.g. `1` for `2.1.0`. */
+export function semverMinor(value: Semver): number {
+  return Number(value.split(".")[1]);
+}
+
 export { semverSchema };
