@@ -46,12 +46,17 @@ service cloud.firestore {
       return value in ['enough', 'running low', 'out'];
     }
 
+    /** Matches `z.array(z.string().min(1))`. Only the first element's type is checked: rules can't loop over a list. */
+    function isValidBarcodes(value) {
+      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
     /** Matches `itemSchema`: extra fields tolerate additive evolution. */
     function isValidItem(data) {
       return isNonEmptyString(data.name)
         && isState(data.state)
         && (!('brandNote' in data) || data.brandNote is string)
-        && (!('barcodes' in data) || data.barcodes is list);
+        && (!('barcodes' in data) || isValidBarcodes(data.barcodes));
     }
 
     /** Matches `stateHistoryEntrySchema`; `at` must be the server's own commit time. */

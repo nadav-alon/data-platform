@@ -124,6 +124,21 @@ test("collection validation: a Member creating an Item with a state outside the 
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member creating an Item with a non-string barcode is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "Item with a non-string barcode",
+    collection: ITEMS_COLLECTION,
+    schema: itemSchema,
+    doc: { id: "dish-soap", data: { name: "Dish soap", state: "enough", barcodes: [1] } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("isMember() gate: a signed-in non-member creating an Item is denied", async () => {
   await seedHousehold(testEnv, alice);
 
