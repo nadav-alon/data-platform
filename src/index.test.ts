@@ -17,3 +17,13 @@ test("COLLECTION_SCHEMAS merges every Core and Catalogue collection's schema", (
     dataPlatform.catalogue.shopSchema,
   );
 });
+
+test("COLLECTION_SCHEMAS has no key collision between Core and Catalogue", () => {
+  const coreKeys = Object.keys(dataPlatform.core.CORE_COLLECTION_SCHEMAS);
+  const catalogueKeys = Object.keys(dataPlatform.catalogue.CATALOGUE_COLLECTION_SCHEMAS);
+
+  assert.equal(
+    Object.keys(dataPlatform.COLLECTION_SCHEMAS).length,
+    coreKeys.length + catalogueKeys.length,
+  );
+});
