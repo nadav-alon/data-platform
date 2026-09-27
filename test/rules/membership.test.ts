@@ -216,14 +216,19 @@ test("owner-only members: the Owner editing only a Member's email is accepted", 
   );
 });
 
-test("owner-only members: the owner's set() dropping addedAt from a member's doc is denied", async () => {
+test("owner-only members: the Owner's set() dropping addedAt from a Member's doc is denied", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
 
-  const context = testEnv.authenticatedContext(alice);
-  await assertFails(
-    context.firestore().doc(memberDocPath(bob)).set({ email: "new@example.com" }),
-  );
+  const fixture: RulesFixture = {
+    name: "alice's set() on bob's doc drops addedAt",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { email: "new@example.com" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
 });
 
 test("owner-only members: the owner's update() replacing addedAt with a different timestamp is denied", async () => {
