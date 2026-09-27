@@ -1,45 +1,17 @@
-import { after, before, beforeEach, test } from "node:test";
-import { readFileSync } from "node:fs";
-import {
-  assertFails,
-  initializeTestEnvironment,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
+import { test } from "node:test";
+import { assertFails } from "@firebase/rules-unit-testing";
 import { CATALOGUE_ITEMS_COLLECTION, catalogueItemSchema } from "../../src/catalogue/catalogue-item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
+import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 
-let testEnv: RulesTestEnvironment;
-
-before(async () => {
-  const projectId = process.env.GCLOUD_PROJECT;
-  if (!projectId) {
-    throw new Error(
-      "GCLOUD_PROJECT is not set; run this suite through `npm run test:rules`",
-    );
-  }
-
-  testEnv = await initializeTestEnvironment({
-    projectId,
-    firestore: {
-      rules: readFileSync("firestore.rules", "utf8"),
-    },
-  });
-});
-
-beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-after(async () => {
-  await testEnv.cleanup();
-});
+const rulesTestEnv = setupRulesTestEnv();
 
 test("collection validation: a Member creating a CatalogueItem with only the required fields is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem with categoryId and necessity",
@@ -50,11 +22,11 @@ test("collection validation: a Member creating a CatalogueItem with only the req
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a CatalogueItem with a shopId override is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem with a shopId override",
@@ -68,11 +40,11 @@ test("collection validation: a Member creating a CatalogueItem with a shopId ove
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a CatalogueItem with a non-string categoryId is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem with a non-string categoryId",
@@ -83,11 +55,11 @@ test("collection validation: a Member creating a CatalogueItem with a non-string
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a CatalogueItem missing its categoryId is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem missing its categoryId",
@@ -98,11 +70,11 @@ test("collection validation: a Member creating a CatalogueItem missing its categ
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a CatalogueItem with a necessity outside the enum is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem with a necessity outside the Necessity enum",
@@ -113,12 +85,12 @@ test("collection validation: a Member creating a CatalogueItem with a necessity 
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member updating an existing CatalogueItem into a necessity outside the enum is denied", async () => {
-  await seedHousehold(testEnv, alice);
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
       necessity: "essential",
@@ -134,11 +106,11 @@ test("collection validation: a Member updating an existing CatalogueItem into a 
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a CatalogueItem with an empty shopId override is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "CatalogueItem with an empty shopId override",
@@ -152,13 +124,13 @@ test("collection validation: a Member creating a CatalogueItem with an empty sho
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("isMember() gate: a signed-in non-member creating a CatalogueItem is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(uid("mallory"));
+  const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(
     context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",

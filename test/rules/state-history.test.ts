@@ -1,11 +1,5 @@
-import { after, before, beforeEach, test } from "node:test";
-import { readFileSync } from "node:fs";
-import {
-  assertFails,
-  assertSucceeds,
-  initializeTestEnvironment,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
+import { test } from "node:test";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
 import { itemId } from "../../src/core/item.ts";
 import {
@@ -16,39 +10,16 @@ import {
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
+import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 const mallory = uid("mallory");
 const dishSoap = itemId("dish-soap");
 
-let testEnv: RulesTestEnvironment;
-
-before(async () => {
-  const projectId = process.env.GCLOUD_PROJECT;
-  if (!projectId) {
-    throw new Error(
-      "GCLOUD_PROJECT is not set; run this suite through `npm run test:rules`",
-    );
-  }
-
-  testEnv = await initializeTestEnvironment({
-    projectId,
-    firestore: {
-      rules: readFileSync("firestore.rules", "utf8"),
-    },
-  });
-});
-
-beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-after(async () => {
-  await testEnv.cleanup();
-});
+const rulesTestEnv = setupRulesTestEnv();
 
 test("collection validation: a Member creating a State history entry with a state outside the enum is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "State history entry with a state outside the State enum",
@@ -62,11 +33,11 @@ test("collection validation: a Member creating a State history entry with a stat
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a State history entry missing its state is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "State history entry missing its state",
@@ -77,7 +48,7 @@ test("collection validation: a Member creating a State history entry missing its
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 // The next two cases go straight through the emulator, not `assertFixture`: `serverTimestamp()`
@@ -86,9 +57,9 @@ test("collection validation: a Member creating a State history entry missing its
 // field — only the emulator side is deliberately covered here.
 
 test("create-only history: a Member creating a State history entry with the server's own commit time is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(alice);
+  const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertSucceeds(
     context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
@@ -98,9 +69,9 @@ test("create-only history: a Member creating a State history entry with the serv
 });
 
 test("create-only history: a Member creating a State history entry with a client-supplied at is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(alice);
+  const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
     context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
@@ -110,9 +81,9 @@ test("create-only history: a Member creating a State history entry with a client
 });
 
 test("isMember() gate: a signed-in non-member creating a State history entry is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(mallory);
+  const context = rulesTestEnv.env.authenticatedContext(mallory);
   await assertFails(
     context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
@@ -122,29 +93,29 @@ test("isMember() gate: a signed-in non-member creating a State history entry is 
 });
 
 test("create-only history: a Member updating an existing State history entry is denied", async () => {
-  await seedHousehold(testEnv, alice);
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
   });
 
-  const context = testEnv.authenticatedContext(alice);
+  const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
     context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).update({ state: "enough" }),
   );
 });
 
 test("create-only history: a Member deleting an existing State history entry is denied", async () => {
-  await seedHousehold(testEnv, alice);
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
   });
 
-  const context = testEnv.authenticatedContext(alice);
+  const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).delete());
 });

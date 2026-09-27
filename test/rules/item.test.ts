@@ -1,45 +1,17 @@
-import { after, before, beforeEach, test } from "node:test";
-import { readFileSync } from "node:fs";
-import {
-  assertFails,
-  initializeTestEnvironment,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
+import { test } from "node:test";
+import { assertFails } from "@firebase/rules-unit-testing";
 import { ITEMS_COLLECTION, itemSchema } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
+import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 
-let testEnv: RulesTestEnvironment;
-
-before(async () => {
-  const projectId = process.env.GCLOUD_PROJECT;
-  if (!projectId) {
-    throw new Error(
-      "GCLOUD_PROJECT is not set; run this suite through `npm run test:rules`",
-    );
-  }
-
-  testEnv = await initializeTestEnvironment({
-    projectId,
-    firestore: {
-      rules: readFileSync("firestore.rules", "utf8"),
-    },
-  });
-});
-
-beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-after(async () => {
-  await testEnv.cleanup();
-});
+const rulesTestEnv = setupRulesTestEnv();
 
 test("collection validation: a Member creating an Item with only the required fields is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with only name and state",
@@ -50,11 +22,11 @@ test("collection validation: a Member creating an Item with only the required fi
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item with its optional fields set is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with brandNote and barcodes set",
@@ -73,11 +45,11 @@ test("collection validation: a Member creating an Item with its optional fields 
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item with an unknown field is accepted (additive evolution)", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with an unexpected extra field",
@@ -91,11 +63,11 @@ test("collection validation: a Member creating an Item with an unknown field is 
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item with a non-string name is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with a non-string name",
@@ -106,11 +78,11 @@ test("collection validation: a Member creating an Item with a non-string name is
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item missing its name is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item missing its name",
@@ -121,11 +93,11 @@ test("collection validation: a Member creating an Item missing its name is denie
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item with a state outside the enum is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with a state outside the State enum",
@@ -136,12 +108,12 @@ test("collection validation: a Member creating an Item with a state outside the 
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member updating an existing Item into a state outside the enum is denied", async () => {
-  await seedHousehold(testEnv, alice);
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).set({
       name: "Dish soap",
       state: "enough",
@@ -157,11 +129,11 @@ test("collection validation: a Member updating an existing Item into a state out
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating an Item with a non-string barcode is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Item with a non-string barcode",
@@ -172,13 +144,13 @@ test("collection validation: a Member creating an Item with a non-string barcode
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("isMember() gate: a signed-in non-member creating an Item is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(uid("mallory"));
+  const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(
     context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).set({
       name: "Dish soap",

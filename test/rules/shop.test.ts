@@ -1,45 +1,17 @@
-import { after, before, beforeEach, test } from "node:test";
-import { readFileSync } from "node:fs";
-import {
-  assertFails,
-  initializeTestEnvironment,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
+import { test } from "node:test";
+import { assertFails } from "@firebase/rules-unit-testing";
 import { SHOPS_COLLECTION, shopSchema } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
+import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 
-let testEnv: RulesTestEnvironment;
-
-before(async () => {
-  const projectId = process.env.GCLOUD_PROJECT;
-  if (!projectId) {
-    throw new Error(
-      "GCLOUD_PROJECT is not set; run this suite through `npm run test:rules`",
-    );
-  }
-
-  testEnv = await initializeTestEnvironment({
-    projectId,
-    firestore: {
-      rules: readFileSync("firestore.rules", "utf8"),
-    },
-  });
-});
-
-beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-after(async () => {
-  await testEnv.cleanup();
-});
+const rulesTestEnv = setupRulesTestEnv();
 
 test("collection validation: a Member creating a Shop with a name is accepted", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Shop with a name",
@@ -50,11 +22,11 @@ test("collection validation: a Member creating a Shop with a name is accepted", 
     expected: "accept",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a Shop missing its name is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Shop missing its name",
@@ -65,11 +37,11 @@ test("collection validation: a Member creating a Shop missing its name is denied
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member creating a Shop with a non-string name is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
   const fixture: RulesFixture = {
     name: "Shop with a non-string name",
@@ -80,12 +52,12 @@ test("collection validation: a Member creating a Shop with a non-string name is 
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("collection validation: a Member updating an existing Shop with a non-string name is denied", async () => {
-  await seedHousehold(testEnv, alice);
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy" });
   });
 
@@ -98,13 +70,13 @@ test("collection validation: a Member updating an existing Shop with a non-strin
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, rulesTestEnv.env);
 });
 
 test("isMember() gate: a signed-in non-member creating a Shop is denied", async () => {
-  await seedHousehold(testEnv, alice);
+  await seedHousehold(rulesTestEnv.env, alice);
 
-  const context = testEnv.authenticatedContext(uid("mallory"));
+  const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy" }),
   );
