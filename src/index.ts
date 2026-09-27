@@ -4,7 +4,10 @@ import * as catalogue from "./catalogue/index.ts";
 
 export { core, catalogue };
 
-/** Every collection in the platform — Core and Catalogue alike — keyed by its own schema. */
+/**
+ * Every collection in the platform — Core and Catalogue alike — schemas keyed by collection name
+ * (or, for a collection like `meta` whose schema depends on the doc id, its full doc path).
+ */
 export const COLLECTION_SCHEMAS: Record<string, ZodType> = {
   ...core.CORE_COLLECTION_SCHEMAS,
   ...catalogue.CATALOGUE_COLLECTION_SCHEMAS,

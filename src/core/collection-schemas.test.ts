@@ -7,7 +7,7 @@ import { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
 import { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
 import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-history.ts";
 
-test("keys each Core collection by its own schema", () => {
+test("keys each Core collection's schema by its own collection name", () => {
   assert.equal(CORE_COLLECTION_SCHEMAS[ITEMS_COLLECTION], itemSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS[MEMBERS_COLLECTION], memberSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS[STATE_HISTORY_COLLECTION], stateHistoryEntrySchema);
