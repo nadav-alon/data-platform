@@ -99,7 +99,11 @@ service cloud.firestore {
       return isNonEmptyString(data.name);
     }
 
-    /** Matches `memberSchema`'s `email`; `addedAt` is checked separately, per operation. */
+    /**
+     * Matches `memberSchema`'s `email`. `addedAt` isn't checked here: like `stateHistory`'s
+     * `at`, create requires it to be the server's own commit time (see `members/{uid}` below),
+     * and update leaves it alone so an owner editing a member's email needn't resend it.
+     */
     function isValidMember(data) {
       return isNonEmptyString(data.email);
     }
@@ -126,7 +130,9 @@ service cloud.firestore {
       /** A non-member may only `get` their own doc, so they can tell whether they've been added. */
       allow get: if isMember() || isSelf(uid);
       allow list: if isMember();
-      allow create: if (claimsOwnMembership(uid) || isOwner()) && isValidMember(request.resource.data);
+      allow create: if (claimsOwnMembership(uid) || isOwner())
+        && isValidMember(request.resource.data)
+        && request.resource.data.addedAt == request.time;
       /** `addedAt` is set once, on create; an update may not change it. */
       allow update: if isOwner()
         && isValidMember(request.resource.data)

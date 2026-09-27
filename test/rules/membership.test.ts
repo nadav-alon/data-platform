@@ -7,17 +7,12 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { Timestamp } from "firebase/firestore";
+import { serverTimestamp, Timestamp } from "firebase/firestore";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { PLATFORM_DOC_PATH } from "../../src/core/platform.ts";
 import { uid } from "../../src/core/uid.ts";
-import {
-  assertBatchFixture,
-  assertFixture,
-  type RulesBatchFixture,
-  type RulesFixture,
-} from "./fixture.ts";
+import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold, seedMember } from "./seed.ts";
 
 const alice = uid("alice");
@@ -170,26 +165,19 @@ test("members list: a Member's list of members is allowed", async () => {
   await assertSucceeds(context.firestore().collection(MEMBERS_COLLECTION).get());
 });
 
-test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
-  const fixture: RulesBatchFixture = {
-    name: "alice claims the household and her own membership together",
-    docs: [
-      {
-        collection: "meta",
-        id: "household",
-        data: { owner: alice },
-      },
-      {
-        collection: MEMBERS_COLLECTION,
-        id: alice,
-        data: validMemberData,
-      },
-    ],
-    auth: { uid: alice },
-    expected: "accept",
-  };
+// This case goes straight through the emulator, not `assertBatchFixture`: `serverTimestamp()`
+// fails to parse against `memberSchema.addedAt` (see that schema's comment), so there is no
+// accept fixture where zod and the emulator agree on this field.
 
-  await assertBatchFixture(fixture, testEnv);
+test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
+  const context = testEnv.authenticatedContext(alice);
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
+  batch.set(context.firestore().doc(memberDocPath(alice)), {
+    email: "member@example.com",
+    addedAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
 });
 
 test("first-claim bootstrap: creating meta/household without the claimant's own members doc in the same batch is denied", async () => {
@@ -243,18 +231,28 @@ test("isMember() gate: once the household is claimed, a signed-in non-member's w
   );
 });
 
+// This case goes straight through the emulator, not `assertFixture`, for the same reason as the
+// first-claim batch above: `serverTimestamp()` doesn't parse against `memberSchema.addedAt`.
+
 test("owner-only members: the owner adding another member's doc is accepted", async () => {
   await seedHousehold(testEnv, alice);
 
-  const fixture: RulesFixture = {
-    name: "alice adds bob as a Member",
-    collection: MEMBERS_COLLECTION,
-    doc: { id: bob, data: validMemberData },
-    auth: { uid: alice },
-    expected: "accept",
-  };
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(memberDocPath(bob)).set({
+      email: "member@example.com",
+      addedAt: serverTimestamp(),
+    }),
+  );
+});
 
-  await assertFixture(fixture, testEnv);
+test("collection validation: an owner creating a member's doc with a client-supplied addedAt is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set(validMemberData),
+  );
 });
 
 test("owner-only members: a non-owner Member creating another member's doc is denied", async () => {
