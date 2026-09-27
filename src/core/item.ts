@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { barcodeSchema } from "./barcode.ts";
 import { stateSchema } from "./state.ts";
 
 export const ITEMS_COLLECTION = "items";
@@ -23,7 +24,7 @@ export const itemIdSchema = z.string().refine(isItemId, "ItemId must not be empt
 export const itemSchema = z.looseObject({
   name: z.string().min(1),
   brandNote: z.string().optional(),
-  barcodes: z.array(z.string().min(1)).optional(),
+  barcodes: z.array(barcodeSchema).optional(),
   state: stateSchema,
 });
 
