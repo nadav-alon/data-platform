@@ -15,6 +15,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -23,12 +25,10 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Write the service account key
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
-        env:
-          SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: echo "$SERVICE_ACCOUNT_KEY" > "$RUNNER_TEMP/service-account.json"
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
       - name: Deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && format('{0}/service-account.json', runner.temp) || '' }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' && format('{0}/service-account.json', runner.temp) || '' }}
         run: npm run deploy -- --project "${{ inputs.project-id }}"
