@@ -10,11 +10,18 @@ import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-histo
 test("keys each Core collection's schema by its own collection name", () => {
   assert.equal(CORE_COLLECTION_SCHEMAS[ITEMS_COLLECTION], itemSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS[MEMBERS_COLLECTION], memberSchema);
-  assert.equal(CORE_COLLECTION_SCHEMAS[STATE_HISTORY_COLLECTION], stateHistoryEntrySchema);
 });
 
 test("keys meta's two singleton docs by their full doc path, not the bare collection name", () => {
   assert.equal(CORE_COLLECTION_SCHEMAS[HOUSEHOLD_DOC_PATH], householdMetaSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS[PLATFORM_DOC_PATH], platformMetaSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS.meta, undefined);
+});
+
+test("keys stateHistory by its parent Item collection with the Item id wildcarded", () => {
+  assert.equal(
+    CORE_COLLECTION_SCHEMAS[`${ITEMS_COLLECTION}/*/${STATE_HISTORY_COLLECTION}`],
+    stateHistoryEntrySchema,
+  );
+  assert.equal(CORE_COLLECTION_SCHEMAS[STATE_HISTORY_COLLECTION], undefined);
 });

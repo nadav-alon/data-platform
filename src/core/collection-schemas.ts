@@ -6,15 +6,16 @@ import { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
 import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-history.ts";
 
 /**
- * Every Core collection's zod schema, keyed by its collection name. `meta` is the one exception:
- * `household` and `platform` are two singleton docs with unrelated shapes, not many docs sharing
- * one schema, so they're keyed by their full doc path (`HOUSEHOLD_DOC_PATH`, `PLATFORM_DOC_PATH`)
- * instead.
+ * Every Core collection's zod schema, keyed by its collection name. Two exceptions: `meta`'s
+ * `household` and `platform` are singleton docs with unrelated shapes, not many docs sharing one
+ * schema, so they're keyed by their full doc path (`HOUSEHOLD_DOC_PATH`, `PLATFORM_DOC_PATH`)
+ * instead; `stateHistory` is nested under a variable Item id, so it's keyed by its parent's
+ * collection name with the id wildcarded (`${ITEMS_COLLECTION}/*\/${STATE_HISTORY_COLLECTION}`).
  */
 export const CORE_COLLECTION_SCHEMAS: Record<string, ZodType> = {
   [HOUSEHOLD_DOC_PATH]: householdMetaSchema,
   [PLATFORM_DOC_PATH]: platformMetaSchema,
   [ITEMS_COLLECTION]: itemSchema,
   [MEMBERS_COLLECTION]: memberSchema,
-  [STATE_HISTORY_COLLECTION]: stateHistoryEntrySchema,
+  [`${ITEMS_COLLECTION}/*/${STATE_HISTORY_COLLECTION}`]: stateHistoryEntrySchema,
 };

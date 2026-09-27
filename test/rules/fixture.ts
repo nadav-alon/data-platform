@@ -27,16 +27,20 @@ export interface RulesFixtureDoc {
 
 /**
  * The schema a doc is checked against: `${collection}/${id}` first, for a collection like `meta`
- * whose schema depends on the doc id, then `collection`'s own last path segment, so a
- * subcollection nested under a variable parent id (`items/{itemId}/stateHistory`) still resolves
- * regardless of which parent it's under.
+ * whose schema depends on the doc id, then `collection` itself — normalized to
+ * `${parent}/*\/${subcollection}` when it names one doc nested under a variable parent id
+ * (`items/dishSoap/stateHistory`), so the schema map can key the subcollection by its parent's
+ * shape instead of resolving any path that merely ends in a known collection name.
  */
 function schemaFor(
   schemas: Record<string, ZodType>,
   collection: string,
   id: string,
 ): ZodType | undefined {
-  return schemas[`${collection}/${id}`] ?? schemas[collection.split("/").at(-1) ?? collection];
+  const segments = collection.split("/");
+  const normalizedCollection =
+    segments.length === 3 ? `${segments[0]}/*/${segments[2]}` : collection;
+  return schemas[`${collection}/${id}`] ?? schemas[normalizedCollection];
 }
 
 /**
