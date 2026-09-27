@@ -205,10 +205,11 @@ test("owner-only members: the owner updating a member's doc is accepted", async 
   await assertFixture(fixture, testEnv);
 });
 
-test("owner-only members: the owner's partial update({ email }) that doesn't resend addedAt is accepted", async () => {
+test("owner-only members: the Owner editing only a Member's email is accepted", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
 
+  // Not an assertFixture: the fixture always set()s, so a partial update() can't be expressed as one.
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(
     context.firestore().doc(memberDocPath(bob)).update({ email: "new@example.com" }),
