@@ -1,6 +1,6 @@
 import type { ZodType } from "zod";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import type { Uid } from "../../src/core/uid.ts";
+import type { CollectionSchemas, Uid } from "../../src/core/index.ts";
 import { COLLECTION_SCHEMAS } from "../../src/index.ts";
 
 export type RulesVerdict = "accept" | "reject";
@@ -33,7 +33,7 @@ export interface RulesFixtureDoc {
  * shape instead of resolving any path that merely ends in a known collection name.
  */
 function schemaFor(
-  schemas: Record<string, ZodType>,
+  schemas: CollectionSchemas,
   collection: string,
   id: string,
 ): ZodType | undefined {
@@ -81,7 +81,7 @@ export async function assertBatchFixture(
 export async function assertBatchFixtureAgainst(
   fixture: RulesBatchFixture,
   testEnv: RulesTestEnvironment,
-  schemas: Record<string, ZodType>,
+  schemas: CollectionSchemas,
 ): Promise<void> {
   const schemasForDocs = fixture.docs.map((doc) => {
     const schema = schemaFor(schemas, doc.collection, doc.id);
@@ -129,7 +129,7 @@ export async function assertFixture(
 export async function assertFixtureAgainst(
   fixture: RulesFixture,
   testEnv: RulesTestEnvironment,
-  schemas: Record<string, ZodType>,
+  schemas: CollectionSchemas,
 ): Promise<void> {
   const doc: RulesFixtureDoc = {
     collection: fixture.collection,
