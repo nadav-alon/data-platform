@@ -7,14 +7,19 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
-import { ITEMS_COLLECTION } from "../../src/core/item.ts";
-import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "../../src/core/state-history.ts";
+import { itemId } from "../../src/core/item.ts";
+import {
+  stateHistoryCollectionPath,
+  stateHistoryEntryDocPath,
+  stateHistoryEntrySchema,
+} from "../../src/core/state-history.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
 
 const alice = uid("alice");
 const mallory = uid("mallory");
+const dishSoap = itemId("dish-soap");
 
 let testEnv: RulesTestEnvironment;
 
@@ -42,16 +47,12 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-function entryPath(itemId: string, entryId: string): string {
-  return `${ITEMS_COLLECTION}/${itemId}/${STATE_HISTORY_COLLECTION}/${entryId}`;
-}
-
-test("collection validation: a Member creating a stateHistory entry with a state outside the enum is denied", async () => {
+test("collection validation: a Member creating a State history entry with a state outside the enum is denied", async () => {
   await seedHousehold(testEnv, alice);
 
   const fixture: RulesFixture = {
-    name: "stateHistory entry with a state outside the State enum",
-    collection: `${ITEMS_COLLECTION}/dish-soap/${STATE_HISTORY_COLLECTION}`,
+    name: "State history entry with a state outside the State enum",
+    collection: stateHistoryCollectionPath(dishSoap),
     schema: stateHistoryEntrySchema,
     doc: {
       id: "entry-1",
@@ -64,12 +65,12 @@ test("collection validation: a Member creating a stateHistory entry with a state
   await assertFixture(fixture, testEnv);
 });
 
-test("collection validation: a Member creating a stateHistory entry missing its state is denied", async () => {
+test("collection validation: a Member creating a State history entry missing its state is denied", async () => {
   await seedHousehold(testEnv, alice);
 
   const fixture: RulesFixture = {
-    name: "stateHistory entry missing its state",
-    collection: `${ITEMS_COLLECTION}/dish-soap/${STATE_HISTORY_COLLECTION}`,
+    name: "State history entry missing its state",
+    collection: stateHistoryCollectionPath(dishSoap),
     schema: stateHistoryEntrySchema,
     doc: { id: "entry-1", data: { at: { seconds: 1_700_000_000, nanoseconds: 0 } } },
     auth: { uid: alice },
@@ -84,46 +85,46 @@ test("collection validation: a Member creating a stateHistory entry missing its 
 // schema's comment), so there is no accept fixture where zod and the emulator agree on this
 // field — only the emulator side is deliberately covered here.
 
-test("create-only history: a Member creating a stateHistory entry with the server's own commit time is accepted", async () => {
+test("create-only history: a Member creating a State history entry with the server's own commit time is accepted", async () => {
   await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(
-    context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
+    context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: serverTimestamp(),
     }),
   );
 });
 
-test("create-only history: a Member creating a stateHistory entry with a client-supplied at is denied", async () => {
+test("create-only history: a Member creating a State history entry with a client-supplied at is denied", async () => {
   await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(alice);
   await assertFails(
-    context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
+    context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: new Date(),
     }),
   );
 });
 
-test("isMember() gate: a signed-in non-member creating a stateHistory entry is denied", async () => {
+test("isMember() gate: a signed-in non-member creating a State history entry is denied", async () => {
   await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
-    context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
+    context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: serverTimestamp(),
     }),
   );
 });
 
-test("create-only history: a Member updating an existing stateHistory entry is denied", async () => {
+test("create-only history: a Member updating an existing State history entry is denied", async () => {
   await seedHousehold(testEnv, alice);
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
+    await context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
@@ -131,19 +132,19 @@ test("create-only history: a Member updating an existing stateHistory entry is d
 
   const context = testEnv.authenticatedContext(alice);
   await assertFails(
-    context.firestore().doc(entryPath("dish-soap", "entry-1")).update({ state: "enough" }),
+    context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).update({ state: "enough" }),
   );
 });
 
-test("create-only history: a Member deleting an existing stateHistory entry is denied", async () => {
+test("create-only history: a Member deleting an existing State history entry is denied", async () => {
   await seedHousehold(testEnv, alice);
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(entryPath("dish-soap", "entry-1")).set({
+    await context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).set({
       state: "out",
       at: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
   });
 
   const context = testEnv.authenticatedContext(alice);
-  await assertFails(context.firestore().doc(entryPath("dish-soap", "entry-1")).delete());
+  await assertFails(context.firestore().doc(stateHistoryEntryDocPath(dishSoap, "entry-1")).delete());
 });

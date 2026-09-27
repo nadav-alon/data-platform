@@ -1,8 +1,19 @@
 import { z } from "zod";
+import { ITEMS_COLLECTION, type ItemId } from "./item.ts";
 import { stateSchema } from "./state.ts";
 import { firestoreTimestampSchema } from "./timestamp.ts";
 
 export const STATE_HISTORY_COLLECTION = "stateHistory";
+
+/** The stateHistory subcollection under one Item, ready for `collection(db, ...)`. */
+export function stateHistoryCollectionPath(itemId: ItemId): string {
+  return `${ITEMS_COLLECTION}/${itemId}/${STATE_HISTORY_COLLECTION}`;
+}
+
+/** The doc path for one stateHistory entry, ready for `doc(db, ...)`. */
+export function stateHistoryEntryDocPath(itemId: ItemId, entryId: string): string {
+  return `${stateHistoryCollectionPath(itemId)}/${entryId}`;
+}
 
 /**
  * Append-only: entries are only ever created, never updated or deleted.
