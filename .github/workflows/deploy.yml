@@ -1,7 +1,7 @@
 # Lets a Household deploy this repo's firestore.rules and meta/platform to its own Firebase
 # project straight from a fork, with no local toolchain (docs/household-setup.md). Deploying
 # firestore.rules only ever needs FIREBASE_TOKEN or the service account; writing meta/platform
-# is an admin write (scripts/deploy/deploy.ts), so it needs the service account secret.
+# is an Admin SDK write (scripts/deploy/deploy.ts), so it needs the service account secret.
 name: Deploy
 
 on:
