@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOGUE_ITEMS_COLLECTION, catalogueItemSchema } from "./catalogue-item.ts";
+import {
+  CATALOGUE_ITEMS_COLLECTION,
+  catalogueItemDocPath,
+  catalogueItemSchema,
+} from "./catalogue-item.ts";
+import { itemId } from "../core/index.ts";
+import { categoryId } from "./category.ts";
 
 test("accepts a CatalogueItem with only the required fields", () => {
   const catalogueItem = catalogueItemSchema.parse({
@@ -58,4 +64,18 @@ test("rejects an empty shopId override", () => {
 
 test("CATALOGUE_ITEMS_COLLECTION is stable", () => {
   assert.equal(CATALOGUE_ITEMS_COLLECTION, "catalogueItems");
+});
+
+test("doc path", () => {
+  assert.equal(catalogueItemDocPath(itemId("dish-soap")), "catalogueItems/dish-soap");
+});
+
+test("doc path rejects a bare string", () => {
+  // @ts-expect-error a bare string isn't an ItemId
+  catalogueItemDocPath("dish-soap");
+});
+
+test("doc path rejects a CategoryId", () => {
+  // @ts-expect-error a CategoryId isn't an ItemId
+  catalogueItemDocPath(categoryId("medicine"));
 });
