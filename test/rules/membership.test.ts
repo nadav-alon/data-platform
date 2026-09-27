@@ -365,6 +365,64 @@ test("owner-only members: a non-owner Member updating a member's doc is denied",
   );
 });
 
+test("collection validation: an owner creating a member's doc missing its email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "member doc missing email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { addedAt: validMemberData.addedAt } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("collection validation: an owner creating a member's doc with a non-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "member doc with a non-string email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, email: 42 } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("collection validation: an owner updating a member's doc to remove its email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "member doc update missing email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { addedAt: validMemberData.addedAt } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("collection validation: an owner updating a member's doc with a non-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "member doc update with a non-string email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, email: 42 } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("owner-only members: the owner deleting a member's doc is accepted", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);

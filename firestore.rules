@@ -99,6 +99,11 @@ service cloud.firestore {
       return isNonEmptyString(data.name);
     }
 
+    /** Matches `memberSchema`'s `email`; `addedAt` is checked separately, per operation. */
+    function isValidMember(data) {
+      return isNonEmptyString(data.email);
+    }
+
     match /meta/{doc} {
       allow get, list: if isMember();
     }
@@ -121,9 +126,11 @@ service cloud.firestore {
       /** A non-member may only `get` their own doc, so they can tell whether they've been added. */
       allow get: if isMember() || isSelf(uid);
       allow list: if isMember();
-      allow create: if claimsOwnMembership(uid) || isOwner();
+      allow create: if (claimsOwnMembership(uid) || isOwner()) && isValidMember(request.resource.data);
       /** `addedAt` is set once, on create; an update may not change it. */
-      allow update: if isOwner() && request.resource.data.addedAt == resource.data.addedAt;
+      allow update: if isOwner()
+        && isValidMember(request.resource.data)
+        && request.resource.data.addedAt == resource.data.addedAt;
       /**
        * Never the Owner's own doc: meta/household is immutable, so its loss would leave the
        * Household without an Owner for good.
