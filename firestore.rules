@@ -46,9 +46,14 @@ service cloud.firestore {
       return value in ['enough', 'running low', 'out'];
     }
 
-    /** Matches `z.array(z.string().min(1))`. Only the first element's type is checked: rules can't loop over a list. */
+    /** Matches `barcodeSchema`: a GTIN, digits only, length 8, 12, 13 or 14. */
+    function isBarcode(value) {
+      return value is string && value.matches('^([0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$');
+    }
+
+    /** Matches `z.array(barcodeSchema)`. Only the first element's type is checked: rules can't loop over a list. */
     function isValidBarcodes(value) {
-      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+      return value is list && (value.size() == 0 || isBarcode(value[0]));
     }
 
     /** Matches `itemSchema`: extra fields tolerate additive evolution. */
