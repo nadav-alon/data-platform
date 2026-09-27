@@ -83,6 +83,24 @@ test("collection validation: a Member creating a Shop with a non-string name is 
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member updating an existing Shop with a non-string name is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy" });
+  });
+
+  const fixture: RulesFixture = {
+    name: "Shop update with a non-string name",
+    collection: SHOPS_COLLECTION,
+    schema: shopSchema,
+    doc: { id: "pharmacy", data: { name: 123 } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("isMember() gate: a signed-in non-member creating a Shop is denied", async () => {
   await seedHousehold(testEnv, alice);
 

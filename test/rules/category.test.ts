@@ -68,6 +68,27 @@ test("collection validation: a Member creating a Category missing its defaultSho
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member updating an existing Category to remove its defaultShopId is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).set({
+      name: "Medicine",
+      defaultShopId: "pharmacy",
+    });
+  });
+
+  const fixture: RulesFixture = {
+    name: "Category update missing its defaultShopId",
+    collection: CATEGORIES_COLLECTION,
+    schema: categorySchema,
+    doc: { id: "medicine", data: { name: "Medicine" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating a Category with an empty name is denied", async () => {
   await seedHousehold(testEnv, alice);
 

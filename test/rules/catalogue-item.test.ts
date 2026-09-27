@@ -101,6 +101,27 @@ test("collection validation: a Member creating a CatalogueItem with a necessity 
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member updating an existing CatalogueItem into a necessity outside the enum is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const fixture: RulesFixture = {
+    name: "CatalogueItem update with a necessity outside the Necessity enum",
+    collection: CATALOGUE_ITEMS_COLLECTION,
+    schema: catalogueItemSchema,
+    doc: { id: "dish-soap", data: { categoryId: "cleaning", necessity: "nice to have" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating a CatalogueItem with an empty shopId override is denied", async () => {
   await seedHousehold(testEnv, alice);
 

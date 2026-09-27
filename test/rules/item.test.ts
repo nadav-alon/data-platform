@@ -124,6 +124,27 @@ test("collection validation: a Member creating an Item with a state outside the 
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member updating an existing Item into a state outside the enum is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).set({
+      name: "Dish soap",
+      state: "enough",
+    });
+  });
+
+  const fixture: RulesFixture = {
+    name: "Item update with a state outside the State enum",
+    collection: ITEMS_COLLECTION,
+    schema: itemSchema,
+    doc: { id: "dish-soap", data: { name: "Dish soap", state: "almost gone" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating an Item with a non-string barcode is denied", async () => {
   await seedHousehold(testEnv, alice);
 
