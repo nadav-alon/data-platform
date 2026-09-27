@@ -58,21 +58,37 @@ export interface RulesBatchFixture {
  *
  * Each doc's schema is resolved from its own `collection` (see `schemaFor`), so a fixture can't
  * drift onto another collection's validator. An unknown collection fails the same way, naming the
- * fixture. `schemas` defaults to the platform's real `COLLECTION_SCHEMAS`; tests of the harness
- * itself may override it with a scratch map.
+ * fixture, for every doc in the batch — resolved up front, before any doc is checked against zod,
+ * so one doc failing zod can't short-circuit the unknown-collection check for a later doc.
  */
 export async function assertBatchFixture(
   fixture: RulesBatchFixture,
   testEnv: RulesTestEnvironment,
-  schemas: Record<string, ZodType> = COLLECTION_SCHEMAS,
 ): Promise<void> {
-  const zodVerdict: RulesVerdict = fixture.docs.every((doc) => {
+  await assertBatchFixtureAgainst(fixture, testEnv, COLLECTION_SCHEMAS);
+}
+
+/**
+ * Like `assertBatchFixture`, but checked against `schemas` instead of the platform's real
+ * `COLLECTION_SCHEMAS`. Exists so `fixture.test.ts` can exercise the harness itself against a
+ * scratch map; every other rules test should use `assertBatchFixture`/`assertFixture` so a
+ * fixture can't drift onto another collection's validator by supplying its own map.
+ */
+export async function assertBatchFixtureAgainst(
+  fixture: RulesBatchFixture,
+  testEnv: RulesTestEnvironment,
+  schemas: Record<string, ZodType>,
+): Promise<void> {
+  const schemasForDocs = fixture.docs.map((doc) => {
     const schema = schemaFor(schemas, doc.collection, doc.id);
     if (schema === undefined) {
       throw new Error(`fixture "${fixture.name}": unknown collection "${doc.collection}"`);
     }
-    return schema.safeParse(doc.data).success;
-  })
+    return { doc, schema };
+  });
+  const zodVerdict: RulesVerdict = schemasForDocs.every(({ doc, schema }) =>
+    schema.safeParse(doc.data).success,
+  )
     ? "accept"
     : "reject";
 
@@ -101,7 +117,15 @@ export async function assertBatchFixture(
 export async function assertFixture(
   fixture: RulesFixture,
   testEnv: RulesTestEnvironment,
-  schemas: Record<string, ZodType> = COLLECTION_SCHEMAS,
+): Promise<void> {
+  await assertFixtureAgainst(fixture, testEnv, COLLECTION_SCHEMAS);
+}
+
+/** The single-doc case of `assertBatchFixtureAgainst`, with the same contract. */
+export async function assertFixtureAgainst(
+  fixture: RulesFixture,
+  testEnv: RulesTestEnvironment,
+  schemas: Record<string, ZodType>,
 ): Promise<void> {
   const doc: RulesFixtureDoc = {
     collection: fixture.collection,
@@ -109,7 +133,7 @@ export async function assertFixture(
     data: fixture.doc.data,
   };
 
-  await assertBatchFixture(
+  await assertBatchFixtureAgainst(
     { name: fixture.name, docs: [doc], auth: fixture.auth, expected: fixture.expected },
     testEnv,
     schemas,

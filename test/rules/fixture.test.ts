@@ -7,7 +7,12 @@ import {
 } from "@firebase/rules-unit-testing";
 import { z } from "zod";
 import { uid } from "../../src/core/uid.ts";
-import { assertFixture, type RulesFixture } from "./fixture.ts";
+import {
+  assertBatchFixtureAgainst,
+  assertFixtureAgainst,
+  type RulesBatchFixture,
+  type RulesFixture,
+} from "./fixture.ts";
 
 const alice = uid("alice");
 
@@ -51,7 +56,7 @@ test("passes a fixture zod and the emulator both reject", async () => {
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv, scratchSchemas);
+  await assertFixtureAgainst(fixture, testEnv, scratchSchemas);
 });
 
 test("fails naming the fixture when the emulator disagrees with the expected verdict", async () => {
@@ -67,7 +72,7 @@ test("fails naming the fixture when the emulator disagrees with the expected ver
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, testEnv, scratchSchemas),
+    () => assertFixtureAgainst(fixture, testEnv, scratchSchemas),
     /widget accepted by zod but denied by firestore\.rules/,
   );
 });
@@ -82,7 +87,7 @@ test("fails naming the fixture when zod and rules agree, but not with the expect
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, testEnv, scratchSchemas),
+    () => assertFixtureAgainst(fixture, testEnv, scratchSchemas),
     /widget missing its name is expected to be accepted/,
   );
 });
@@ -97,7 +102,28 @@ test("fails naming the fixture when its collection isn't in the schema map", asy
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, testEnv, scratchSchemas),
+    () => assertFixtureAgainst(fixture, testEnv, scratchSchemas),
     /gizmo written to a collection nothing validates.*unknown collection "gizmos"/,
+  );
+});
+
+test("fails naming a batch fixture's unknown collection even when an earlier doc already fails zod", async () => {
+  // If the unknown-collection check only ran inside a short-circuiting `every`, the widget
+  // doc's zod failure would stop the batch before the gizmo doc's collection was ever looked
+  // up, and this fixture would land on the same "reject" verdict it expects — passing silently
+  // instead of naming the unknown collection.
+  const fixture: RulesBatchFixture = {
+    name: "widget invalid doc followed by an unknown-collection doc",
+    docs: [
+      { collection: "widgets", id: "w1", data: {} },
+      { collection: "gizmos", id: "g1", data: { name: "gizmo" } },
+    ],
+    auth: null,
+    expected: "reject",
+  };
+
+  await assert.rejects(
+    () => assertBatchFixtureAgainst(fixture, testEnv, scratchSchemas),
+    /unknown collection "gizmos"/,
   );
 });
