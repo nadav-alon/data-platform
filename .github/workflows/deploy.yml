@@ -31,4 +31,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' && format('{0}/service-account.json', runner.temp) || '' }}
-        run: npm run deploy -- --project "${{ inputs.project-id }}"
+          PROJECT_ID: ${{ inputs.project-id }}
+        run: npm run deploy -- --project "$PROJECT_ID"
