@@ -9,6 +9,5 @@ carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
 
 Pushing to `main` without a version change tags nothing, so merging anything else is safe.
 
-(The first push after this Action landed bootstrapped `v0.0.0`, since `package.json` was already at
-`0.0.0` with no tag yet for it. That has already happened; every push since then follows the rule
-above with no exception.)
+The `v0.0.0` tag came from the Release Action's first run, since `package.json` was already at
+`0.0.0` with no tag for it.
