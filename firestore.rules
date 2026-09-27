@@ -95,7 +95,7 @@ service cloud.firestore {
     }
 
     match /meta/platform {
-      // TODO[#9]: household deploy writes this.
+      /** Written by household deploy using admin credentials, which bypass this rule entirely. */
       allow write: if false;
     }
 
