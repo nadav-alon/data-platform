@@ -33,13 +33,13 @@ service cloud.firestore {
     }
 
     /** Whether `uid` is recorded as the Household's owner in `meta/household`. */
-    function isHouseholdOwner(uid) {
+    function isRecordedOwner(uid) {
       return get(/databases/$(database)/documents/meta/household).data.owner == uid;
     }
 
     /** The Member who claimed the Household; same data access as any Member. */
     function isOwner() {
-      return isMember() && isHouseholdOwner(request.auth.uid);
+      return isMember() && isRecordedOwner(request.auth.uid);
     }
 
     function isNonEmptyString(value) {
@@ -112,8 +112,8 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if claimsOwnMembership(uid) || isOwner();
       allow update: if isOwner();
-      /** The Owner's own doc is never deletable — see isHouseholdOwner(). */
-      allow delete: if isOwner() && !isHouseholdOwner(uid);
+      /** The Owner's own doc is never deletable — see isRecordedOwner(). */
+      allow delete: if isOwner() && !isRecordedOwner(uid);
     }
 
     match /items/{itemId} {
