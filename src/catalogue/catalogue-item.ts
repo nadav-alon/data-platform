@@ -7,7 +7,7 @@ import { shopIdSchema } from "./shop.ts";
 export const CATALOGUE_ITEMS_COLLECTION = "catalogueItems";
 
 /**
- * Keyed by {@link ItemId}. `shopId`, when set, overrides the Category's default.
+ * Keyed by the Core Item's {@link ItemId}. `shopId`, when set, overrides the Category's default.
  */
 export const catalogueItemSchema = z.looseObject({
   categoryId: categoryIdSchema,
