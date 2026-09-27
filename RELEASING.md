@@ -7,7 +7,8 @@ commit made just for it. The version must be `major.minor.patch`: no pre-release
 Apps pin a release with `npm install github:nadav-alon/data-platform#v<version>`; only those tags
 carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
 
-Pushing to `main` without a version change tags nothing, so merging anything else is safe. The one
-exception is the first push after this Action lands: `package.json` is already at `0.0.0` with no
-tag yet for it, so that push bootstraps a `v0.0.0` release ahead of the first intentional version
-bump.
+Pushing to `main` without a version change tags nothing, so merging anything else is safe.
+
+(The first push after this Action landed bootstrapped `v0.0.0`, since `package.json` was already at
+`0.0.0` with no tag yet for it. That has already happened; every push since then follows the rule
+above with no exception.)
