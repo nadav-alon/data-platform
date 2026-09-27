@@ -253,6 +253,21 @@ test("owner-only members: the owner's update() replacing addedAt with a non-time
   );
 });
 
+test("owner-only members: the owner's set() replacing addedAt with a non-timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "alice's set() on bob's doc replaces addedAt with a non-timestamp",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, addedAt: "x" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("owner-only members: a non-owner Member updating a member's doc is denied", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
