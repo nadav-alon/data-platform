@@ -51,7 +51,7 @@ service cloud.firestore {
       return value is string && value.matches('^([0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$');
     }
 
-    /** Matches `z.array(barcodeSchema)`. Only the first element's type is checked: rules can't loop over a list. */
+    /** Matches `z.array(barcodeSchema)`. Only the first element is checked: rules can't loop over a list. */
     function isValidBarcodes(value) {
       return value is list && (value.size() == 0 || isBarcode(value[0]));
     }
