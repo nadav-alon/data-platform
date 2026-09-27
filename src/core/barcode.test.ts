@@ -23,6 +23,23 @@ test("rejects a length between the accepted lengths", () => {
   assert.equal(isBarcode("123456789"), false);
 });
 
+test("rejects a length on the other side of the gap between accepted lengths", () => {
+  assert.equal(isBarcode("12345678901"), false);
+});
+
+test("rejects a length below the minimum", () => {
+  assert.equal(isBarcode("1234567"), false);
+});
+
+test("rejects a length above the maximum", () => {
+  assert.equal(isBarcode("123456789012345"), false);
+});
+
+test("rejects leading or trailing whitespace", () => {
+  assert.equal(isBarcode(" 12345670"), false);
+  assert.equal(isBarcode("12345670 "), false);
+});
+
 test("rejects a non-digit character", () => {
   assert.equal(isBarcode("01234567890a"), false);
 });
