@@ -3,6 +3,8 @@ export * from "./item.ts";
 export * from "./state-history.ts";
 export { isBarcode, barcode, barcodeSchema } from "./barcode.ts";
 export type { Barcode } from "./barcode.ts";
+export { CORE_COLLECTION_SCHEMAS } from "./collection-schemas.ts";
+export type { CollectionSchemas } from "./collection-schemas.ts";
 export { isUid, uid, uidSchema } from "./uid.ts";
 export type { Uid } from "./uid.ts";
 export { isEmail, email, emailSchema } from "./email.ts";

@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import type { Uid } from "../../src/core/uid.ts";
+import type { CollectionSchemas, Uid } from "../../src/core/index.ts";
+import { COLLECTION_SCHEMAS } from "../../src/index.ts";
 
 export type RulesVerdict = "accept" | "reject";
 
@@ -12,7 +13,6 @@ export type RulesVerdict = "accept" | "reject";
 export interface RulesFixture {
   readonly name: string;
   readonly collection: string;
-  readonly schema: ZodType;
   readonly doc: { readonly id: string; readonly data: Record<string, unknown> };
   readonly auth: { readonly uid: Uid } | null;
   readonly expected: RulesVerdict;
@@ -22,8 +22,25 @@ export interface RulesFixture {
 export interface RulesFixtureDoc {
   readonly collection: string;
   readonly id: string;
-  readonly schema: ZodType;
   readonly data: Record<string, unknown>;
+}
+
+/**
+ * The schema a doc is checked against: `${collection}/${id}` first, for a collection like `meta`
+ * whose schema depends on the doc id, then `collection` itself — normalized to
+ * `${parent}/*\/${subcollection}` when it names one doc nested under a variable parent id
+ * (`items/dishSoap/stateHistory`), so the schema map can key the subcollection by its parent's
+ * shape instead of resolving any path that merely ends in a known collection name.
+ */
+function schemaFor(
+  schemas: CollectionSchemas,
+  collection: string,
+  id: string,
+): ZodType | undefined {
+  const segments = collection.split("/");
+  const normalizedCollection =
+    segments.length === 3 ? `${segments[0]}/*/${segments[2]}` : collection;
+  return schemas[`${collection}/${id}`] ?? schemas[normalizedCollection];
 }
 
 /**
@@ -42,13 +59,39 @@ export interface RulesBatchFixture {
  * Fails naming `fixture.name` and both verdicts once either side stops
  * agreeing with `fixture.expected`, so a mistyped fixture (rules agree with
  * zod) can be told apart from real drift (rules and zod disagree).
+ *
+ * Each doc's schema is resolved from its own `collection` (see `schemaFor`), so a fixture can't
+ * drift onto another collection's validator. An unknown collection fails the same way, naming the
+ * fixture, for every doc in the batch — resolved up front, before any doc is checked against zod,
+ * so one doc failing zod can't short-circuit the unknown-collection check for a later doc.
  */
 export async function assertBatchFixture(
   fixture: RulesBatchFixture,
   testEnv: RulesTestEnvironment,
 ): Promise<void> {
-  const zodVerdict: RulesVerdict = fixture.docs.every(
-    (doc) => doc.schema.safeParse(doc.data).success,
+  await assertBatchFixtureAgainst(fixture, testEnv, COLLECTION_SCHEMAS);
+}
+
+/**
+ * Like `assertBatchFixture`, but checked against `schemas` instead of the platform's real
+ * `COLLECTION_SCHEMAS`. Exists so `fixture.test.ts` can exercise the harness itself against a
+ * scratch map; every other rules test should use `assertBatchFixture`/`assertFixture` so a
+ * fixture can't drift onto another collection's validator by supplying its own map.
+ */
+export async function assertBatchFixtureAgainst(
+  fixture: RulesBatchFixture,
+  testEnv: RulesTestEnvironment,
+  schemas: CollectionSchemas,
+): Promise<void> {
+  const schemasForDocs = fixture.docs.map((doc) => {
+    const schema = schemaFor(schemas, doc.collection, doc.id);
+    if (schema === undefined) {
+      throw new Error(`fixture "${fixture.name}": unknown collection "${doc.collection}"`);
+    }
+    return { doc, schema };
+  });
+  const zodVerdict: RulesVerdict = schemasForDocs.every(({ doc, schema }) =>
+    schema.safeParse(doc.data).success,
   )
     ? "accept"
     : "reject";
@@ -79,15 +122,24 @@ export async function assertFixture(
   fixture: RulesFixture,
   testEnv: RulesTestEnvironment,
 ): Promise<void> {
+  await assertFixtureAgainst(fixture, testEnv, COLLECTION_SCHEMAS);
+}
+
+/** The single-doc case of `assertBatchFixtureAgainst`, with the same contract. */
+export async function assertFixtureAgainst(
+  fixture: RulesFixture,
+  testEnv: RulesTestEnvironment,
+  schemas: CollectionSchemas,
+): Promise<void> {
   const doc: RulesFixtureDoc = {
     collection: fixture.collection,
     id: fixture.doc.id,
-    schema: fixture.schema,
     data: fixture.doc.data,
   };
 
-  await assertBatchFixture(
+  await assertBatchFixtureAgainst(
     { name: fixture.name, docs: [doc], auth: fixture.auth, expected: fixture.expected },
     testEnv,
+    schemas,
   );
 }

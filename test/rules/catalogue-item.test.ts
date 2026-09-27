@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails } from "@firebase/rules-unit-testing";
-import { CATALOGUE_ITEMS_COLLECTION, catalogueItemSchema } from "../../src/catalogue/catalogue-item.ts";
+import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
@@ -16,7 +16,6 @@ test("collection validation: a Member creating a CatalogueItem with only the req
   const fixture: RulesFixture = {
     name: "CatalogueItem with categoryId and necessity",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: { id: "dish-soap", data: { categoryId: "cleaning", necessity: "essential" } },
     auth: { uid: alice },
     expected: "accept",
@@ -31,7 +30,6 @@ test("collection validation: a Member creating a CatalogueItem with a shopId ove
   const fixture: RulesFixture = {
     name: "CatalogueItem with a shopId override",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: {
       id: "dish-soap",
       data: { categoryId: "cleaning", necessity: "essential", shopId: "grocery" },
@@ -49,7 +47,6 @@ test("collection validation: a Member creating a CatalogueItem with a non-string
   const fixture: RulesFixture = {
     name: "CatalogueItem with a non-string categoryId",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: { id: "dish-soap", data: { categoryId: 42, necessity: "essential" } },
     auth: { uid: alice },
     expected: "reject",
@@ -64,7 +61,6 @@ test("collection validation: a Member creating a CatalogueItem missing its categ
   const fixture: RulesFixture = {
     name: "CatalogueItem missing its categoryId",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: { id: "dish-soap", data: { necessity: "essential" } },
     auth: { uid: alice },
     expected: "reject",
@@ -79,7 +75,6 @@ test("collection validation: a Member creating a CatalogueItem with a necessity 
   const fixture: RulesFixture = {
     name: "CatalogueItem with a necessity outside the Necessity enum",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: { id: "dish-soap", data: { categoryId: "cleaning", necessity: "nice to have" } },
     auth: { uid: alice },
     expected: "reject",
@@ -100,7 +95,6 @@ test("collection validation: a Member updating an existing CatalogueItem into a 
   const fixture: RulesFixture = {
     name: "CatalogueItem update with a necessity outside the Necessity enum",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: { id: "dish-soap", data: { categoryId: "cleaning", necessity: "nice to have" } },
     auth: { uid: alice },
     expected: "reject",
@@ -115,7 +109,6 @@ test("collection validation: a Member creating a CatalogueItem with an empty sho
   const fixture: RulesFixture = {
     name: "CatalogueItem with an empty shopId override",
     collection: CATALOGUE_ITEMS_COLLECTION,
-    schema: catalogueItemSchema,
     doc: {
       id: "dish-soap",
       data: { categoryId: "cleaning", necessity: "essential", shopId: "" },

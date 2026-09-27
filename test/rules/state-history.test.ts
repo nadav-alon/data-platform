@@ -5,7 +5,6 @@ import { itemId } from "../../src/core/item.ts";
 import {
   stateHistoryCollectionPath,
   stateHistoryEntryDocPath,
-  stateHistoryEntrySchema,
 } from "../../src/core/state-history.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
@@ -24,7 +23,6 @@ test("collection validation: a Member creating a State history entry with a stat
   const fixture: RulesFixture = {
     name: "State history entry with a state outside the State enum",
     collection: stateHistoryCollectionPath(dishSoap),
-    schema: stateHistoryEntrySchema,
     doc: {
       id: "entry-1",
       data: { state: "almost gone", at: { seconds: 1_700_000_000, nanoseconds: 0 } },
@@ -42,7 +40,6 @@ test("collection validation: a Member creating a State history entry missing its
   const fixture: RulesFixture = {
     name: "State history entry missing its state",
     collection: stateHistoryCollectionPath(dishSoap),
-    schema: stateHistoryEntrySchema,
     doc: { id: "entry-1", data: { at: { seconds: 1_700_000_000, nanoseconds: 0 } } },
     auth: { uid: alice },
     expected: "reject",

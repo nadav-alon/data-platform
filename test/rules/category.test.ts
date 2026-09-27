@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails } from "@firebase/rules-unit-testing";
-import { CATEGORIES_COLLECTION, categorySchema } from "../../src/catalogue/category.ts";
+import { CATEGORIES_COLLECTION } from "../../src/catalogue/category.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
@@ -16,7 +16,6 @@ test("collection validation: a Member creating a Category with a name and defaul
   const fixture: RulesFixture = {
     name: "Category with name and defaultShopId",
     collection: CATEGORIES_COLLECTION,
-    schema: categorySchema,
     doc: { id: "medicine", data: { name: "Medicine", defaultShopId: "pharmacy" } },
     auth: { uid: alice },
     expected: "accept",
@@ -31,7 +30,6 @@ test("collection validation: a Member creating a Category with a non-string name
   const fixture: RulesFixture = {
     name: "Category with a non-string name",
     collection: CATEGORIES_COLLECTION,
-    schema: categorySchema,
     doc: { id: "medicine", data: { name: 42, defaultShopId: "pharmacy" } },
     auth: { uid: alice },
     expected: "reject",
@@ -46,7 +44,6 @@ test("collection validation: a Member creating a Category missing its defaultSho
   const fixture: RulesFixture = {
     name: "Category missing its defaultShopId",
     collection: CATEGORIES_COLLECTION,
-    schema: categorySchema,
     doc: { id: "medicine", data: { name: "Medicine" } },
     auth: { uid: alice },
     expected: "reject",
@@ -67,7 +64,6 @@ test("collection validation: a Member updating an existing Category to remove it
   const fixture: RulesFixture = {
     name: "Category update missing its defaultShopId",
     collection: CATEGORIES_COLLECTION,
-    schema: categorySchema,
     doc: { id: "medicine", data: { name: "Medicine" } },
     auth: { uid: alice },
     expected: "reject",
@@ -82,7 +78,6 @@ test("collection validation: a Member creating a Category with an empty name is 
   const fixture: RulesFixture = {
     name: "Category with an empty name",
     collection: CATEGORIES_COLLECTION,
-    schema: categorySchema,
     doc: { id: "medicine", data: { name: "", defaultShopId: "pharmacy" } },
     auth: { uid: alice },
     expected: "reject",

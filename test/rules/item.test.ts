@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails } from "@firebase/rules-unit-testing";
-import { ITEMS_COLLECTION, itemSchema } from "../../src/core/item.ts";
+import { ITEMS_COLLECTION } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
@@ -16,7 +16,6 @@ test("collection validation: a Member creating an Item with only the required fi
   const fixture: RulesFixture = {
     name: "Item with only name and state",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: "Dish soap", state: "enough" } },
     auth: { uid: alice },
     expected: "accept",
@@ -31,7 +30,6 @@ test("collection validation: a Member creating an Item with its optional fields 
   const fixture: RulesFixture = {
     name: "Item with brandNote and barcodes set",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: {
       id: "dish-soap",
       data: {
@@ -54,7 +52,6 @@ test("collection validation: a Member creating an Item with an unknown field is 
   const fixture: RulesFixture = {
     name: "Item with an unexpected extra field",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: {
       id: "dish-soap",
       data: { name: "Dish soap", state: "enough", unexpected: true },
@@ -72,7 +69,6 @@ test("collection validation: a Member creating an Item with a non-string name is
   const fixture: RulesFixture = {
     name: "Item with a non-string name",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: 42, state: "enough" } },
     auth: { uid: alice },
     expected: "reject",
@@ -87,7 +83,6 @@ test("collection validation: a Member creating an Item missing its name is denie
   const fixture: RulesFixture = {
     name: "Item missing its name",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { state: "enough" } },
     auth: { uid: alice },
     expected: "reject",
@@ -102,7 +97,6 @@ test("collection validation: a Member creating an Item with a state outside the 
   const fixture: RulesFixture = {
     name: "Item with a state outside the State enum",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: "Dish soap", state: "almost gone" } },
     auth: { uid: alice },
     expected: "reject",
@@ -123,7 +117,6 @@ test("collection validation: a Member updating an existing Item into a state out
   const fixture: RulesFixture = {
     name: "Item update with a state outside the State enum",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: "Dish soap", state: "almost gone" } },
     auth: { uid: alice },
     expected: "reject",
@@ -138,7 +131,6 @@ test("collection validation: a Member creating an Item with a non-string barcode
   const fixture: RulesFixture = {
     name: "Item with a non-string barcode",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: "Dish soap", state: "enough", barcodes: [1] } },
     auth: { uid: alice },
     expected: "reject",
@@ -153,7 +145,6 @@ test("collection validation: a Member creating an Item with a barcode that isn't
   const fixture: RulesFixture = {
     name: "Item with a barcode that isn't a GTIN",
     collection: ITEMS_COLLECTION,
-    schema: itemSchema,
     doc: { id: "dish-soap", data: { name: "Dish soap", state: "enough", barcodes: ["dish soap"] } },
     auth: { uid: alice },
     expected: "reject",
