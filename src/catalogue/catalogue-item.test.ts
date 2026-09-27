@@ -66,16 +66,16 @@ test("CATALOGUE_ITEMS_COLLECTION is stable", () => {
   assert.equal(CATALOGUE_ITEMS_COLLECTION, "catalogueItems");
 });
 
-test("doc path", () => {
+test("catalogueItemDocPath keys the doc by its ItemId", () => {
   assert.equal(catalogueItemDocPath(itemId("dish-soap")), "catalogueItems/dish-soap");
 });
 
-test("doc path rejects a bare string", () => {
+test("catalogueItemDocPath rejects a bare string", () => {
   // @ts-expect-error a bare string isn't an ItemId
   catalogueItemDocPath("dish-soap");
 });
 
-test("doc path rejects a CategoryId", () => {
+test("catalogueItemDocPath rejects a CategoryId", () => {
   // @ts-expect-error a CategoryId isn't an ItemId
   catalogueItemDocPath(categoryId("medicine"));
 });
