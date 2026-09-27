@@ -1,6 +1,5 @@
 rules_version = '2';
 
-// TODO[#7]: add per-collection validation matching this repo's zod schemas.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
@@ -39,6 +38,53 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
     }
 
+    function isNonEmptyString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    function isState(value) {
+      return value in ['enough', 'running low', 'out'];
+    }
+
+    /** Matches `z.array(z.string().min(1))`. Only the first element's type is checked: rules can't loop over a list. */
+    function isValidBarcodes(value) {
+      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
+    /** Matches `itemSchema`: extra fields tolerate additive evolution. */
+    function isValidItem(data) {
+      return isNonEmptyString(data.name)
+        && isState(data.state)
+        && (!('brandNote' in data) || data.brandNote is string)
+        && (!('barcodes' in data) || isValidBarcodes(data.barcodes));
+    }
+
+    /** Matches `stateHistoryEntrySchema`; `at` must be the server's own commit time. */
+    function isValidStateHistoryEntry(data) {
+      return isState(data.state) && data.at == request.time;
+    }
+
+    function isNecessity(value) {
+      return value in ['essential', 'important', 'optional'];
+    }
+
+    /** Matches `catalogueItemSchema`. */
+    function isValidCatalogueItem(data) {
+      return isNonEmptyString(data.categoryId)
+        && isNecessity(data.necessity)
+        && (!('shopId' in data) || isNonEmptyString(data.shopId));
+    }
+
+    /** Matches `categorySchema`. */
+    function isValidCategory(data) {
+      return isNonEmptyString(data.name) && isNonEmptyString(data.defaultShopId);
+    }
+
+    /** Matches `shopSchema`. */
+    function isValidShop(data) {
+      return isNonEmptyString(data.name);
+    }
+
     match /meta/{doc} {
       allow read: if isMember();
     }
@@ -57,6 +103,36 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if claimsOwnMembership(uid) || isOwner();
       allow update, delete: if isOwner();
+    }
+
+    match /items/{itemId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidItem(request.resource.data);
+      allow delete: if isMember();
+
+      match /stateHistory/{entryId} {
+        allow read: if isMember();
+        allow create: if isMember() && isValidStateHistoryEntry(request.resource.data);
+        allow update, delete: if false;
+      }
+    }
+
+    match /catalogueItems/{itemId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidCatalogueItem(request.resource.data);
+      allow delete: if isMember();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidCategory(request.resource.data);
+      allow delete: if isMember();
+    }
+
+    match /shops/{shopId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && isValidShop(request.resource.data);
+      allow delete: if isMember();
     }
 
     match /{document=**} {

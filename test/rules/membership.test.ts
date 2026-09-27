@@ -8,13 +8,14 @@ import {
 } from "@firebase/rules-unit-testing";
 import { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath, memberSchema } from "../../src/core/members.ts";
-import { uid, type Uid } from "../../src/core/uid.ts";
+import { uid } from "../../src/core/uid.ts";
 import {
   assertBatchFixture,
   assertFixture,
   type RulesBatchFixture,
   type RulesFixture,
 } from "./fixture.ts";
+import { seedHousehold, seedMember } from "./seed.ts";
 
 const alice = uid("alice");
 const bob = uid("bob");
@@ -52,21 +53,6 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-/** Seeds `members/{uid}` directly, bypassing rules, so a test can assume a Member exists. */
-async function seedMember(memberUid: Uid): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(memberDocPath(memberUid)).set(validMemberData);
-  });
-}
-
-/** Seeds a claimed Household directly, bypassing rules, so a test can start post-bootstrap. */
-async function seedHousehold(owner: Uid): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(HOUSEHOLD_DOC_PATH).set({ owner });
-  });
-  await seedMember(owner);
-}
-
 test("isMember() gate: an unauthenticated read of meta/household is denied", async () => {
   const context = testEnv.unauthenticatedContext();
   await assertFails(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
@@ -78,7 +64,7 @@ test("isMember() gate: a signed-in non-member's read of meta/household is denied
 });
 
 test("isMember() gate: a Member's read of meta/household is allowed", async () => {
-  await seedMember(alice);
+  await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
 });
@@ -89,20 +75,20 @@ test("isMember() gate: a signed-in non-member's read of meta/platform is denied"
 });
 
 test("isMember() gate: a Member's read of meta/platform is allowed", async () => {
-  await seedMember(alice);
+  await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(context.firestore().doc("meta/platform").get());
 });
 
 test("isMember() gate: a signed-in non-member's read of another uid's members doc is denied", async () => {
-  await seedMember(alice);
+  await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(context.firestore().doc(memberDocPath(alice)).get());
 });
 
 test("isMember() gate: a Member's read of another Member's doc is allowed", async () => {
-  await seedMember(alice);
-  await seedMember(bob);
+  await seedMember(testEnv, alice);
+  await seedMember(testEnv, bob);
   const context = testEnv.authenticatedContext(bob);
   await assertSucceeds(context.firestore().doc(memberDocPath(alice)).get());
 });
@@ -146,7 +132,7 @@ test("first-claim bootstrap: creating a members doc without meta/household in th
 });
 
 test("first-claim bootstrap: once meta/household exists, a second user can't claim it", async () => {
-  await seedHousehold(alice);
+  await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(mallory);
   const batch = context.firestore().batch();
@@ -156,7 +142,7 @@ test("first-claim bootstrap: once meta/household exists, a second user can't cla
 });
 
 test("isMember() gate: once the household is claimed, a signed-in non-member can't self-enrol as a member", async () => {
-  await seedHousehold(alice);
+  await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
@@ -165,7 +151,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member can
 });
 
 test("isMember() gate: once the household is claimed, a signed-in non-member can't create another member's doc", async () => {
-  await seedHousehold(alice);
+  await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
@@ -174,7 +160,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member can
 });
 
 test("isMember() gate: once the household is claimed, a signed-in non-member's write of meta/platform is denied", async () => {
-  await seedHousehold(alice);
+  await seedHousehold(testEnv, alice);
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
@@ -183,7 +169,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member's w
 });
 
 test("owner-only members: the owner adding another member's doc is accepted", async () => {
-  await seedHousehold(alice);
+  await seedHousehold(testEnv, alice);
 
   const fixture: RulesFixture = {
     name: "alice adds bob as a Member",
@@ -198,8 +184,8 @@ test("owner-only members: the owner adding another member's doc is accepted", as
 });
 
 test("owner-only members: a non-owner Member creating another member's doc is denied", async () => {
-  await seedHousehold(alice);
-  await seedMember(bob);
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
 
   const context = testEnv.authenticatedContext(bob);
   await assertFails(
@@ -208,8 +194,8 @@ test("owner-only members: a non-owner Member creating another member's doc is de
 });
 
 test("owner-only members: the owner updating a member's doc is accepted", async () => {
-  await seedHousehold(alice);
-  await seedMember(bob);
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
 
   const fixture: RulesFixture = {
     name: "alice updates bob's member doc",
@@ -224,8 +210,8 @@ test("owner-only members: the owner updating a member's doc is accepted", async 
 });
 
 test("owner-only members: a non-owner Member updating a member's doc is denied", async () => {
-  await seedHousehold(alice);
-  await seedMember(bob);
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
 
   const context = testEnv.authenticatedContext(bob);
   await assertFails(
@@ -234,16 +220,16 @@ test("owner-only members: a non-owner Member updating a member's doc is denied",
 });
 
 test("owner-only members: the owner deleting a member's doc is accepted", async () => {
-  await seedHousehold(alice);
-  await seedMember(bob);
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
 
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(context.firestore().doc(memberDocPath(bob)).delete());
 });
 
 test("owner-only members: a non-owner Member deleting a member's doc is denied", async () => {
-  await seedHousehold(alice);
-  await seedMember(bob);
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
 
   const context = testEnv.authenticatedContext(bob);
   await assertFails(context.firestore().doc(memberDocPath(alice)).delete());
