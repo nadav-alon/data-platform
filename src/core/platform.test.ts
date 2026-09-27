@@ -53,12 +53,14 @@ test("checkPlatform: missing when nothing has been deployed", () => {
 test("checkPlatform: defaults required to the platform version this build requires", () => {
   assert.equal(PLATFORM_VERSION, packageJson.version);
 
-  const sameMajor = semver(`${semverMajor(PLATFORM_VERSION)}.0.0`);
   const newerMajor = semver(`${semverMajor(PLATFORM_VERSION) + 1}.0.0`);
   const newerMinor = semver(`${semverMajor(PLATFORM_VERSION)}.${semverMinor(PLATFORM_VERSION) + 1}.0`);
-  assert.equal(checkPlatform(sameMajor), checkPlatform(sameMajor, PLATFORM_VERSION));
-  assert.notEqual(checkPlatform(sameMajor), checkPlatform(sameMajor, newerMajor));
-  assert.notEqual(checkPlatform(sameMajor), checkPlatform(sameMajor, newerMinor));
+  assert.equal(checkPlatform(PLATFORM_VERSION), "ok");
+  assert.equal(checkPlatform(PLATFORM_VERSION, newerMajor), "outdated");
+  // Only pre-1.0 does a newer minor break, so only then does it tell the default's minor apart.
+  if (semverMajor(PLATFORM_VERSION) === 0) {
+    assert.equal(checkPlatform(PLATFORM_VERSION, newerMinor), "outdated");
+  }
 });
 
 test("checkPlatform: pre-1.0, an older minor is outdated", () => {
