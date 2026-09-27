@@ -147,6 +147,21 @@ test("collection validation: a Member creating an Item with a non-string barcode
   await assertFixture(fixture, rulesTestEnv.env);
 });
 
+test("collection validation: a Member creating an Item with a barcode that isn't a GTIN is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+
+  const fixture: RulesFixture = {
+    name: "Item with a barcode that isn't a GTIN",
+    collection: ITEMS_COLLECTION,
+    schema: itemSchema,
+    doc: { id: "dish-soap", data: { name: "Dish soap", state: "enough", barcodes: ["dish soap"] } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, rulesTestEnv.env);
+});
+
 test("isMember() gate: a signed-in non-member creating an Item is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 

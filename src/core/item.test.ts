@@ -55,6 +55,12 @@ test("rejects an empty barcode", () => {
   assert.throws(() => itemSchema.parse({ name: "Dish soap", state: "enough", barcodes: [""] }));
 });
 
+test("rejects a barcode that isn't a GTIN", () => {
+  assert.throws(() =>
+    itemSchema.parse({ name: "Dish soap", state: "enough", barcodes: ["dish soap"] }),
+  );
+});
+
 test("rejects a missing state", () => {
   assert.throws(() => itemSchema.parse({ name: "Dish soap" }));
 });
