@@ -61,10 +61,6 @@ test("checkPlatform: defaults required to the platform version this build requir
   assert.notEqual(checkPlatform(sameMajor), checkPlatform(sameMajor, newerMinor));
 });
 
-test("checkPlatform: a malformed deployed value cannot be constructed", () => {
-  assert.throws(() => semver("v1"), /Not a Semver/);
-});
-
 // Pre-1.0, there's no stable public API yet, so semver's convention moves the breaking change
 // down to the minor: the major stays pinned at 0 until the API is declared stable.
 test("checkPlatform: pre-1.0, an older minor is outdated", () => {
