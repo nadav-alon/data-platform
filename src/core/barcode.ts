@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-// GTIN: EAN-8, UPC-A, EAN-13, or GTIN-14. Digits only, no check-digit validation.
 const BARCODE_PATTERN = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
 
-/** A barcode value read from a scan or entered by a Member: a GTIN of length 8, 12, 13 or 14. */
+/** A barcode value read from a scan or entered by a Member: a GTIN of length 8, 12, 13 or 14, digits only, no check-digit validation. */
 const barcodeSchema = z.string().regex(BARCODE_PATTERN).brand<"Barcode">();
 
 export type Barcode = z.infer<typeof barcodeSchema>;
