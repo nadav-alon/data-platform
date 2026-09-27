@@ -79,6 +79,11 @@ test("collection validation: a Member creating a stateHistory entry missing its 
   await assertFixture(fixture, testEnv);
 });
 
+// The next two cases go straight through the emulator, not `assertFixture`: `serverTimestamp()`
+// and a client `Date` both fail to parse against `stateHistoryEntrySchema.at` (see that
+// schema's comment), so there is no accept fixture where zod and the emulator agree on this
+// field — only the emulator side is deliberately covered here.
+
 test("create-only history: a Member creating a stateHistory entry with the server's own commit time is accepted", async () => {
   await seedHousehold(testEnv, alice);
 
