@@ -1,0 +1,35 @@
+# Lets a Household deploy this repo's firestore.rules and meta/platform to its own Firebase
+# project straight from a fork, with no local toolchain (docs/household-setup.md). Deploying
+# firestore.rules only ever needs FIREBASE_TOKEN or the service account; writing meta/platform
+# is an Admin SDK write (scripts/deploy/deploy.ts), so it needs the service account secret.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      project-id:
+        description: The Firebase project id to deploy to
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write the service account key
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+      - name: Deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' && format('{0}/service-account.json', runner.temp) || '' }}
+          PROJECT_ID: ${{ inputs.project-id }}
+        run: npm run deploy -- --project "$PROJECT_ID"

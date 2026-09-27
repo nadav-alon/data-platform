@@ -14,7 +14,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
-    "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only firestore \"node --test --test-concurrency=1 'test/rules/**/*.test.ts'\""
+    "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only firestore \"node --test --test-concurrency=1 'test/rules/**/*.test.ts'\"",
+    "deploy": "node scripts/deploy/deploy.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"
@@ -23,6 +24,7 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^22.20.4",
     "firebase": "^12.0.0",
+    "firebase-admin": "^14.5.0",
     "firebase-tools": "^15.31.0",
     "typescript": "^7.0.2"
   }
