@@ -6,8 +6,8 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "../../src/core/household.ts";
-import { MEMBERS_COLLECTION, memberDocPath, memberSchema } from "../../src/core/members.ts";
+import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
+import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { uid } from "../../src/core/uid.ts";
 import {
   assertBatchFixture,
@@ -100,13 +100,11 @@ test("first-claim bootstrap: a batched claim of meta/household and the claimant'
       {
         collection: "meta",
         id: "household",
-        schema: householdMetaSchema,
         data: { owner: alice },
       },
       {
         collection: MEMBERS_COLLECTION,
         id: alice,
-        schema: memberSchema,
         data: validMemberData,
       },
     ],
@@ -174,7 +172,6 @@ test("owner-only members: the owner adding another member's doc is accepted", as
   const fixture: RulesFixture = {
     name: "alice adds bob as a Member",
     collection: MEMBERS_COLLECTION,
-    schema: memberSchema,
     doc: { id: bob, data: validMemberData },
     auth: { uid: alice },
     expected: "accept",
@@ -200,7 +197,6 @@ test("owner-only members: the owner updating a member's doc is accepted", async 
   const fixture: RulesFixture = {
     name: "alice updates bob's member doc",
     collection: MEMBERS_COLLECTION,
-    schema: memberSchema,
     doc: { id: bob, data: { ...validMemberData, email: "new@example.com" } },
     auth: { uid: alice },
     expected: "accept",

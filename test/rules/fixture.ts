@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import type { Uid } from "../../src/core/uid.ts";
+import { COLLECTION_SCHEMAS } from "../../src/index.ts";
 
 export type RulesVerdict = "accept" | "reject";
 
@@ -12,7 +13,6 @@ export type RulesVerdict = "accept" | "reject";
 export interface RulesFixture {
   readonly name: string;
   readonly collection: string;
-  readonly schema: ZodType;
   readonly doc: { readonly id: string; readonly data: Record<string, unknown> };
   readonly auth: { readonly uid: Uid } | null;
   readonly expected: RulesVerdict;
@@ -22,8 +22,21 @@ export interface RulesFixture {
 export interface RulesFixtureDoc {
   readonly collection: string;
   readonly id: string;
-  readonly schema: ZodType;
   readonly data: Record<string, unknown>;
+}
+
+/**
+ * The schema a doc is checked against: `${collection}/${id}` first, for a collection like `meta`
+ * whose schema depends on the doc id, then `collection`'s own last path segment, so a
+ * subcollection nested under a variable parent id (`items/{itemId}/stateHistory`) still resolves
+ * regardless of which parent it's under.
+ */
+function schemaFor(
+  schemas: Record<string, ZodType>,
+  collection: string,
+  id: string,
+): ZodType | undefined {
+  return schemas[`${collection}/${id}`] ?? schemas[collection.split("/").at(-1) ?? collection];
 }
 
 /**
@@ -42,14 +55,24 @@ export interface RulesBatchFixture {
  * Fails naming `fixture.name` and both verdicts once either side stops
  * agreeing with `fixture.expected`, so a mistyped fixture (rules agree with
  * zod) can be told apart from real drift (rules and zod disagree).
+ *
+ * Each doc's schema is looked up from its own `collection` (see `schemaFor`), not passed in by
+ * the caller, so a fixture can't drift onto another collection's validator. An unknown
+ * collection fails the same way, naming the fixture. `schemas` defaults to the platform's real
+ * `COLLECTION_SCHEMAS`; tests of the harness itself may override it with a scratch map.
  */
 export async function assertBatchFixture(
   fixture: RulesBatchFixture,
   testEnv: RulesTestEnvironment,
+  schemas: Record<string, ZodType> = COLLECTION_SCHEMAS,
 ): Promise<void> {
-  const zodVerdict: RulesVerdict = fixture.docs.every(
-    (doc) => doc.schema.safeParse(doc.data).success,
-  )
+  const zodVerdict: RulesVerdict = fixture.docs.every((doc) => {
+    const schema = schemaFor(schemas, doc.collection, doc.id);
+    if (schema === undefined) {
+      throw new Error(`fixture "${fixture.name}": unknown collection "${doc.collection}"`);
+    }
+    return schema.safeParse(doc.data).success;
+  })
     ? "accept"
     : "reject";
 
@@ -78,16 +101,17 @@ export async function assertBatchFixture(
 export async function assertFixture(
   fixture: RulesFixture,
   testEnv: RulesTestEnvironment,
+  schemas: Record<string, ZodType> = COLLECTION_SCHEMAS,
 ): Promise<void> {
   const doc: RulesFixtureDoc = {
     collection: fixture.collection,
     id: fixture.doc.id,
-    schema: fixture.schema,
     data: fixture.doc.data,
   };
 
   await assertBatchFixture(
     { name: fixture.name, docs: [doc], auth: fixture.auth, expected: fixture.expected },
     testEnv,
+    schemas,
   );
 }

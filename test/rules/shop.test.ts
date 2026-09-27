@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails } from "@firebase/rules-unit-testing";
-import { SHOPS_COLLECTION, shopSchema } from "../../src/catalogue/shop.ts";
+import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
@@ -16,7 +16,6 @@ test("collection validation: a Member creating a Shop with a name is accepted", 
   const fixture: RulesFixture = {
     name: "Shop with a name",
     collection: SHOPS_COLLECTION,
-    schema: shopSchema,
     doc: { id: "pharmacy", data: { name: "Pharmacy" } },
     auth: { uid: alice },
     expected: "accept",
@@ -31,7 +30,6 @@ test("collection validation: a Member creating a Shop missing its name is denied
   const fixture: RulesFixture = {
     name: "Shop missing its name",
     collection: SHOPS_COLLECTION,
-    schema: shopSchema,
     doc: { id: "pharmacy", data: {} },
     auth: { uid: alice },
     expected: "reject",
@@ -46,7 +44,6 @@ test("collection validation: a Member creating a Shop with a non-string name is 
   const fixture: RulesFixture = {
     name: "Shop with a non-string name",
     collection: SHOPS_COLLECTION,
-    schema: shopSchema,
     doc: { id: "pharmacy", data: { name: 123 } },
     auth: { uid: alice },
     expected: "reject",
@@ -64,7 +61,6 @@ test("collection validation: a Member updating an existing Shop with a non-strin
   const fixture: RulesFixture = {
     name: "Shop update with a non-string name",
     collection: SHOPS_COLLECTION,
-    schema: shopSchema,
     doc: { id: "pharmacy", data: { name: 123 } },
     auth: { uid: alice },
     expected: "reject",

@@ -11,9 +11,10 @@ import { assertFixture, type RulesFixture } from "./fixture.ts";
 
 const alice = uid("alice");
 
-// A scratch schema, not a real collection's: these tests exercise the
-// harness itself.
+// A scratch schema, not a real collection's: these tests exercise the harness itself, so they
+// pass their own schemas map instead of resolving against the platform's real collections.
 const widget = z.object({ name: z.string() });
+const scratchSchemas = { widgets: widget };
 
 let testEnv: RulesTestEnvironment;
 
@@ -45,13 +46,12 @@ test("passes a fixture zod and the emulator both reject", async () => {
   const fixture: RulesFixture = {
     name: "widget missing its name is rejected",
     collection: "widgets",
-    schema: widget,
     doc: { id: "w1", data: {} },
     auth: null,
     expected: "reject",
   };
 
-  await assertFixture(fixture, testEnv);
+  await assertFixture(fixture, testEnv, scratchSchemas);
 });
 
 test("fails naming the fixture when the emulator disagrees with the expected verdict", async () => {
@@ -61,14 +61,13 @@ test("fails naming the fixture when the emulator disagrees with the expected ver
   const fixture: RulesFixture = {
     name: "widget accepted by zod but denied by firestore.rules",
     collection: "widgets",
-    schema: widget,
     doc: { id: "w1", data: { name: "gizmo" } },
     auth: { uid: alice },
     expected: "accept",
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, testEnv),
+    () => assertFixture(fixture, testEnv, scratchSchemas),
     /widget accepted by zod but denied by firestore\.rules/,
   );
 });
@@ -77,14 +76,28 @@ test("fails naming the fixture when zod and rules agree, but not with the expect
   const fixture: RulesFixture = {
     name: "widget missing its name is expected to be accepted",
     collection: "widgets",
-    schema: widget,
     doc: { id: "w1", data: {} },
     auth: null,
     expected: "accept",
   };
 
   await assert.rejects(
-    () => assertFixture(fixture, testEnv),
+    () => assertFixture(fixture, testEnv, scratchSchemas),
     /widget missing its name is expected to be accepted/,
+  );
+});
+
+test("fails naming the fixture when its collection isn't in the schema map", async () => {
+  const fixture: RulesFixture = {
+    name: "gizmo written to a collection nothing validates",
+    collection: "gizmos",
+    doc: { id: "g1", data: { name: "gizmo" } },
+    auth: null,
+    expected: "accept",
+  };
+
+  await assert.rejects(
+    () => assertFixture(fixture, testEnv, scratchSchemas),
+    /gizmo written to a collection nothing validates.*unknown collection "gizmos"/,
   );
 });
