@@ -112,7 +112,10 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if claimsOwnMembership(uid) || isOwner();
       allow update: if isOwner();
-      /** The Owner's own doc is never deletable — see isRecordedOwner(). */
+      /**
+       * Never the Owner's own doc: meta/household is immutable, so its loss would leave the
+       * Household without an Owner for good.
+       */
       allow delete: if isOwner() && !isRecordedOwner(uid);
     }
 
