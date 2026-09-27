@@ -230,7 +230,7 @@ test("owner-only members: the owner deleting their own doc is denied", async () 
   await assertFails(context.firestore().doc(memberDocPath(alice)).delete());
 });
 
-test("owner-only members: a non-owner Member deleting a member's doc is denied", async () => {
+test("owner-only members: a non-owner Member deleting the Owner's doc is denied", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
 
