@@ -94,6 +94,21 @@ test("collection validation: a Member creating an Item with an unknown field is 
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member creating an Item with a non-string name is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "Item with a non-string name",
+    collection: ITEMS_COLLECTION,
+    schema: itemSchema,
+    doc: { id: "dish-soap", data: { name: 42, state: "enough" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating an Item missing its name is denied", async () => {
   await seedHousehold(testEnv, alice);
 

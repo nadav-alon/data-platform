@@ -71,6 +71,21 @@ test("collection validation: a Member creating a CatalogueItem with a shopId ove
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member creating a CatalogueItem with a non-string categoryId is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "CatalogueItem with a non-string categoryId",
+    collection: CATALOGUE_ITEMS_COLLECTION,
+    schema: catalogueItemSchema,
+    doc: { id: "dish-soap", data: { categoryId: 42, necessity: "essential" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating a CatalogueItem missing its categoryId is denied", async () => {
   await seedHousehold(testEnv, alice);
 

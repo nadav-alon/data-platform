@@ -53,6 +53,21 @@ test("collection validation: a Member creating a Category with a name and defaul
   await assertFixture(fixture, testEnv);
 });
 
+test("collection validation: a Member creating a Category with a non-string name is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const fixture: RulesFixture = {
+    name: "Category with a non-string name",
+    collection: CATEGORIES_COLLECTION,
+    schema: categorySchema,
+    doc: { id: "medicine", data: { name: 42, defaultShopId: "pharmacy" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
 test("collection validation: a Member creating a Category missing its defaultShopId is denied", async () => {
   await seedHousehold(testEnv, alice);
 
