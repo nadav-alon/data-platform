@@ -9,5 +9,9 @@ carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
 
 Pushing to `main` without a version change tags nothing, so merging anything else is safe.
 
+The Release Action re-runs `npm run typecheck` and `npm test` itself before tagging, so a commit
+that fails either never gets a tag, even though CI runs the same checks in parallel on the same
+push.
+
 The `v0.0.0` tag came from the Release Action's first run, since `package.json` was already at
 `0.0.0` with no tag for it.
