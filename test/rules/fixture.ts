@@ -56,10 +56,10 @@ export interface RulesBatchFixture {
  * agreeing with `fixture.expected`, so a mistyped fixture (rules agree with
  * zod) can be told apart from real drift (rules and zod disagree).
  *
- * Each doc's schema is looked up from its own `collection` (see `schemaFor`), not passed in by
- * the caller, so a fixture can't drift onto another collection's validator. An unknown
- * collection fails the same way, naming the fixture. `schemas` defaults to the platform's real
- * `COLLECTION_SCHEMAS`; tests of the harness itself may override it with a scratch map.
+ * Each doc's schema is resolved from its own `collection` (see `schemaFor`), so a fixture can't
+ * drift onto another collection's validator. An unknown collection fails the same way, naming the
+ * fixture. `schemas` defaults to the platform's real `COLLECTION_SCHEMAS`; tests of the harness
+ * itself may override it with a scratch map.
  */
 export async function assertBatchFixture(
   fixture: RulesBatchFixture,
