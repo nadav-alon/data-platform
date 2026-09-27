@@ -16,11 +16,14 @@ time instead of writing it into the repo.
    Generate new private key.
 
    - **From a clone**: `GOOGLE_APPLICATION_CREDENTIALS=<path to the key> npm run deploy --
-     --project <id>`, with the [Firebase CLI](https://firebase.google.com/docs/cli) installed.
+     --project <id>`. `npm ci` installs the [Firebase CLI](https://firebase.google.com/docs/cli)
+     as a dev dependency, so no separate install is needed — the CLI picks up the same
+     credentials as the deploy script.
    - **From a fork, with no local toolchain**: run the repo's `Deploy` Action
      (workflow_dispatch), passing the project id as its input, with the key pasted into the
-     `FIREBASE_SERVICE_ACCOUNT` repo secret. A `FIREBASE_TOKEN` secret (`firebase login:ci`)
-     works too, but only for the `firestore.rules` half — writing `meta/platform` always needs
-     `FIREBASE_SERVICE_ACCOUNT`.
+     `FIREBASE_SERVICE_ACCOUNT` repo secret. A `FIREBASE_TOKEN` secret (`firebase login:ci`) can
+     additionally authenticate the `firestore.rules` deploy, but `FIREBASE_SERVICE_ACCOUNT` is
+     required either way — meta/platform is written, and its credential resolved, before
+     firestore.rules deploys.
 6. **Open the app's setup screen.** The first person to sign in there claims the Household as its
    Owner.
