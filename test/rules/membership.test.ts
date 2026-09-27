@@ -6,6 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
+import { Timestamp } from "firebase/firestore";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { uid } from "../../src/core/uid.ts";
@@ -233,12 +234,22 @@ test("owner-only members: the Owner's set() dropping addedAt from a Member's doc
 
 test("owner-only members: the owner's update() replacing addedAt with a different timestamp is denied", async () => {
   await seedHousehold(testEnv, alice);
-  await seedMember(testEnv, bob);
+  const seededAddedAt = new Timestamp(1_700_000_000, 0);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(memberDocPath(bob)).set({
+      email: "member@example.com",
+      addedAt: seededAddedAt,
+    });
+  });
 
+  // Seeded and written as real Firestore Timestamps, not the plain { seconds, nanoseconds }
+  // maps used elsewhere: those compare as maps regardless of the rule's Timestamp check, so
+  // they can't pin this criterion. The new value is derived from the seeded one so the test
+  // reads as "a different timestamp".
   const context = testEnv.authenticatedContext(alice);
   await assertFails(
     context.firestore().doc(memberDocPath(bob)).update({
-      addedAt: { seconds: 1_800_000_000, nanoseconds: 0 },
+      addedAt: new Timestamp(seededAddedAt.seconds + 1, seededAddedAt.nanoseconds),
     }),
   );
 });
