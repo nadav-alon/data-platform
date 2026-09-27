@@ -2,7 +2,7 @@
 
 ## v0.1.0
 
-The first release: everything the Household catalogue app pins against.
+The first release: everything the home catalogue pins against.
 
 - **Schemas** (`src/core/`, `src/catalogue/`): Item, State and State history; Member
   (`members/{uid}`), Household and platform meta (`meta/household`, `meta/platform`); Category,
