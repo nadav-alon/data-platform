@@ -215,6 +215,28 @@ test("owner-only members: the owner's set() dropping addedAt from a member's doc
   );
 });
 
+test("owner-only members: the owner's update() replacing addedAt with a different timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).update({
+      addedAt: { seconds: 1_800_000_000, nanoseconds: 0 },
+    }),
+  );
+});
+
+test("owner-only members: the owner's update() replacing addedAt with a non-timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).update({ addedAt: "x" }),
+  );
+});
+
 test("owner-only members: a non-owner Member updating a member's doc is denied", async () => {
   await seedHousehold(testEnv, alice);
   await seedMember(testEnv, bob);
