@@ -46,12 +46,13 @@ jobs:
       - name: Test
         if: steps.pending.outputs.tag != ''
         run: npm test
-      - uses: actions/setup-java@v4
+      - name: Set up Java for the Firestore emulator
+        uses: actions/setup-java@v4
         if: steps.pending.outputs.tag != ''
         with:
           distribution: temurin
           java-version: "21"
-      - name: Rules tests
+      - name: Rules test harness
         if: steps.pending.outputs.tag != ''
         run: npm run test:rules
       - name: Build dist/ and push the release tag
