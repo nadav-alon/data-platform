@@ -6,6 +6,8 @@
 # `npm install github:nadav-alon/data-platform#v<version>` gets built JS and
 # type declarations with no build step of its own. Only the tag is pushed,
 # never main itself: main's own history stays free of dist/ (RELEASING.md).
+# Once the tag is pushed, a GitHub Release is created for it with
+# auto-generated notes.
 name: Release
 
 on:
@@ -57,3 +59,9 @@ jobs:
               commit -m "Release $TAG"
           git tag "$TAG"
           git push origin "$TAG"
+      - name: Create the GitHub Release
+        if: steps.pending.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.pending.outputs.tag }}
+        run: gh release create "$TAG" --generate-notes

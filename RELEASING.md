@@ -1,8 +1,9 @@
 # Releasing
 
 Bump the version in `package.json`, in a pull request. Merging it into `main` is what releases it:
-the [Release Action](.github/workflows/release.yml) builds `dist/` and pushes tag `v<version>` on a
-commit made just for it. The version must be `major.minor.patch`: no pre-release or build tag.
+the [Release Action](.github/workflows/release.yml) builds `dist/`, pushes tag `v<version>` on a
+commit made just for it, and creates a GitHub Release for that tag with auto-generated notes. The
+version must be `major.minor.patch`: no pre-release or build tag.
 
 Apps pin a release with `npm install github:nadav-alon/data-platform#v<version>`; only those tags
 carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
