@@ -66,6 +66,13 @@ test("meta get: a signed-in non-member's get of meta/household is allowed and re
   assert.equal(snapshot.exists, false);
 });
 
+test("meta get: a signed-in non-member's get of a claimed meta/household is allowed", async () => {
+  await seedHousehold(testEnv, alice);
+  const context = testEnv.authenticatedContext(mallory);
+  const snapshot = await assertSucceeds(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
+  assert.equal(snapshot.exists, true);
+});
+
 test("meta get: a Member's get of meta/household is allowed", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
