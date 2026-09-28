@@ -1,9 +1,8 @@
 import { z } from "zod";
-import type { ItemId } from "../core/item.ts";
+import type { ItemId } from "../core/index.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
 import { shopIdSchema } from "./shop.ts";
-import type { ItemId } from "../core/index.ts";
 
 export const CATALOGUE_ITEMS_COLLECTION = "catalogueItems";
 
