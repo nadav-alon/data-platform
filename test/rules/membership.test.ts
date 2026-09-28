@@ -10,6 +10,7 @@ import {
 import { Timestamp } from "firebase/firestore";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
+import { PLATFORM_DOC_PATH } from "../../src/core/platform.ts";
 import { uid } from "../../src/core/uid.ts";
 import {
   assertBatchFixture,
@@ -81,19 +82,19 @@ test("meta get: a Member's get of meta/household is allowed", async () => {
 
 test("meta get: a signed-in non-member's get of meta/platform is allowed and reads as not-exists", async () => {
   const context = testEnv.authenticatedContext(mallory);
-  const snapshot = await assertSucceeds(context.firestore().doc("meta/platform").get());
+  const snapshot = await assertSucceeds(context.firestore().doc(PLATFORM_DOC_PATH).get());
   assert.equal(snapshot.exists, false);
 });
 
 test("meta get: a Member's get of meta/platform is allowed", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
-  await assertSucceeds(context.firestore().doc("meta/platform").get());
+  await assertSucceeds(context.firestore().doc(PLATFORM_DOC_PATH).get());
 });
 
 test("meta get: a signed-out get of meta/platform is denied", async () => {
   const context = testEnv.unauthenticatedContext();
-  await assertFails(context.firestore().doc("meta/platform").get());
+  await assertFails(context.firestore().doc(PLATFORM_DOC_PATH).get());
 });
 
 test("meta get: a signed-in non-member's get of another meta doc is denied", async () => {
@@ -238,7 +239,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member's w
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
-    context.firestore().doc("meta/platform").set({ version: "1.0.0" }),
+    context.firestore().doc(PLATFORM_DOC_PATH).set({ version: "1.0.0" }),
   );
 });
 
