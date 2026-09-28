@@ -22,14 +22,26 @@ export function tagForVersion(version: PackageVersion): ReleaseTag {
   return releaseTag(`v${version}`);
 }
 
+export type ReleaseDecision =
+  | { readonly kind: "tag"; readonly tag: ReleaseTag }
+  | { readonly kind: "up-to-date" }
+  | { readonly kind: "refuse"; readonly tag: ReleaseTag };
+
 /**
- * The tag this version should release under, or `null` if that tag already
- * exists — the version hasn't changed since the last release.
+ * What a push to `main` should do about the release tag: `tag` it (this push
+ * is the one that changed `version`), do nothing (`up-to-date`, the normal
+ * case once a version has released), or `refuse` — the tag doesn't exist but
+ * this push didn't change `version` either, so tagging here would release a
+ * tree the version bump never contained.
  */
-export function pendingReleaseTag(
+export function releaseDecision(
   version: PackageVersion,
+  previousVersion: PackageVersion | null,
   existingTags: readonly ReleaseTag[],
-): ReleaseTag | null {
+): ReleaseDecision {
   const tag = tagForVersion(version);
-  return existingTags.includes(tag) ? null : tag;
+  if (existingTags.includes(tag)) {
+    return { kind: "up-to-date" };
+  }
+  return previousVersion === version ? { kind: "refuse", tag } : { kind: "tag", tag };
 }

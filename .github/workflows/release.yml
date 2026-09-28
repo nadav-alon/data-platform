@@ -1,12 +1,15 @@
-# Tags a release when a push to main carries a package.json version with no
-# release tag yet (scripts/release). Typecheck, tests and the rules harness
-# gate the tag: CI runs the same checks on the same push but in parallel, so
-# this job re-runs them all itself rather than trusting CI's result to have
-# landed first. The tag points at a commit made just for it —
-# dist/ built and force-added despite .gitignore — so `npm install
-# github:nadav-alon/data-platform#v<version>` gets built JS and
-# type declarations with no build step of its own. Only the tag is pushed,
-# never main itself: main's own history stays free of dist/ (RELEASING.md).
+# Tags a release when a push to main is the commit that changed package.json's
+# version and no release tag exists for it yet (scripts/release). A push that
+# finds the tag missing without having changed the version itself fails the
+# job instead, rather than releasing its own unrelated tree under that tag
+# (RELEASING.md). Typecheck, tests and the rules harness gate the tag: CI runs
+# the same checks on the same push but in parallel, so this job re-runs them
+# all itself rather than trusting CI's result to have landed first. The tag
+# points at a commit made just for it — dist/ built and force-added despite
+# .gitignore — so `npm install github:nadav-alon/data-platform#v<version>`
+# gets built JS and type declarations with no build step of its own. Only the
+# tag is pushed, never main itself: main's own history stays free of dist/
+# (RELEASING.md).
 # Once the tag is pushed, a GitHub Release is created for it with
 # auto-generated notes.
 name: Release
@@ -36,6 +39,10 @@ jobs:
           node-version: 22
       - name: Determine the pending release tag
         id: pending
+        env:
+          # The commit `main` pointed at before this push, so the version
+          # comparison is per-push rather than per-commit.
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           tag="$(node scripts/release/pending-tag.ts)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
