@@ -1,4 +1,5 @@
 import { after, before, beforeEach, test } from "node:test";
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   assertFails,
@@ -9,6 +10,7 @@ import {
 import { Timestamp } from "firebase/firestore";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
+import { PLATFORM_DOC_PATH } from "../../src/core/platform.ts";
 import { uid } from "../../src/core/uid.ts";
 import {
   assertBatchFixture,
@@ -54,44 +56,118 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-test("isMember() gate: an unauthenticated read of meta/household is denied", async () => {
+test("meta get: a signed-out get of meta/household is denied", async () => {
   const context = testEnv.unauthenticatedContext();
   await assertFails(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
 });
 
-test("isMember() gate: a signed-in non-member's read of meta/household is denied", async () => {
+test("meta get: a signed-in non-member's get of meta/household is allowed and reads as not-exists", async () => {
   const context = testEnv.authenticatedContext(mallory);
-  await assertFails(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
+  const snapshot = await assertSucceeds(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
+  assert.equal(snapshot.exists, false);
 });
 
-test("isMember() gate: a Member's read of meta/household is allowed", async () => {
+test("meta get: a signed-in non-member's get of a claimed meta/household is allowed", async () => {
+  await seedHousehold(testEnv, alice);
+  const context = testEnv.authenticatedContext(mallory);
+  const snapshot = await assertSucceeds(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
+  assert.equal(snapshot.exists, true);
+});
+
+test("meta get: a Member's get of meta/household is allowed", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
   await assertSucceeds(context.firestore().doc(HOUSEHOLD_DOC_PATH).get());
 });
 
-test("isMember() gate: a signed-in non-member's read of meta/platform is denied", async () => {
+test("meta get: a signed-in non-member's get of meta/platform is allowed and reads as not-exists", async () => {
   const context = testEnv.authenticatedContext(mallory);
-  await assertFails(context.firestore().doc("meta/platform").get());
+  const snapshot = await assertSucceeds(context.firestore().doc(PLATFORM_DOC_PATH).get());
+  assert.equal(snapshot.exists, false);
 });
 
-test("isMember() gate: a Member's read of meta/platform is allowed", async () => {
+test("meta get: a Member's get of meta/platform is allowed", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(alice);
-  await assertSucceeds(context.firestore().doc("meta/platform").get());
+  await assertSucceeds(context.firestore().doc(PLATFORM_DOC_PATH).get());
 });
 
-test("isMember() gate: a signed-in non-member's read of another uid's members doc is denied", async () => {
+test("meta get: a signed-out get of meta/platform is denied", async () => {
+  const context = testEnv.unauthenticatedContext();
+  await assertFails(context.firestore().doc(PLATFORM_DOC_PATH).get());
+});
+
+test("meta get: a signed-in non-member's get of another meta doc is denied", async () => {
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(context.firestore().doc("meta/somethingElse").get());
+});
+
+test("meta list: a signed-in non-member's list of meta is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(context.firestore().collection("meta").get());
+});
+
+test("meta list: a signed-out list of meta is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  const context = testEnv.unauthenticatedContext();
+  await assertFails(context.firestore().collection("meta").get());
+});
+
+test("meta list: a Member's list of meta is allowed", async () => {
+  await seedHousehold(testEnv, alice);
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(context.firestore().collection("meta").get());
+});
+
+test("members get: a signed-in non-member's get of another uid's members doc is denied", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(context.firestore().doc(memberDocPath(alice)).get());
 });
 
-test("isMember() gate: a Member's read of another Member's doc is allowed", async () => {
+test("members get: a Member's get of another Member's doc is allowed", async () => {
   await seedMember(testEnv, alice);
   await seedMember(testEnv, bob);
   const context = testEnv.authenticatedContext(bob);
   await assertSucceeds(context.firestore().doc(memberDocPath(alice)).get());
+});
+
+test("members get: a signed-in non-member's get of their own members doc is allowed and reads as not-exists", async () => {
+  const context = testEnv.authenticatedContext(mallory);
+  const snapshot = await assertSucceeds(context.firestore().doc(memberDocPath(mallory)).get());
+  assert.equal(snapshot.exists, false);
+});
+
+test("members get: a Member's get of their own members doc is allowed and reads as existing", async () => {
+  await seedMember(testEnv, mallory);
+  const context = testEnv.authenticatedContext(mallory);
+  const snapshot = await assertSucceeds(context.firestore().doc(memberDocPath(mallory)).get());
+  assert.equal(snapshot.exists, true);
+});
+
+test("members get: a signed-out get of a members doc is denied", async () => {
+  await seedMember(testEnv, alice);
+  const context = testEnv.unauthenticatedContext();
+  await assertFails(context.firestore().doc(memberDocPath(alice)).get());
+});
+
+test("members list: a signed-in non-member's list of members is denied", async () => {
+  await seedMember(testEnv, alice);
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(context.firestore().collection(MEMBERS_COLLECTION).get());
+});
+
+test("members list: a signed-out list of members is denied", async () => {
+  await seedMember(testEnv, alice);
+  const context = testEnv.unauthenticatedContext();
+  await assertFails(context.firestore().collection(MEMBERS_COLLECTION).get());
+});
+
+test("members list: a Member's list of members is allowed", async () => {
+  await seedMember(testEnv, alice);
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(context.firestore().collection(MEMBERS_COLLECTION).get());
 });
 
 test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
@@ -163,7 +239,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member's w
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
-    context.firestore().doc("meta/platform").set({ version: "1.0.0" }),
+    context.firestore().doc(PLATFORM_DOC_PATH).set({ version: "1.0.0" }),
   );
 });
 

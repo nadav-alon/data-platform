@@ -6,6 +6,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    /** Whether the signed-in caller is `uid` themselves. */
+    function isSelf(uid) {
+      return isSignedIn() && uid == request.auth.uid;
+    }
+
     /** A Household's gate: signed in, and recorded as `members/{uid}`. */
     function isMember() {
       return isSignedIn()
@@ -26,7 +31,7 @@ service cloud.firestore {
 
     /** The other half of first-claim: `uid`'s own doc, batched with `claimsHousehold()`. */
     function claimsOwnMembership(uid) {
-      return isSignedIn() && uid == request.auth.uid
+      return isSelf(uid)
         && !exists(/databases/$(database)/documents/meta/household)
         && existsAfter(/databases/$(database)/documents/meta/household)
         && getAfter(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;
@@ -95,21 +100,27 @@ service cloud.firestore {
     }
 
     match /meta/{doc} {
-      allow read: if isMember();
+      allow get, list: if isMember();
     }
 
     match /meta/household {
+      /** A missing doc (unclaimed Household) reads as not-exists. */
+      allow get: if isSignedIn();
       allow create: if claimsHousehold();
       allow update, delete: if false;
     }
 
     match /meta/platform {
+      /** A missing doc (`meta/platform` not yet written) reads as not-exists. */
+      allow get: if isSignedIn();
       /** Written by household deploy using Admin SDK credentials, which bypass this rule entirely. */
       allow write: if false;
     }
 
     match /members/{uid} {
-      allow read: if isMember();
+      /** A non-member may only `get` their own doc, so they can tell whether they've been added. */
+      allow get: if isMember() || isSelf(uid);
+      allow list: if isMember();
       allow create: if claimsOwnMembership(uid) || isOwner();
       /** `addedAt` is set once, on create; an update may not change it. */
       allow update: if isOwner() && request.resource.data.addedAt == resource.data.addedAt;
