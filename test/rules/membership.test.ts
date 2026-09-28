@@ -7,17 +7,13 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { Timestamp } from "firebase/firestore";
+import { serverTimestamp, Timestamp } from "firebase/firestore";
+import { email } from "../../src/core/email.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { PLATFORM_DOC_PATH } from "../../src/core/platform.ts";
 import { uid } from "../../src/core/uid.ts";
-import {
-  assertBatchFixture,
-  assertFixture,
-  type RulesBatchFixture,
-  type RulesFixture,
-} from "./fixture.ts";
+import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold, seedMember } from "./seed.ts";
 
 const alice = uid("alice");
@@ -29,6 +25,9 @@ const validMemberData = {
   email: "member@example.com",
   addedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
 };
+
+/** A create payload that satisfies isValidNewMember's addedAt == request.time check. */
+const serverStampedMemberData = { email: email("member@example.com"), addedAt: serverTimestamp() };
 
 let testEnv: RulesTestEnvironment;
 
@@ -170,26 +169,16 @@ test("members list: a Member's list of members is allowed", async () => {
   await assertSucceeds(context.firestore().collection(MEMBERS_COLLECTION).get());
 });
 
-test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
-  const fixture: RulesBatchFixture = {
-    name: "alice claims the household and her own membership together",
-    docs: [
-      {
-        collection: "meta",
-        id: "household",
-        data: { owner: alice },
-      },
-      {
-        collection: MEMBERS_COLLECTION,
-        id: alice,
-        data: validMemberData,
-      },
-    ],
-    auth: { uid: alice },
-    expected: "accept",
-  };
+// This case goes straight through the emulator, not `assertBatchFixture`: `serverTimestamp()`
+// fails to parse against `memberSchema.addedAt` (see that schema's comment), so there is no
+// accept fixture where zod and the emulator agree on this field.
 
-  await assertBatchFixture(fixture, testEnv);
+test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
+  const context = testEnv.authenticatedContext(alice);
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
+  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
+  await assertSucceeds(batch.commit());
 });
 
 test("first-claim bootstrap: creating meta/household without the claimant's own members doc in the same batch is denied", async () => {
@@ -202,8 +191,19 @@ test("first-claim bootstrap: creating meta/household without the claimant's own 
 test("first-claim bootstrap: creating a members doc without meta/household in the same batch is denied", async () => {
   const context = testEnv.authenticatedContext(alice);
   await assertFails(
-    context.firestore().doc(memberDocPath(alice)).set(validMemberData),
+    context.firestore().doc(memberDocPath(alice)).set(serverStampedMemberData),
   );
+});
+
+test("first-claim bootstrap: a batched claim with a client Timestamp for addedAt is denied", async () => {
+  const context = testEnv.authenticatedContext(alice);
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
+  batch.set(context.firestore().doc(memberDocPath(alice)), {
+    email: email("member@example.com"),
+    addedAt: Timestamp.fromDate(new Date()),
+  });
+  await assertFails(batch.commit());
 });
 
 test("first-claim bootstrap: once meta/household exists, a second user can't claim it", async () => {
@@ -212,7 +212,7 @@ test("first-claim bootstrap: once meta/household exists, a second user can't cla
   const context = testEnv.authenticatedContext(mallory);
   const batch = context.firestore().batch();
   batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: mallory });
-  batch.set(context.firestore().doc(memberDocPath(mallory)), validMemberData);
+  batch.set(context.firestore().doc(memberDocPath(mallory)), serverStampedMemberData);
   await assertFails(batch.commit());
 });
 
@@ -221,7 +221,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member can
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
-    context.firestore().doc(memberDocPath(mallory)).set(validMemberData),
+    context.firestore().doc(memberDocPath(mallory)).set(serverStampedMemberData),
   );
 });
 
@@ -230,7 +230,7 @@ test("isMember() gate: once the household is claimed, a signed-in non-member can
 
   const context = testEnv.authenticatedContext(mallory);
   await assertFails(
-    context.firestore().doc(memberDocPath(bob)).set(validMemberData),
+    context.firestore().doc(memberDocPath(bob)).set(serverStampedMemberData),
   );
 });
 
@@ -243,18 +243,25 @@ test("isMember() gate: once the household is claimed, a signed-in non-member's w
   );
 });
 
+// This case goes straight through the emulator, not `assertFixture`: `serverTimestamp()`
+// doesn't parse against `memberSchema.addedAt` (see that schema's comment).
+
 test("owner-only members: the owner adding another member's doc is accepted", async () => {
   await seedHousehold(testEnv, alice);
 
-  const fixture: RulesFixture = {
-    name: "alice adds bob as a Member",
-    collection: MEMBERS_COLLECTION,
-    doc: { id: bob, data: validMemberData },
-    auth: { uid: alice },
-    expected: "accept",
-  };
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(memberDocPath(bob)).set(serverStampedMemberData),
+  );
+});
 
-  await assertFixture(fixture, testEnv);
+test("collection validation: an owner creating a member's doc with a client-supplied addedAt is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set(validMemberData),
+  );
 });
 
 test("owner-only members: a non-owner Member creating another member's doc is denied", async () => {
@@ -263,7 +270,7 @@ test("owner-only members: a non-owner Member creating another member's doc is de
 
   const context = testEnv.authenticatedContext(bob);
   await assertFails(
-    context.firestore().doc(memberDocPath(carol)).set(validMemberData),
+    context.firestore().doc(memberDocPath(carol)).set(serverStampedMemberData),
   );
 });
 
@@ -363,6 +370,82 @@ test("owner-only members: a non-owner Member updating a member's doc is denied",
   await assertFails(
     context.firestore().doc(memberDocPath(alice)).set({ ...validMemberData, email: "new@example.com" }),
   );
+});
+
+// These three cases go straight through the emulator, not `assertFixture`: sending
+// `serverTimestamp()` keeps `addedAt` from also failing the create, so email is the only
+// reason for the denial.
+
+test("collection validation: an owner creating a member's doc missing its email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set({ addedAt: serverTimestamp() }),
+  );
+});
+
+test("collection validation: an owner creating a member's doc with a non-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set({ email: 42, addedAt: serverTimestamp() }),
+  );
+});
+
+test("collection validation: an owner creating a member's doc with an empty-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).set({ email: "", addedAt: serverTimestamp() }),
+  );
+});
+
+test("collection validation: an owner updating a member's doc to remove its email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "member doc update missing email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { addedAt: validMemberData.addedAt } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("collection validation: an owner updating a member's doc with a non-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "member doc update with a non-string email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, email: 42 } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("collection validation: an owner updating a member's doc with an empty-string email is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "member doc update with an empty-string email",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, email: "" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
 });
 
 test("owner-only members: the owner deleting a member's doc is accepted", async () => {
