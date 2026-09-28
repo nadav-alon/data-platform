@@ -34,12 +34,11 @@ The `v0.0.0` tag came from the Release Action's first run, since `package.json` 
 ## Deploying a release
 
 When the repo has a `FIREBASE_PROJECT_ID` Actions variable set (`docs/household-setup.md`), the
-Release Action deploys the tag it just pushed — `firestore.rules` and `meta/platform` — to that
+push that tags a release also deploys it — `firestore.rules` and `meta/platform` — to that
 project, authenticated with the `FIREBASE_SERVICE_ACCOUNT` secret the same way
-[deploy.yml](.github/workflows/deploy.yml) does. Left unset, as on a fork or another household's
-clone, nothing deploys and the release behaves exactly as described above.
+[deploy.yml](.github/workflows/deploy.yml) does, from a checkout of the tag itself so the tree it
+deploys always matches the tag's own `dist/` commit. Left unset, as on a fork or another
+Household's clone, nothing deploys and the release behaves exactly as described above.
 
-Deploying is retried the same way Release creation is: every run recomputes the current tag and,
-once that tag exists on origin, deploys it, regardless of whether this run is the one that tagged
-it. So a deploy that fails never un-releases the tag, and the next push to `main` — even one that
-changes nothing else — deploys it without re-tagging.
+A deploy that fails fails the run without un-releasing the tag, and re-running it deploys the same
+tag again without re-tagging. A later push that doesn't itself tag a new release deploys nothing.
