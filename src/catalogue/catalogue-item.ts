@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ItemId } from "../core/item.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
 import { shopIdSchema } from "./shop.ts";
@@ -12,7 +13,7 @@ export function catalogueItemDocPath(itemId: ItemId): string {
 }
 
 /**
- * Keyed by Core Item id. `shopId`, when set, overrides the Category's default.
+ * Keyed by the Core Item's {@link ItemId}. `shopId`, when set, overrides the Category's default.
  */
 export const catalogueItemSchema = z.looseObject({
   categoryId: categoryIdSchema,
