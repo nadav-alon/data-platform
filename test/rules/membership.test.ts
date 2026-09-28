@@ -6,6 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
+import { Timestamp } from "firebase/firestore";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { uid } from "../../src/core/uid.ts";
@@ -200,6 +201,79 @@ test("owner-only members: the owner updating a member's doc is accepted", async 
     doc: { id: bob, data: { ...validMemberData, email: "new@example.com" } },
     auth: { uid: alice },
     expected: "accept",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("owner-only members: the Owner editing only a Member's email is accepted", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  // Not an assertFixture: the fixture always set()s, so a partial update() can't be expressed as one.
+  const context = testEnv.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(memberDocPath(bob)).update({ email: "new@example.com" }),
+  );
+});
+
+test("owner-only members: the Owner's set() dropping addedAt from a Member's doc is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "alice's set() on bob's doc drops addedAt",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { email: "new@example.com" } },
+    auth: { uid: alice },
+    expected: "reject",
+  };
+
+  await assertFixture(fixture, testEnv);
+});
+
+test("owner-only members: the owner's update() replacing addedAt with a different timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  const seededAddedAt = new Timestamp(1_700_000_000, 0);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(memberDocPath(bob)).set({
+      email: "member@example.com",
+      addedAt: seededAddedAt,
+    });
+  });
+
+  // Seeded and written as real Firestore Timestamps, not the plain { seconds, nanoseconds }
+  // maps used elsewhere: those compare as maps regardless of the rule's Timestamp check, so
+  // they can't pin this criterion. The new value is derived from the seeded one so the test
+  // reads as "a different timestamp".
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).update({
+      addedAt: new Timestamp(seededAddedAt.seconds + 1, seededAddedAt.nanoseconds),
+    }),
+  );
+});
+
+test("owner-only members: the owner's update() replacing addedAt with a non-timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const context = testEnv.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(memberDocPath(bob)).update({ addedAt: "x" }),
+  );
+});
+
+test("owner-only members: the owner's set() replacing addedAt with a non-timestamp is denied", async () => {
+  await seedHousehold(testEnv, alice);
+  await seedMember(testEnv, bob);
+
+  const fixture: RulesFixture = {
+    name: "alice's set() on bob's doc replaces addedAt with a non-timestamp",
+    collection: MEMBERS_COLLECTION,
+    doc: { id: bob, data: { ...validMemberData, addedAt: "x" } },
+    auth: { uid: alice },
+    expected: "reject",
   };
 
   await assertFixture(fixture, testEnv);

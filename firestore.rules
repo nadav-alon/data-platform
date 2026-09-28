@@ -111,7 +111,8 @@ service cloud.firestore {
     match /members/{uid} {
       allow read: if isMember();
       allow create: if claimsOwnMembership(uid) || isOwner();
-      allow update: if isOwner();
+      /** `addedAt` is set once, on create; an update may not change it. */
+      allow update: if isOwner() && request.resource.data.addedAt == resource.data.addedAt;
       /**
        * Never the Owner's own doc: meta/household is immutable, so its loss would leave the
        * Household without an Owner for good.
