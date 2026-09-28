@@ -95,7 +95,9 @@ service cloud.firestore {
     }
 
     match /meta/{doc} {
-      allow read: if isMember();
+      /** A missing meta doc (unclaimed Household, undeployed platform) reads as not-exists. */
+      allow get: if isSignedIn();
+      allow list: if isMember();
     }
 
     match /meta/household {
