@@ -138,6 +138,13 @@ test("members get: a signed-in non-member's get of their own members doc is allo
   assert.equal(snapshot.exists, false);
 });
 
+test("members get: a Member's get of their own members doc is allowed and reads as existing", async () => {
+  await seedMember(testEnv, mallory);
+  const context = testEnv.authenticatedContext(mallory);
+  const snapshot = await assertSucceeds(context.firestore().doc(memberDocPath(mallory)).get());
+  assert.equal(snapshot.exists, true);
+});
+
 test("members get: a signed-out get of a members doc is denied", async () => {
   await seedMember(testEnv, alice);
   const context = testEnv.unauthenticatedContext();
