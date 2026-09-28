@@ -19,5 +19,11 @@ The Release Action re-runs `npm run typecheck` and `npm test` itself before tagg
 that fails either never gets a tag. The rules harness (`npm run test:rules`) runs only in CI and
 does not gate the tag.
 
+Creating the GitHub Release itself is retried independently of the tag: every run, whether or not
+it tags a new version, checks the tag for `package.json`'s current version and creates its Release
+if that tag exists but has none yet. So a run where the tag push succeeds but the Release creation
+fails (API error, rate limit, token problem) leaves nothing to fix by hand — the next push to `main`
+creates the missing Release, without re-tagging or re-releasing anything.
+
 The `v0.0.0` tag came from the Release Action's first run, since `package.json` was already at
 `0.0.0` with no tag for it.
