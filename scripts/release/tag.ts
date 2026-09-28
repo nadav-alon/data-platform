@@ -22,18 +22,18 @@ export function tagForVersion(version: PackageVersion): ReleaseTag {
   return releaseTag(`v${version}`);
 }
 
-/**
- * What a push to `main` should do about the release tag: `tag` it (this push's
- * commit is the one that changed `version`), do nothing (`up-to-date`, the
- * normal case once a version has released), or `missing` — the tag doesn't
- * exist but this push didn't change `version` either, so tagging here would
- * release a tree the version bump never contained.
- */
 export type ReleaseDecision =
   | { readonly kind: "tag"; readonly tag: ReleaseTag }
   | { readonly kind: "up-to-date" }
   | { readonly kind: "missing"; readonly tag: ReleaseTag };
 
+/**
+ * What a push to `main` should do about the release tag: `tag` it (this push
+ * is the one that changed `version`), do nothing (`up-to-date`, the normal
+ * case once a version has released), or `missing` — the tag doesn't exist but
+ * this push didn't change `version` either, so tagging here would release a
+ * tree the version bump never contained.
+ */
 export function releaseDecision(
   version: PackageVersion,
   previousVersion: PackageVersion | null,
