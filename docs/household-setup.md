@@ -15,8 +15,8 @@ repo variable, never writing it into the repo itself.
    `firebase-adminsdk-…` service account, which by default can't run a rules deploy — grant it
    these two roles before the first deploy, unless the rules deploy authenticates with a
    `FIREBASE_TOKEN` secret instead (step 6), at
-   `https://console.cloud.google.com/iam-admin/iam?project=<id>` → find the `firebase-adminsdk-…`
-   principal → Add another role:
+   [`https://console.cloud.google.com/iam-admin/iam?project=<id>`](https://console.cloud.google.com/iam-admin/iam?project=<id>)
+   → find the `firebase-adminsdk-…` principal → Add another role:
 
    - **Service Usage Consumer** — without it, deploy fails with `403 Permission denied to get
      service [firestore.googleapis.com]` from `serviceusage.googleapis.com`.
