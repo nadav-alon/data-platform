@@ -11,19 +11,31 @@ function versionFromPackageJson(json: string): PackageVersion {
   return packageVersion(version);
 }
 
-// null when there is no previous commit to compare against, or it carried no
-// package.json — the first release, which tags without a version bump commit
-// of its own (RELEASING.md).
+// The all-zeros SHA GitHub sends as `github.event.before` for a push that
+// creates a branch: there is no commit before it to compare against.
+const ZERO_SHA = "0000000000000000000000000000000000000000";
+
+// null when there is no push before this one, or it carried no package.json —
+// the first release, which tags without a version bump commit of its own
+// (RELEASING.md). Anything else that keeps `git` from reading that commit's
+// package.json is a real failure and throws, rather than silently falling
+// back to the first-release case.
 function previousVersion(): PackageVersion | null {
-  let json: string;
+  const before = process.env.BEFORE_SHA;
+  if (!before) {
+    throw new Error("BEFORE_SHA is not set");
+  }
+  if (before === ZERO_SHA) {
+    return null;
+  }
+  // Throws if `before` itself doesn't resolve to a commit.
+  execFileSync("git", ["cat-file", "-e", `${before}^{commit}`], { stdio: "ignore" });
   try {
-    json = execFileSync("git", ["show", "HEAD^:package.json"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    execFileSync("git", ["cat-file", "-e", `${before}:package.json`], { stdio: "ignore" });
   } catch {
     return null;
   }
+  const json = execFileSync("git", ["show", `${before}:package.json`], { encoding: "utf8" });
   return versionFromPackageJson(json);
 }
 

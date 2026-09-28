@@ -8,13 +8,13 @@ version must be `major.minor.patch`: no pre-release or build tag.
 Apps pin a release with `npm install github:nadav-alon/data-platform#v<version>`; only those tags
 carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
 
-A push to `main` tags `v<version>` only when that commit is the one that changed `version` — compared
-to the commit before it — and the tag doesn't already exist yet. Once a version's tag exists, the
-normal case after a successful release, pushing again tags nothing, version bump or not. If a release
-run failed after the version bump merged, or that tag was deleted, no later push releases it: the
-next push to `main` finds `v<version>` missing without having changed `version` itself, and the
-Release Action fails, naming the missing tag, instead of releasing that push's unrelated tree under
-it. Re-create the tag by hand from the version bump's commit to recover.
+A push to `main` tags `v<version>` only when it changed `version` — compared to what `package.json`
+held before the push, not just its own last commit — and the tag doesn't exist yet. Once a version's
+tag exists, the normal case after a successful release, pushing again tags nothing, version bump or
+not. If a release run failed after the version bump merged, or that tag was deleted, no later push
+releases it: the next push to `main` finds `v<version>` missing without having changed `version`
+itself, and the Release Action fails, naming the missing tag, instead of releasing that push's
+unrelated tree under it. Re-create the tag by hand from the version bump's commit to recover.
 
 The Release Action re-runs `npm run typecheck`, `npm test` and `npm run test:rules` itself before
 tagging, so a commit that fails any of them never gets a tag.

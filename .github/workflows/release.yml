@@ -39,6 +39,10 @@ jobs:
           node-version: 22
       - name: Determine the pending release tag
         id: pending
+        env:
+          # The commit `main` pointed at before this push, so the version
+          # comparison is per-push rather than per-commit.
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           tag="$(node scripts/release/pending-tag.ts)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
