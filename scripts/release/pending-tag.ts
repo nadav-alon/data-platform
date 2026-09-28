@@ -56,7 +56,7 @@ switch (decision.kind) {
   case "missing":
     throw new Error(
       `Release tag ${decision.tag} is missing, but this push didn't change the version — refusing to ` +
-        `release this tree under it. Re-create ${decision.tag} by hand if it should point here, or leave ` +
-        `it to the version-bump push once one lands.`,
+        `release this tree under it. Re-run the Release Action for the push that changed the version ` +
+        `to recover; it checks out that push's own tree and tags ${decision.tag} from it.`,
     );
 }

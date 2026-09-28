@@ -14,7 +14,10 @@ tag exists, the normal case after a successful release, pushing again tags nothi
 not. If a release run failed after the version bump merged, or that tag was deleted, no later push
 releases it: the next push to `main` finds `v<version>` missing without having changed `version`
 itself, and the Release Action fails, naming the missing tag, instead of releasing that push's
-unrelated tree under it. Re-create the tag by hand from the version bump's commit to recover.
+unrelated tree under it. Recover by re-running the Release Action for the version bump's push: it
+checks out that push's own tree — the one the tag is supposed to contain — and tags it. Re-creating
+the tag by hand instead produces one with no `dist/`, since only the Action's own run builds and
+commits it.
 
 The Release Action re-runs `npm run typecheck`, `npm test` and `npm run test:rules` itself before
 tagging, so a commit that fails any of them never gets a tag.
