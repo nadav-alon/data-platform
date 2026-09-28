@@ -10,10 +10,25 @@ repo variable, never writing it into the repo itself.
 3. **Enable the Google sign-in provider**, under Authentication → Sign-in method.
 4. **Add the upstream app's host to Authorized domains**, under Authentication → Settings →
    Authorized domains — otherwise Google sign-in rejects it.
-5. **Deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
+5. **Generate a deploy key, and grant its service account two IAM roles.** Firebase project →
+   Project settings → Service accounts → Generate new private key. That key belongs to a
+   `firebase-adminsdk-…` service account, which by default can't run a rules deploy — grant it
+   these two roles before the first deploy, at
+   `https://console.cloud.google.com/iam-admin/iam?project=<id>` → find the `firebase-adminsdk-…`
+   principal → Add another role:
+
+   - **Service Usage Consumer** — without it, deploy fails with `403 Permission denied to get
+     service [firestore.googleapis.com]` from `serviceusage.googleapis.com`.
+   - **Firebase Rules Admin** — without it, deploy fails with `403 The caller does not have
+     permission` from `firebaserules.googleapis.com/v1/projects/<id>:test`.
+
+   Deploy writes `meta/platform` before deploying rules, so a deploy that fails on either error
+   still leaves `meta/platform` claiming a version the rules don't match — if you see one of them,
+   grant the missing role and redeploy. The same key secures deploy-on-release, so it needs both
+   roles too.
+6. **Deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
    repo's version, so apps can tell what's live. Writing `meta/platform` is an Admin SDK write,
-   made with a service account key: Firebase project → Project settings → Service accounts →
-   Generate new private key.
+   made with the service account key from step 5.
 
    - **On every release, automatically**: set the project id as the repo's `FIREBASE_PROJECT_ID`
      Actions variable (Settings → Secrets and variables → Actions → Variables) and paste the key
@@ -31,5 +46,5 @@ repo variable, never writing it into the repo itself.
      additionally authenticate the `firestore.rules` deploy, but `FIREBASE_SERVICE_ACCOUNT` is
      required either way — meta/platform is written, and its credential resolved, before
      firestore.rules deploys.
-6. **Open the app's setup screen.** The first person to sign in there claims the Household as its
+7. **Open the app's setup screen.** The first person to sign in there claims the Household as its
    Owner.
