@@ -12,6 +12,14 @@
 # (RELEASING.md).
 # Once the tag is pushed, a GitHub Release is created for it with
 # auto-generated notes.
+# When the repo variable FIREBASE_PROJECT_ID is set, the tag's tree is then deployed to that
+# project the same way `npm run deploy -- --project <id>` does from a clone, authenticated with
+# the FIREBASE_SERVICE_ACCOUNT secret like deploy.yml (docs/household-setup.md). Left unset — a
+# fork, another household — the release behaves exactly as before this step existed. Deploying
+# follows the same always-run, recompute-the-tag pattern as the Release creation step below, so a
+# deploy that failed (or a run that failed before reaching it) is retried by the next push without
+# re-tagging: RELEASING.md's recovery story covers releasing, not deploying, so this can't wait for
+# the push that changed `version` specifically, only for the tag to exist.
 name: Release
 
 on:
@@ -28,6 +36,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -46,8 +56,24 @@ jobs:
         run: |
           tag="$(node scripts/release/pending-tag.ts)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Determine whether this release should deploy
+        # Mirrors "Create the GitHub Release" below: recomputes the current tag rather than
+        # trusting steps.pending, and only acts once that tag is pushed to origin, so a deploy
+        # skipped by an earlier failed run still happens on the next push.
+        id: deploy-target
+        if: always() && !cancelled()
+        env:
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$PROJECT_ID" ]; then
+            exit 0
+          fi
+          tag="$(node scripts/release/current-tag.ts)"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "project-id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install dependencies
-        if: steps.pending.outputs.tag != ''
+        if: always() && !cancelled() && (steps.pending.outputs.tag != '' || steps.deploy-target.outputs.project-id != '')
         run: npm ci
       - name: Typecheck
         if: steps.pending.outputs.tag != ''
@@ -93,3 +119,13 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
             gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
           fi
+      - name: Write the service account key
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != '' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+      - name: Deploy the release
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != ''
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' && format('{0}/service-account.json', runner.temp) || '' }}
+          PROJECT_ID: ${{ steps.deploy-target.outputs.project-id }}
+        run: npm run deploy -- --project "$PROJECT_ID"
