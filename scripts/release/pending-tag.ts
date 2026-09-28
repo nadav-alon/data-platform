@@ -53,7 +53,7 @@ switch (decision.kind) {
     break;
   case "up-to-date":
     break;
-  case "missing":
+  case "refuse":
     throw new Error(
       `Release tag ${decision.tag} is missing, but this push didn't change the version — refusing to ` +
         `release this tree under it. Re-run the Release Action for the push that changed the version ` +

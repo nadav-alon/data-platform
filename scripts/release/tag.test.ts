@@ -35,7 +35,7 @@ test("is up-to-date once the version's tag already exists", () => {
   assert.deepEqual(decision, { kind: "up-to-date" });
 });
 
-test("is missing when the tag doesn't exist but this push didn't change the version", () => {
+test("refuses when the tag doesn't exist but this push didn't change the version", () => {
   const decision = releaseDecision(packageVersion("1.2.3"), packageVersion("1.2.3"), [releaseTag("v1.0.0")]);
-  assert.deepEqual(decision, { kind: "missing", tag: "v1.2.3" });
+  assert.deepEqual(decision, { kind: "refuse", tag: "v1.2.3" });
 });

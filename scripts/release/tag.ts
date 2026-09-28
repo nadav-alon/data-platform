@@ -25,12 +25,12 @@ export function tagForVersion(version: PackageVersion): ReleaseTag {
 export type ReleaseDecision =
   | { readonly kind: "tag"; readonly tag: ReleaseTag }
   | { readonly kind: "up-to-date" }
-  | { readonly kind: "missing"; readonly tag: ReleaseTag };
+  | { readonly kind: "refuse"; readonly tag: ReleaseTag };
 
 /**
  * What a push to `main` should do about the release tag: `tag` it (this push
  * is the one that changed `version`), do nothing (`up-to-date`, the normal
- * case once a version has released), or `missing` — the tag doesn't exist but
+ * case once a version has released), or `refuse` — the tag doesn't exist but
  * this push didn't change `version` either, so tagging here would release a
  * tree the version bump never contained.
  */
@@ -43,5 +43,5 @@ export function releaseDecision(
   if (existingTags.includes(tag)) {
     return { kind: "up-to-date" };
   }
-  return previousVersion === version ? { kind: "missing", tag } : { kind: "tag", tag };
+  return previousVersion === version ? { kind: "refuse", tag } : { kind: "tag", tag };
 }
