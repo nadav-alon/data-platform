@@ -2,9 +2,9 @@
 # release tag yet (scripts/release). Typecheck, tests and the rules harness
 # gate the tag: CI runs the same checks on the same push but in parallel, so
 # this job re-runs them all itself rather than trusting CI's result to have
-# landed first. The tag points at a commit made just for it — dist/ built and
-# force-added despite .gitignore — so
-# `npm install github:nadav-alon/data-platform#v<version>` gets built JS and
+# landed first. The tag points at a commit made just for it —
+# dist/ built and force-added despite .gitignore — so `npm install
+# github:nadav-alon/data-platform#v<version>` gets built JS and
 # type declarations with no build step of its own. Only the tag is pushed,
 # never main itself: main's own history stays free of dist/ (RELEASING.md).
 name: Release
