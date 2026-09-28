@@ -89,6 +89,11 @@ test("meta get: a signed-out get of meta/platform is denied", async () => {
   await assertFails(context.firestore().doc("meta/platform").get());
 });
 
+test("meta get: a signed-in non-member's get of another meta doc is denied", async () => {
+  const context = testEnv.authenticatedContext(mallory);
+  await assertFails(context.firestore().doc("meta/somethingElse").get());
+});
+
 test("meta list: a signed-in non-member's list of meta is denied", async () => {
   await seedHousehold(testEnv, alice);
   const context = testEnv.authenticatedContext(mallory);

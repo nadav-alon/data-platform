@@ -95,17 +95,19 @@ service cloud.firestore {
     }
 
     match /meta/{doc} {
-      /** A missing meta doc (unclaimed Household, undeployed platform) reads as not-exists. */
-      allow get: if isSignedIn();
-      allow list: if isMember();
+      allow get, list: if isMember();
     }
 
     match /meta/household {
+      /** A missing doc (unclaimed Household) reads as not-exists. */
+      allow get: if isSignedIn();
       allow create: if claimsHousehold();
       allow update, delete: if false;
     }
 
     match /meta/platform {
+      /** A missing doc (`meta/platform` not yet written) reads as not-exists. */
+      allow get: if isSignedIn();
       /** Written by household deploy using Admin SDK credentials, which bypass this rule entirely. */
       allow write: if false;
     }
