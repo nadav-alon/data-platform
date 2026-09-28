@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0
+
+- **Rules** (`firestore.rules`): a signed-in non-member may now `get` `meta/household` and
+  `meta/platform` (to tell whether the Household is claimed) and their own `members/{uid}` doc
+  (to tell whether they've been added); `list` on either stays Member-only. `members/{uid}`
+  writes are validated against `memberSchema`: `email` is required on create and update, and
+  `addedAt` must be the server's own commit time on create and unchanged on update.
+
 ## v0.1.0
 
 The first release: everything the home catalogue pins against.
