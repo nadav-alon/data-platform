@@ -1,8 +1,9 @@
 # Releasing
 
 Bump the version in `package.json`, in a pull request. Merging it into `main` is what releases it:
-the [Release Action](.github/workflows/release.yml) builds `dist/` and pushes tag `v<version>` on a
-commit made just for it. The version must be `major.minor.patch`: no pre-release or build tag.
+the [Release Action](.github/workflows/release.yml) builds `dist/`, pushes tag `v<version>` on a
+commit made just for it, and creates a GitHub Release for that tag with auto-generated notes. The
+version must be `major.minor.patch`: no pre-release or build tag.
 
 Apps pin a release with `npm install github:nadav-alon/data-platform#v<version>`; only those tags
 carry a built `dist/`, so pinning `#main` or a commit SHA does not work.
@@ -16,6 +17,12 @@ release `v<version>`, built from that later push's tree rather than the one the 
 
 The Release Action re-runs `npm run typecheck`, `npm test` and `npm run test:rules` itself before
 tagging, so a commit that fails any of them never gets a tag.
+
+Creating the GitHub Release itself is retried independently of the tag: every run, whether or not
+it tags a new version, checks the tag for `package.json`'s current version and creates its Release
+if that tag exists but has none yet. So a run where the tag push succeeds but the Release creation
+fails (API error, rate limit, token problem) leaves nothing to fix by hand — the next push to `main`
+creates the missing Release, without re-tagging or re-releasing anything.
 
 The `v0.0.0` tag came from the Release Action's first run, since `package.json` was already at
 `0.0.0` with no tag for it.

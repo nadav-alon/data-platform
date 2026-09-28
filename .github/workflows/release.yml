@@ -7,6 +7,8 @@
 # github:nadav-alon/data-platform#v<version>` gets built JS and
 # type declarations with no build step of its own. Only the tag is pushed,
 # never main itself: main's own history stays free of dist/ (RELEASING.md).
+# Once the tag is pushed, a GitHub Release is created for it with
+# auto-generated notes.
 name: Release
 
 on:
@@ -67,3 +69,20 @@ jobs:
               commit -m "Release $TAG"
           git tag "$TAG"
           git push origin "$TAG"
+      - name: Create the GitHub Release
+        # Computes TAG itself rather than reading steps.pending.outputs.tag,
+        # which is empty once the tag exists — including right after this
+        # step's own past failure. Runs unconditionally so a Release missed
+        # by an earlier run still gets created on the next push to main. Only
+        # ever acts on a tag already pushed to origin: `gh release create`
+        # would otherwise tag main's current HEAD itself, which may not be
+        # the commit this version was meant to release from (e.g. a push
+        # whose typecheck or test step failed before the tag was pushed).
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$(node scripts/release/current-tag.ts)"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
+          fi
