@@ -29,10 +29,12 @@ repo variable, never writing it into the repo itself.
    the `meta/platform` write itself failing, or this being the very first deploy — leaves
    `meta/platform` a version behind rules that are already live; redeploy to catch it up. The same
    key secures deploy-on-release, so it needs both roles too.
-6. **Deploy.** This checks that the service account key from step 5 has the roles above, deploys
-   `firestore.rules`, then writes `meta/platform` with this repo's version, so apps can tell what's
-   live — in that order, so a failure never leaves `meta/platform` claiming a version whose rules
-   aren't live. Writing `meta/platform` is an Admin SDK write, made with that same key.
+6. **Deploy.** This checks that the service account key from step 5 has the roles above, backfills
+   `referenceCount` onto every existing Shop and Category, deploys `firestore.rules`, then writes
+   `meta/platform` with this repo's version, so apps can tell what's live — in that order, so the
+   backfill always finishes before the rules that require `referenceCount` go live, and a failure
+   never leaves `meta/platform` claiming a version whose rules aren't live. The backfill and the
+   `meta/platform` write are both Admin SDK writes, made with that same key.
 
    - **On every release, automatically**: set the project id as the repo's `FIREBASE_PROJECT_ID`
      Actions variable (Settings → Secrets and variables → Actions → Variables) and paste the key
