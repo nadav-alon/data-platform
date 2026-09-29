@@ -26,7 +26,10 @@ before the rules deploy — no separate step needed.
 - **Deploy** (`scripts/deploy/`): `npm run deploy` now backfills `referenceCount` onto every
   existing Shop and Category, recomputed from the Categories and CatalogueItems that reference
   it, between the credential check and the rules deploy — idempotent, so a retried deploy is
-  safe.
+  safe. It only writes a Shop or Category that has no `referenceCount` yet, so once these rules
+  are live a routine redeploy leaves the rules-maintained count alone. Run the first upgrade
+  deploy while nothing is writing catalogue data: a reference added between the backfill's read
+  and its write is not counted.
 
 ## v0.2.0
 

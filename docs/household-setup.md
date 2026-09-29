@@ -34,7 +34,9 @@ repo variable, never writing it into the repo itself.
    `meta/platform` with this repo's version, so apps can tell what's live — in that order, so the
    backfill always finishes before the rules that require `referenceCount` go live, and a failure
    never leaves `meta/platform` claiming a version whose rules aren't live. The backfill and the
-   `meta/platform` write are both Admin SDK writes, made with that same key.
+   `meta/platform` write are both Admin SDK writes, made with that same key. The backfill's read of
+   existing data isn't atomic with client writes, so the first deploy onto 0.3.0 or later should
+   run while no client is writing catalogue data — a reference added mid-backfill won't be counted.
 
    - **On every release, automatically**: set the project id as the repo's `FIREBASE_PROJECT_ID`
      Actions variable (Settings → Secrets and variables → Actions → Variables) and paste the key

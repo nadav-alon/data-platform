@@ -5,10 +5,9 @@ import {
   CATALOGUE_ITEMS_COLLECTION,
   CATEGORIES_COLLECTION,
   SHOPS_COLLECTION,
-  categoryId,
   computeReferenceCounts,
-  shopId,
-  type ExistingCatalogue,
+  parseExistingCatalogue,
+  type FirestoreDoc,
 } from "../../src/catalogue/index.ts";
 import { PLATFORM_DOC_PATH, PLATFORM_VERSION, type PlatformMeta } from "../../src/core/platform.ts";
 import { parseProjectId } from "./parse-args.ts";
@@ -48,9 +47,40 @@ async function checkRulesCredential(): Promise<void> {
   }
 }
 
+/** Firestore refuses a batch of more than 500 writes. */
+const BATCH_WRITE_LIMIT = 500;
+
+function toFirestoreDocs(docs: readonly FirebaseFirestore.QueryDocumentSnapshot[]): FirestoreDoc[] {
+  return docs.map((doc) => ({ id: doc.id, data: doc.data() }));
+}
+
 /**
- * Recomputes every existing Shop and Category's referenceCount from what currently references
- * it, and writes the result back — idempotent, so re-running it (a retried deploy) is safe.
+ * Writes `counts` onto `collection`, chunked to Firestore's batch limit, skipping any id that
+ * already has a referenceCount: once `firestore.rules` (`getAfter`) owns a document's count, a
+ * routine redeploy recomputing it from a snapshot that isn't atomic with live client writes would
+ * overwrite an accurate count with a stale one.
+ */
+async function writeReferenceCounts<Id extends string>(
+  collection: string,
+  counts: ReadonlyMap<Id, number>,
+  alreadyCounted: ReadonlySet<string>,
+): Promise<void> {
+  const pending = Array.from(counts).filter(([id]) => !alreadyCounted.has(id));
+  for (let start = 0; start < pending.length; start += BATCH_WRITE_LIMIT) {
+    const batch = db.batch();
+    for (const [id, referenceCount] of pending.slice(start, start + BATCH_WRITE_LIMIT)) {
+      batch.set(db.collection(collection).doc(id), { referenceCount }, { merge: true });
+    }
+    await batch.commit();
+  }
+}
+
+/**
+ * Recomputes every existing Shop and Category's referenceCount from what currently references it,
+ * and writes it onto whichever of them don't have one yet — idempotent, so re-running it (a
+ * retried deploy, or a routine one after 0.3.0's rules are live) is safe. A doc with a malformed
+ * `defaultShopId`, `categoryId` or `shopId` is logged and left out rather than aborting the whole
+ * backfill.
  */
 async function backfillReferenceCounts(): Promise<void> {
   const [shopsSnapshot, categoriesSnapshot, catalogueItemsSnapshot] = await Promise.all([
@@ -59,32 +89,28 @@ async function backfillReferenceCounts(): Promise<void> {
     db.collection(CATALOGUE_ITEMS_COLLECTION).get(),
   ]);
 
-  const existing: ExistingCatalogue = {
-    shopIds: shopsSnapshot.docs.map((doc) => shopId(doc.id)),
-    categories: new Map(
-      categoriesSnapshot.docs.map((doc) => [
-        categoryId(doc.id),
-        { defaultShopId: shopId(doc.data().defaultShopId) },
-      ]),
-    ),
-    catalogueItems: catalogueItemsSnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        categoryId: categoryId(data.categoryId),
-        shopId: data.shopId === undefined ? undefined : shopId(data.shopId),
-      };
-    }),
-  };
+  const { existing, skipped } = parseExistingCatalogue(
+    toFirestoreDocs(shopsSnapshot.docs),
+    toFirestoreDocs(categoriesSnapshot.docs),
+    toFirestoreDocs(catalogueItemsSnapshot.docs),
+  );
+  for (const doc of skipped) {
+    console.warn(`referenceCount backfill: skipping ${doc.collection}/${doc.id}: ${doc.reason}`);
+  }
 
   const { shops, categories } = computeReferenceCounts(existing);
-  const batch = db.batch();
-  for (const [id, referenceCount] of shops) {
-    batch.set(db.collection(SHOPS_COLLECTION).doc(id), { referenceCount }, { merge: true });
-  }
-  for (const [id, referenceCount] of categories) {
-    batch.set(db.collection(CATEGORIES_COLLECTION).doc(id), { referenceCount }, { merge: true });
-  }
-  await batch.commit();
+
+  const shopsAlreadyCounted = new Set(
+    shopsSnapshot.docs.filter((doc) => doc.data().referenceCount !== undefined).map((doc) => doc.id),
+  );
+  const categoriesAlreadyCounted = new Set(
+    categoriesSnapshot.docs
+      .filter((doc) => doc.data().referenceCount !== undefined)
+      .map((doc) => doc.id),
+  );
+
+  await writeReferenceCounts(SHOPS_COLLECTION, shops, shopsAlreadyCounted);
+  await writeReferenceCounts(CATEGORIES_COLLECTION, categories, categoriesAlreadyCounted);
 }
 
 await runDeploy({

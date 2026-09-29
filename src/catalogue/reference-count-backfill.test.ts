@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { categoryId } from "./category.ts";
-import { computeReferenceCounts } from "./reference-count-backfill.ts";
+import { computeReferenceCounts, parseExistingCatalogue } from "./reference-count-backfill.ts";
 import { shopId } from "./shop.ts";
 
 test("a Shop or Category with nothing referencing it backfills to 0", () => {
@@ -68,4 +68,78 @@ test("counts every Shop and Category, not just the ones referenced", () => {
   assert.equal(result.shops.size, 2);
   assert.equal(result.categories.size, 2);
   assert.equal(result.categories.get(categoryId("unused-category")), 0);
+});
+
+test("parseExistingCatalogue reads well-formed docs", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [{ id: "pharmacy", data: {} }],
+    [{ id: "medicine", data: { defaultShopId: "pharmacy" } }],
+    [{ id: "item-1", data: { categoryId: "medicine", shopId: "pharmacy" } }],
+  );
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(existing.shopIds, [shopId("pharmacy")]);
+  assert.deepEqual(existing.categories.get(categoryId("medicine")), { defaultShopId: shopId("pharmacy") });
+  assert.deepEqual(existing.catalogueItems, [
+    { categoryId: categoryId("medicine"), shopId: shopId("pharmacy") },
+  ]);
+});
+
+test("parseExistingCatalogue treats a null CatalogueItem shopId as no override, matching firestore.rules", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [{ id: "medicine", data: { defaultShopId: "pharmacy" } }],
+    [{ id: "item-1", data: { categoryId: "medicine", shopId: null } }],
+  );
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(existing.catalogueItems, [{ categoryId: categoryId("medicine"), shopId: undefined }]);
+});
+
+test("parseExistingCatalogue treats a missing CatalogueItem shopId as no override", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [{ id: "medicine", data: { defaultShopId: "pharmacy" } }],
+    [{ id: "item-1", data: { categoryId: "medicine" } }],
+  );
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(existing.catalogueItems, [{ categoryId: categoryId("medicine"), shopId: undefined }]);
+});
+
+test("parseExistingCatalogue skips and reports a Category with a missing defaultShopId", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [{ id: "medicine", data: {} }],
+    [],
+  );
+  assert.equal(existing.categories.size, 0);
+  assert.equal(skipped.length, 1);
+  assert.equal(skipped[0]?.id, "medicine");
+});
+
+test("parseExistingCatalogue skips and reports a Category with a null defaultShopId", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [{ id: "medicine", data: { defaultShopId: null } }],
+    [],
+  );
+  assert.equal(existing.categories.size, 0);
+  assert.equal(skipped.length, 1);
+  assert.equal(skipped[0]?.id, "medicine");
+});
+
+test("parseExistingCatalogue skips and reports a CatalogueItem with a missing categoryId", () => {
+  const { existing, skipped } = parseExistingCatalogue([], [], [{ id: "item-1", data: {} }]);
+  assert.equal(existing.catalogueItems.length, 0);
+  assert.equal(skipped.length, 1);
+  assert.equal(skipped[0]?.id, "item-1");
+});
+
+test("parseExistingCatalogue skips and reports a CatalogueItem with an invalid shopId", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [],
+    [{ id: "item-1", data: { categoryId: "medicine", shopId: "" } }],
+  );
+  assert.equal(existing.catalogueItems.length, 0);
+  assert.equal(skipped.length, 1);
+  assert.equal(skipped[0]?.id, "item-1");
 });
