@@ -23,13 +23,16 @@ repo variable, never writing it into the repo itself.
    - **Firebase Rules Admin** — without it, deploy fails with `403 The caller does not have
      permission` from `firebaserules.googleapis.com/v1/projects/<id>:test`.
 
-   Because `meta/platform` is written before the rules deploy (step 6), a deploy that fails on
-   either error still leaves `meta/platform` claiming a version the rules don't match — if you see
-   one of them, grant the missing role and redeploy. The same key secures deploy-on-release, so it
-   needs both roles too.
-6. **Deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
-   repo's version, so apps can tell what's live. Writing `meta/platform` is an Admin SDK write,
-   made with the service account key from step 5.
+   Because `meta/platform` is written only after the rules deploy succeeds, a deploy that fails on
+   either error leaves `meta/platform` untouched, still naming the last version whose rules are
+   actually live — grant the missing role and redeploy. A failure after the rules deploy instead —
+   the `meta/platform` write itself failing, or this being the very first deploy — leaves
+   `meta/platform` a version behind rules that are already live; redeploy to catch it up. The same
+   key secures deploy-on-release, so it needs both roles too.
+6. **Deploy.** This checks that the service account key from step 5 has the roles above, deploys
+   `firestore.rules`, then writes `meta/platform` with this repo's version, so apps can tell what's
+   live — in that order, so a failure never leaves `meta/platform` claiming a version whose rules
+   aren't live. Writing `meta/platform` is an Admin SDK write, made with that same key.
 
    - **On every release, automatically**: set the project id as the repo's `FIREBASE_PROJECT_ID`
      Actions variable (Settings → Secrets and variables → Actions → Variables) and paste the key
@@ -45,7 +48,7 @@ repo variable, never writing it into the repo itself.
      (workflow_dispatch), passing the project id as its input, with the key pasted into the
      `FIREBASE_SERVICE_ACCOUNT` repo secret. A `FIREBASE_TOKEN` secret (`firebase login:ci`) can
      additionally authenticate the `firestore.rules` deploy, but `FIREBASE_SERVICE_ACCOUNT` is
-     required either way — meta/platform is written, and its credential resolved, before
-     firestore.rules deploys.
+     required either way — the deploy script checks that key's roles before `firestore.rules`
+     deploys, whichever credential (the key or `FIREBASE_TOKEN`) actually runs that deploy.
 7. **Open the app's setup screen.** The first person to sign in there claims the Household as its
    Owner.
