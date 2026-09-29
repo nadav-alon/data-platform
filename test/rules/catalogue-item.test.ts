@@ -267,6 +267,79 @@ test("reference count: changing a CatalogueItem's shopId override without adjust
   );
 });
 
+test("reference count: deleting a CatalogueItem batched with its Category's referenceCount drop is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: deleting a CatalogueItem without dropping its Category's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+});
+
+test("reference count: deleting a CatalogueItem with a shopId override batched with both drops is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "grocery",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 0 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: deleting a CatalogueItem with a shopId override without dropping the Shop's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "grocery",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
+  await assertFails(batch.commit());
+});
+
 test("collection validation: a Member creating a CatalogueItem with a non-string categoryId is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 

@@ -244,7 +244,14 @@ service cloud.firestore {
         && isValidCatalogueItem(request.resource.data)
         && categoryReferenceAdjusted(resource.data, request.resource.data)
         && shopReferenceAdjusted(resource.data, request.resource.data);
-      allow delete: if isMember();
+      /**
+       * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
+       * in the same batch.
+       */
+      allow delete: if isMember()
+        && refCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
+        && (catalogueItemShopId(resource.data) == null
+          || refCountAdjustedBy(shopPath(catalogueItemShopId(resource.data)), -1));
     }
 
     match /categories/{categoryId} {
