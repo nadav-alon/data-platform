@@ -12,6 +12,12 @@
 # (RELEASING.md).
 # Once the tag is pushed, a GitHub Release is created for it with
 # auto-generated notes.
+# When the repo variable FIREBASE_PROJECT_ID is set, the push that tagged this release — or a
+# re-run of it — also deploys that tag to that project the same way `npm run deploy -- --project
+# <id>` does, from a checkout of the tag itself rather than this job's own, authenticated with the
+# FIREBASE_SERVICE_ACCOUNT secret like deploy.yml (docs/household-setup.md). Left unset, no deploy
+# runs. A deploy that fails fails the job without un-releasing the tag; re-running it deploys the
+# same tag again without re-tagging. A later push that tags nothing new deploys nothing either.
 name: Release
 
 on:
@@ -28,6 +34,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -76,20 +84,66 @@ jobs:
               commit -m "Release $TAG"
           git tag "$TAG"
           git push origin "$TAG"
-      - name: Create the GitHub Release
-        # Computes TAG itself rather than reading steps.pending.outputs.tag,
-        # which is empty once the tag exists — including right after this
-        # step's own past failure. Runs unconditionally so a Release missed
-        # by an earlier run still gets created on the next push to main. Only
-        # ever acts on a tag already pushed to origin: `gh release create`
-        # would otherwise tag main's current HEAD itself, which may not be
-        # the commit this version was meant to release from (e.g. a push
-        # whose typecheck or test step failed before the tag was pushed).
+      - name: Determine the current release tag
+        # Recomputes from package.json rather than trusting steps.pending, which is empty once the
+        # tag exists — including right after this step's own past failure — and only acts once
+        # that tag is pushed to origin, so a run whose typecheck or test step failed before the tag
+        # push doesn't treat its own checkout as released. Create the GitHub Release and Deploy the
+        # release both key off this instead of each repeating the same check.
+        id: current-tag
         if: always() && !cancelled()
+        run: |
+          tag="$(node scripts/release/current-tag.ts)"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create the GitHub Release
+        # Runs whenever the current tag is pushed, tagged by this run or an earlier one, so a
+        # Release missed by a run that failed after tagging still gets created on the next push.
+        if: always() && !cancelled() && steps.current-tag.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.current-tag.outputs.tag }}
+        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
+      - name: Determine whether this release should deploy
+        # Deploys the push that tagged this release, or a re-run recovering from a deploy that
+        # failed (or a run that failed before reaching it) — never a later push that tags nothing
+        # new, which would otherwise redeploy the same release on every push to main.
+        id: deploy-target
+        if: always() && !cancelled() && steps.current-tag.outputs.tag != '' && (steps.pending.outputs.tag != '' || github.run_attempt > 1)
+        env:
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
-          TAG="$(node scripts/release/current-tag.ts)"
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
+          if [ -n "$PROJECT_ID" ]; then
+            echo "project-id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
           fi
+      - name: Check out the release tag
+        # deploy.ts reads firestore.rules and PLATFORM_VERSION from the working directory, which
+        # this job's own checkout matches only on a push that both tags and changes nothing
+        # afterward — never true on a re-run. Deploy from the tag's own tree instead. The tag may
+        # not be in this checkout's history (main never merges it), so fetch it by name first.
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != ''
+        env:
+          TAG: ${{ steps.current-tag.outputs.tag }}
+        run: |
+          git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
+          git worktree add "$RUNNER_TEMP/release" "$TAG"
+          cd "$RUNNER_TEMP/release" && npm ci
+      - name: Write the service account key
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != '' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+      - name: Fail if FIREBASE_SERVICE_ACCOUNT is missing
+        # Left to Deploy the release, a missing key reaches applicationDefault() with
+        # GOOGLE_APPLICATION_CREDENTIALS='' and throws there, without ever naming the secret.
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != '' && env.FIREBASE_SERVICE_ACCOUNT == ''
+        run: |
+          echo "::error::FIREBASE_PROJECT_ID is set but the FIREBASE_SERVICE_ACCOUNT repo secret is not; deploy needs it to write meta/platform (docs/household-setup.md)." >&2
+          exit 1
+      - name: Deploy the release
+        if: always() && !cancelled() && steps.deploy-target.outputs.project-id != '' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        working-directory: ${{ runner.temp }}/release
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ format('{0}/service-account.json', runner.temp) }}
+          PROJECT_ID: ${{ steps.deploy-target.outputs.project-id }}
+        run: npm run deploy -- --project "$PROJECT_ID"

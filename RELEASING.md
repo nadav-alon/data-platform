@@ -30,3 +30,15 @@ creates the missing Release, without re-tagging or re-releasing anything.
 
 The `v0.0.0` tag came from the Release Action's first run, since `package.json` was already at
 `0.0.0` with no tag for it.
+
+## Deploying a release
+
+When the repo has a `FIREBASE_PROJECT_ID` Actions variable set (`docs/household-setup.md`), the
+push that tags a release also deploys it — `firestore.rules` and `meta/platform` — to that
+project, authenticated with the `FIREBASE_SERVICE_ACCOUNT` secret the same way
+[deploy.yml](.github/workflows/deploy.yml) does, from a checkout of the tag itself so the tree it
+deploys always matches the tag's own `dist/` commit. Left unset, as on a fork or another
+Household's clone, nothing deploys and the release behaves exactly as described above.
+
+A deploy that fails fails the run without un-releasing the tag, and re-running it deploys the same
+tag again without re-tagging. A later push that doesn't itself tag a new release deploys nothing.

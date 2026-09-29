@@ -1,8 +1,8 @@
 # Household setup
 
 How a Household gets this platform into its own Firebase project, from a clone or from a fork's
-Action. No step below names a specific Household's project id — pass yours as an argument each
-time instead of writing it into the repo.
+Action. No step below names a specific Household's project id — pass yours as an argument or a
+repo variable, never writing it into the repo itself.
 
 1. **Create a Firebase project.** The [Spark (free) plan](https://firebase.google.com/pricing) is
    enough for one Household.
@@ -10,11 +10,17 @@ time instead of writing it into the repo.
 3. **Enable the Google sign-in provider**, under Authentication → Sign-in method.
 4. **Add the upstream app's host to Authorized domains**, under Authentication → Settings →
    Authorized domains — otherwise Google sign-in rejects it.
-5. **Run deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
+5. **Deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
    repo's version, so apps can tell what's live. Writing `meta/platform` is an Admin SDK write,
    made with a service account key: Firebase project → Project settings → Service accounts →
    Generate new private key.
 
+   - **On every release, automatically**: set the project id as the repo's `FIREBASE_PROJECT_ID`
+     Actions variable (Settings → Secrets and variables → Actions → Variables) and paste the key
+     into the `FIREBASE_SERVICE_ACCOUNT` repo secret. The project id stays a repo variable, never
+     written into the repo. From then on, the [Release Action](../RELEASING.md) deploys to that
+     project right after it tags a release — not on other pushes; leave the variable unset to
+     keep deploying manual.
    - **From a clone**: `GOOGLE_APPLICATION_CREDENTIALS=<path to the key> npm run deploy --
      --project <id>`. `npm ci` installs the [Firebase CLI](https://firebase.google.com/docs/cli)
      as a dev dependency, so no separate install is needed — the CLI picks up the same
