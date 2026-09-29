@@ -113,6 +113,160 @@ test("reference count: creating a CatalogueItem with a shopId override without b
   await assertFails(batch.commit());
 });
 
+test("reference count: updating a CatalogueItem without changing its Category or Shop needs no batch write", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const fixture: RulesFixture = {
+    name: "CatalogueItem necessity change, same categoryId",
+    collection: CATALOGUE_ITEMS_COLLECTION,
+    doc: { id: "dish-soap", data: { categoryId: "cleaning", necessity: "optional" } },
+    auth: { uid: alice },
+    expected: "accept",
+  };
+
+  await assertFixture(fixture, rulesTestEnv.env);
+});
+
+test("reference count: moving a CatalogueItem to a new Category without adjusting either Category's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedCategory(rulesTestEnv.env, "kitchen", 0);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "kitchen",
+      necessity: "essential",
+    }),
+  );
+});
+
+test("reference count: moving a CatalogueItem to a new Category batched with both Categories' referenceCount adjustments is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedCategory(rulesTestEnv.env, "kitchen", 0);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "kitchen",
+    necessity: "essential",
+  });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/kitchen`), { referenceCount: 1 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: adding a shopId override to a CatalogueItem without bumping the Shop's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "grocery",
+    }),
+  );
+});
+
+test("reference count: adding a shopId override batched with the Shop's referenceCount bump is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+    shopId: "grocery",
+  });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: removing a CatalogueItem's shopId override batched with the Shop's referenceCount drop is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "grocery",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+  });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 0 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: changing a CatalogueItem's shopId override without adjusting either Shop's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "grocery",
+    });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
+      categoryId: "cleaning",
+      necessity: "essential",
+      shopId: "pharmacy",
+    }),
+  );
+});
+
 test("collection validation: a Member creating a CatalogueItem with a non-string categoryId is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 

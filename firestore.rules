@@ -203,6 +203,32 @@ service cloud.firestore {
       return ('shopId' in data) ? data.shopId : null;
     }
 
+    /**
+     * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
+     * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
+     * and the new Category's must rise by 1, in the same batch.
+     */
+    function categoryReferenceAdjusted(oldData, newData) {
+      return oldData.categoryId == newData.categoryId
+        || (refCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && refCountAdjustedBy(categoryPath(newData.categoryId), 1));
+    }
+
+    /**
+     * Whether a CatalogueItem update correctly moves its optional `shopId` override: no
+     * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
+     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
+     */
+    function shopReferenceAdjusted(oldData, newData) {
+      return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
+        || (
+          (catalogueItemShopId(oldData) == null
+            || refCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
+          && (catalogueItemShopId(newData) == null
+            || refCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
+        );
+    }
+
     match /catalogueItems/{itemId} {
       allow read: if isMember();
       /**
@@ -214,7 +240,10 @@ service cloud.firestore {
         && refCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
         && (catalogueItemShopId(request.resource.data) == null
           || refCountAdjustedBy(shopPath(catalogueItemShopId(request.resource.data)), 1));
-      allow update: if isMember() && isValidCatalogueItem(request.resource.data);
+      allow update: if isMember()
+        && isValidCatalogueItem(request.resource.data)
+        && categoryReferenceAdjusted(resource.data, request.resource.data)
+        && shopReferenceAdjusted(resource.data, request.resource.data);
       allow delete: if isMember();
     }
 
