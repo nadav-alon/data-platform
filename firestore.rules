@@ -233,7 +233,8 @@ service cloud.firestore {
         && isValidShop(request.resource.data)
         && request.resource.data.referenceCount == 0;
       allow update: if isMember() && isValidShop(request.resource.data);
-      allow delete: if isMember();
+      /** Denied while anything still references this Shop (its own referenceCount). */
+      allow delete: if isMember() && resource.data.referenceCount == 0;
     }
 
     match /{document=**} {

@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import { assertFails } from "@firebase/rules-unit-testing";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
@@ -107,6 +107,32 @@ test("new-doc invariant: a Member creating a Shop with a nonzero referenceCount 
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy", referenceCount: 1 }),
   );
+});
+
+test("in-use guard: deleting an unreferenced Shop is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .set({ name: "Pharmacy", referenceCount: 0 });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
+});
+
+test("in-use guard: deleting a Shop whose referenceCount is nonzero is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .set({ name: "Pharmacy", referenceCount: 1 });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
 });
 
 test("isMember() gate: a signed-in non-member creating a Shop is denied", async () => {
