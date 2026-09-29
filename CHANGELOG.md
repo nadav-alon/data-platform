@@ -13,7 +13,10 @@ release, or `checkPlatform` reports `outdated` where it used to report `ok`.
   the matching `referenceCount` adjustment(s) on the Shop and/or Category it newly references,
   stops referencing, or moves its reference to/from, in the same batch — checked against that
   document's before/after state with `getAfter`; a write that leaves a count out of step is
-  denied. A new Shop or Category must start at `referenceCount: 0`.
+  denied. A new Shop or Category must start at `referenceCount: 0`. A batch may only adjust a
+  given Shop or Category's count through one referencing change; a batch that adds, removes, or
+  moves two references to the same target at once is denied and must be split into one write per
+  reference.
 
 ## v0.2.0
 

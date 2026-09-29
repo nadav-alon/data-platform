@@ -101,6 +101,12 @@ service cloud.firestore {
      * The doc that adds, removes, or changes a reference must carry this adjustment for the
      * doc(s) it references, in the same batch — never the referenced doc's own rule, which has
      * no way to tell which referencing write is responsible for a given change.
+     *
+     * `get`/`getAfter` see the whole batch's before/after state, so this only holds for a batch
+     * that touches `path` through one reference change. A batch that adds, removes, or moves two
+     * references to the same target in one go (two new CatalogueItems in one Category, say) needs
+     * a net delta this check can't express, and is denied — one write per referencing change per
+     * target, per batch.
      */
     function referenceCountAdjustedBy(path, delta) {
       return getAfter(path).data.referenceCount == get(path).data.referenceCount + delta;

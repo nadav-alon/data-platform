@@ -27,6 +27,25 @@ test("reference count: creating a CatalogueItem batched with its Category's refe
   await assertSucceeds(batch.commit());
 });
 
+test("reference count: creating two CatalogueItems in the same Category in one batch is denied — one reference change per target per batch (home-catalogue#50)", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+  });
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/sponge`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+  });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 2 });
+  await assertFails(batch.commit());
+});
+
 test("reference count: creating a CatalogueItem without also bumping its Category's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
