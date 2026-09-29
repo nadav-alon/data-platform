@@ -38,9 +38,12 @@ async function checkRulesCredential(): Promise<void> {
 
 await runDeploy({
   checkCredential: checkRulesCredential,
-  deployRules: () =>
+  deployRules: () => {
     execFileSync("npx", ["firebase", "deploy", "--only", "firestore:rules", "--project", projectId], {
       stdio: "inherit",
-    }),
-  writeMeta: () => platformDoc.set(platformMeta),
+    });
+  },
+  writeMeta: async () => {
+    await platformDoc.set(platformMeta);
+  },
 });

@@ -1,7 +1,7 @@
 export type DeploySteps = {
-  readonly checkCredential: () => Promise<unknown>;
-  readonly deployRules: () => void;
-  readonly writeMeta: () => Promise<unknown>;
+  readonly checkCredential: () => Promise<void> | void;
+  readonly deployRules: () => Promise<void> | void;
+  readonly writeMeta: () => Promise<void> | void;
 };
 
 /**
@@ -12,6 +12,6 @@ export type DeploySteps = {
  */
 export async function runDeploy(steps: DeploySteps): Promise<void> {
   await steps.checkCredential();
-  steps.deployRules();
+  await steps.deployRules();
   await steps.writeMeta();
 }
