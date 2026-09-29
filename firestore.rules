@@ -87,6 +87,25 @@ service cloud.firestore {
       return value is int && value >= 0;
     }
 
+    function shopPath(id) {
+      return /databases/$(database)/documents/shops/$(id);
+    }
+
+    function categoryPath(id) {
+      return /databases/$(database)/documents/categories/$(id);
+    }
+
+    /**
+     * Whether the doc at `path`'s `referenceCount` moves by exactly `delta` in this write's
+     * batch, comparing its state before (`get`) and after (`getAfter`) the whole batch commits.
+     * The doc that adds, removes, or changes a reference must carry this adjustment for the
+     * doc(s) it references, in the same batch — never the referenced doc's own rule, which has
+     * no way to tell which referencing write is responsible for a given change.
+     */
+    function refCountAdjustedBy(path, delta) {
+      return getAfter(path).data.referenceCount == get(path).data.referenceCount + delta;
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -176,10 +195,14 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read: if isMember();
-      /** A new Category starts unreferenced: nothing has had the chance to point at it yet. */
+      /**
+       * A new Category starts unreferenced: nothing has had the chance to point at it yet. Its
+       * own `defaultShopId` reference must bump that Shop's referenceCount in the same batch.
+       */
       allow create: if isMember()
         && isValidCategory(request.resource.data)
-        && request.resource.data.referenceCount == 0;
+        && request.resource.data.referenceCount == 0
+        && refCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
       allow update: if isMember() && isValidCategory(request.resource.data);
       allow delete: if isMember();
     }

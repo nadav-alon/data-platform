@@ -1,6 +1,8 @@
 import { test } from "node:test";
-import { assertFails } from "@firebase/rules-unit-testing";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
+import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { CATEGORIES_COLLECTION } from "../../src/catalogue/category.ts";
+import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold } from "./seed.ts";
@@ -10,21 +12,74 @@ const alice = uid("alice");
 
 const rulesTestEnv = setupRulesTestEnv();
 
-test("collection validation: a Member creating a Category with a name, default Shop and referenceCount 0 is accepted", async () => {
+/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
+async function seedShop(
+  testEnv: RulesTestEnvironment,
+  id: string,
+  referenceCount: number,
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
+  });
+}
+
+test("reference count: creating a Category batched with its default Shop's referenceCount bump is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`), {
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+  });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 1 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: creating a Category without also bumping its default Shop's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).set({
+      name: "Medicine",
+      defaultShopId: "pharmacy",
+      referenceCount: 0,
+    }),
+  );
+});
+
+test("reference count: creating a Category with the wrong Shop referenceCount delta is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`), {
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+  });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 2 });
+  await assertFails(batch.commit());
+});
+
+test("reference count: creating a Category whose default Shop doesn't exist is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 
-  const fixture: RulesFixture = {
-    name: "Category with name and defaultShopId",
-    collection: CATEGORIES_COLLECTION,
-    doc: {
-      id: "medicine",
-      data: { name: "Medicine", defaultShopId: "pharmacy", referenceCount: 0 },
-    },
-    auth: { uid: alice },
-    expected: "accept",
-  };
-
-  await assertFixture(fixture, rulesTestEnv.env);
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).set({
+      name: "Medicine",
+      defaultShopId: "pharmacy",
+      referenceCount: 0,
+    }),
+  );
 });
 
 test("collection validation: a Member creating a Category with a non-string name is denied", async () => {
