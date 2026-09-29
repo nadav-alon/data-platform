@@ -3,12 +3,13 @@
 ## v0.3.0
 
 Breaking for existing Households: redeploy (`npm run deploy`) before pinning an app to this
-release, or `checkPlatform` reports `outdated` where it used to report `ok`. Redeploying alone
-is not enough — a Shop or Category written before this release has no `referenceCount`, so once
-these rules are live it fails `shopSchema`/`categorySchema` parsing, can't be deleted, and can't
-be referenced by a new or updated Category/CatalogueItem; a CatalogueItem that already references
-one can't be updated or deleted either, until the Shop or Category is backfilled with a count.
-Backfill before deploying; tracked separately (#154).
+release, or `checkPlatform` reports `outdated` where it used to report `ok`. A Shop or Category
+written before this release has no `referenceCount`, so once these rules are live it fails
+`shopSchema`/`categorySchema` parsing, can't be deleted, and can't be referenced by a new or
+updated Category/CatalogueItem; a CatalogueItem that already references one can't be updated or
+deleted either, until the Shop or Category is backfilled with a count. `npm run deploy` now
+backfills `referenceCount` onto every existing Shop and Category itself, using the Admin SDK,
+before the rules deploy — no separate step needed.
 
 - **Schemas** (`src/catalogue/`): Shop and Category now carry a `referenceCount`
   (`referenceCountSchema`), tightened from v0.2.0's shape, so a write that used to pass — one
@@ -22,6 +23,13 @@ Backfill before deploying; tracked separately (#154).
   given Shop or Category's count through one referencing change; a batch that adds, removes, or
   moves two references to the same target at once is denied and must be split into one write per
   reference.
+- **Deploy** (`scripts/deploy/`): `npm run deploy` now backfills `referenceCount` onto every
+  existing Shop and Category, recomputed from the Categories and CatalogueItems that reference
+  it, between the credential check and the rules deploy — idempotent, so a retried deploy is
+  safe. It only writes a Shop or Category that has no `referenceCount` yet, so once these rules
+  are live a routine redeploy leaves the rules-maintained count alone. Run the first upgrade
+  deploy while nothing is writing catalogue data: a reference added between the backfill's read
+  and its write is not counted.
 
 ## v0.2.0
 
