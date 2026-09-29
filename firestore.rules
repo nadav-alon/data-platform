@@ -217,7 +217,13 @@ service cloud.firestore {
       allow update: if isMember()
         && isValidCategory(request.resource.data)
         && categoryShopReferenceAdjusted(resource.data, request.resource.data);
-      allow delete: if isMember();
+      /**
+       * Denied while anything still references this Category (its own referenceCount), and its
+       * own outgoing reference to its default Shop must be dropped in the same batch.
+       */
+      allow delete: if isMember()
+        && resource.data.referenceCount == 0
+        && refCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
     }
 
     match /shops/{shopId} {

@@ -156,6 +156,53 @@ test("reference count: moving a Category to a new default Shop batched with both
   await assertSucceeds(batch.commit());
 });
 
+test("reference count: deleting an unreferenced Category batched with its default Shop's referenceCount drop is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 1);
+  await seedCategory(rulesTestEnv.env, "medicine", {
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`));
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
+  await assertSucceeds(batch.commit());
+});
+
+test("reference count: deleting a Category without dropping its default Shop's referenceCount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 1);
+  await seedCategory(rulesTestEnv.env, "medicine", {
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+});
+
+test("in-use guard: deleting a Category whose referenceCount is nonzero is denied, even with the Shop drop batched", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, "pharmacy", 1);
+  await seedCategory(rulesTestEnv.env, "medicine", {
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 1,
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  const firestore = context.firestore();
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`));
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
+  await assertFails(batch.commit());
+});
+
 test("collection validation: a Member creating a Category with a non-string name is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 
