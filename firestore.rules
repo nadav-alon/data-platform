@@ -106,6 +106,17 @@ service cloud.firestore {
       return getAfter(path).data.referenceCount == get(path).data.referenceCount + delta;
     }
 
+    /**
+     * Whether a Category update correctly moves its `defaultShopId` reference: no adjustment
+     * required when it's unchanged, otherwise the old Shop's referenceCount must drop by 1 and
+     * the new Shop's must rise by 1, in the same batch.
+     */
+    function categoryShopReferenceAdjusted(oldData, newData) {
+      return oldData.defaultShopId == newData.defaultShopId
+        || (refCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
+          && refCountAdjustedBy(shopPath(newData.defaultShopId), 1));
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -203,7 +214,9 @@ service cloud.firestore {
         && isValidCategory(request.resource.data)
         && request.resource.data.referenceCount == 0
         && refCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
-      allow update: if isMember() && isValidCategory(request.resource.data);
+      allow update: if isMember()
+        && isValidCategory(request.resource.data)
+        && categoryShopReferenceAdjusted(resource.data, request.resource.data);
       allow delete: if isMember();
     }
 
