@@ -123,6 +123,15 @@ service cloud.firestore {
     }
 
     /**
+     * Whether a CatalogueItem's Shop override has its Shop's referenceCount move by `delta`
+     * in the same batch; vacuously true when `data` has no override to adjust.
+     */
+    function catalogueItemShopReferenceAdjustedBy(data, delta) {
+      return catalogueItemShopId(data) == null
+        || referenceCountAdjustedBy(shopPath(catalogueItemShopId(data)), delta);
+    }
+
+    /**
      * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
      * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
      * and the new Category's must rise by 1, in the same batch.
@@ -140,12 +149,8 @@ service cloud.firestore {
      */
     function catalogueItemShopReferenceAdjusted(oldData, newData) {
       return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
-        || (
-          (catalogueItemShopId(oldData) == null
-            || referenceCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
-          && (catalogueItemShopId(newData) == null
-            || referenceCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
-        );
+        || (catalogueItemShopReferenceAdjustedBy(oldData, -1)
+          && catalogueItemShopReferenceAdjustedBy(newData, 1));
     }
 
     /** Matches `catalogueItemSchema`. */
@@ -238,8 +243,7 @@ service cloud.firestore {
       allow create: if isMember()
         && isValidCatalogueItem(request.resource.data)
         && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
-        && (catalogueItemShopId(request.resource.data) == null
-          || referenceCountAdjustedBy(shopPath(catalogueItemShopId(request.resource.data)), 1));
+        && catalogueItemShopReferenceAdjustedBy(request.resource.data, 1);
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
         && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
@@ -250,8 +254,7 @@ service cloud.firestore {
        */
       allow delete: if isMember()
         && referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
-        && (catalogueItemShopId(resource.data) == null
-          || referenceCountAdjustedBy(shopPath(catalogueItemShopId(resource.data)), -1));
+        && catalogueItemShopReferenceAdjustedBy(resource.data, -1);
     }
 
     match /categories/{categoryId} {
