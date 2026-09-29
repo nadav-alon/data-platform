@@ -198,9 +198,23 @@ service cloud.firestore {
       }
     }
 
+    /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
+    function catalogueItemShopId(data) {
+      return ('shopId' in data) ? data.shopId : null;
+    }
+
     match /catalogueItems/{itemId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidCatalogueItem(request.resource.data);
+      /**
+       * A new CatalogueItem's `categoryId` must bump that Category's referenceCount in the same
+       * batch; its optional `shopId` override, when set, must likewise bump that Shop's.
+       */
+      allow create: if isMember()
+        && isValidCatalogueItem(request.resource.data)
+        && refCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
+        && (catalogueItemShopId(request.resource.data) == null
+          || refCountAdjustedBy(shopPath(catalogueItemShopId(request.resource.data)), 1));
+      allow update: if isMember() && isValidCatalogueItem(request.resource.data);
       allow delete: if isMember();
     }
 
