@@ -117,6 +117,37 @@ service cloud.firestore {
           && refCountAdjustedBy(shopPath(newData.defaultShopId), 1));
     }
 
+    /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
+    function catalogueItemShopId(data) {
+      return ('shopId' in data) ? data.shopId : null;
+    }
+
+    /**
+     * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
+     * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
+     * and the new Category's must rise by 1, in the same batch.
+     */
+    function categoryReferenceAdjusted(oldData, newData) {
+      return oldData.categoryId == newData.categoryId
+        || (refCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && refCountAdjustedBy(categoryPath(newData.categoryId), 1));
+    }
+
+    /**
+     * Whether a CatalogueItem update correctly moves its optional `shopId` override: no
+     * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
+     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
+     */
+    function shopReferenceAdjusted(oldData, newData) {
+      return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
+        || (
+          (catalogueItemShopId(oldData) == null
+            || refCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
+          && (catalogueItemShopId(newData) == null
+            || refCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
+        );
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -196,37 +227,6 @@ service cloud.firestore {
         allow create: if isMember() && isValidStateHistoryEntry(request.resource.data);
         allow update, delete: if false;
       }
-    }
-
-    /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
-    function catalogueItemShopId(data) {
-      return ('shopId' in data) ? data.shopId : null;
-    }
-
-    /**
-     * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
-     * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
-     * and the new Category's must rise by 1, in the same batch.
-     */
-    function categoryReferenceAdjusted(oldData, newData) {
-      return oldData.categoryId == newData.categoryId
-        || (refCountAdjustedBy(categoryPath(oldData.categoryId), -1)
-          && refCountAdjustedBy(categoryPath(newData.categoryId), 1));
-    }
-
-    /**
-     * Whether a CatalogueItem update correctly moves its optional `shopId` override: no
-     * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
-     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
-     */
-    function shopReferenceAdjusted(oldData, newData) {
-      return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
-        || (
-          (catalogueItemShopId(oldData) == null
-            || refCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
-          && (catalogueItemShopId(newData) == null
-            || refCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
-        );
     }
 
     match /catalogueItems/{itemId} {
