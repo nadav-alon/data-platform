@@ -67,10 +67,13 @@ async function backfillReferenceCounts(): Promise<void> {
         { defaultShopId: shopId(doc.data().defaultShopId) },
       ]),
     ),
-    catalogueItems: catalogueItemsSnapshot.docs.map((doc) => ({
-      categoryId: categoryId(doc.data().categoryId),
-      shopId: doc.data().shopId === undefined ? undefined : shopId(doc.data().shopId),
-    })),
+    catalogueItems: catalogueItemsSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        categoryId: categoryId(data.categoryId),
+        shopId: data.shopId === undefined ? undefined : shopId(data.shopId),
+      };
+    }),
   };
 
   const { shops, categories } = computeReferenceCounts(existing);
