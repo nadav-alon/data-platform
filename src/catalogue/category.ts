@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { referenceCountSchema } from "./reference-count.ts";
 import { shopIdSchema } from "./shop.ts";
 
 export const CATEGORIES_COLLECTION = "categories";
@@ -23,6 +24,8 @@ export const categoryIdSchema = z.string().refine(isCategoryId, "CategoryId must
 export const categorySchema = z.looseObject({
   name: z.string().min(1),
   defaultShopId: shopIdSchema,
+  /** CatalogueItems whose `categoryId` points at this Category. */
+  referenceCount: referenceCountSchema,
 });
 
 export type Category = z.infer<typeof categorySchema>;

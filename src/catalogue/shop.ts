@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { referenceCountSchema } from "./reference-count.ts";
 
 export const SHOPS_COLLECTION = "shops";
 
@@ -24,6 +25,8 @@ export const shopIdSchema = z.string().refine(isShopId, "ShopId must not be empt
  */
 export const shopSchema = z.looseObject({
   name: z.string().min(1),
+  /** Categories whose `defaultShopId` and CatalogueItems whose `shopId` point at this Shop. */
+  referenceCount: referenceCountSchema,
 });
 
 export type Shop = z.infer<typeof shopSchema>;

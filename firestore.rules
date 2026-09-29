@@ -82,6 +82,11 @@ service cloud.firestore {
       return value in ['essential', 'important', 'optional'];
     }
 
+    /** How many other documents reference this one; never negative. */
+    function isReferenceCount(value) {
+      return value is int && value >= 0;
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -91,12 +96,14 @@ service cloud.firestore {
 
     /** Matches `categorySchema`. */
     function isValidCategory(data) {
-      return isNonEmptyString(data.name) && isNonEmptyString(data.defaultShopId);
+      return isNonEmptyString(data.name)
+        && isNonEmptyString(data.defaultShopId)
+        && isReferenceCount(data.referenceCount);
     }
 
     /** Matches `shopSchema`. */
     function isValidShop(data) {
-      return isNonEmptyString(data.name);
+      return isNonEmptyString(data.name) && isReferenceCount(data.referenceCount);
     }
 
     /**
@@ -169,13 +176,21 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidCategory(request.resource.data);
+      /** A new Category starts unreferenced: nothing has had the chance to point at it yet. */
+      allow create: if isMember()
+        && isValidCategory(request.resource.data)
+        && request.resource.data.referenceCount == 0;
+      allow update: if isMember() && isValidCategory(request.resource.data);
       allow delete: if isMember();
     }
 
     match /shops/{shopId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidShop(request.resource.data);
+      /** A new Shop starts unreferenced: nothing has had the chance to point at it yet. */
+      allow create: if isMember()
+        && isValidShop(request.resource.data)
+        && request.resource.data.referenceCount == 0;
+      allow update: if isMember() && isValidShop(request.resource.data);
       allow delete: if isMember();
     }
 
