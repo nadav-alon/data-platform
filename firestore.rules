@@ -102,7 +102,7 @@ service cloud.firestore {
      * doc(s) it references, in the same batch — never the referenced doc's own rule, which has
      * no way to tell which referencing write is responsible for a given change.
      */
-    function refCountAdjustedBy(path, delta) {
+    function referenceCountAdjustedBy(path, delta) {
       return getAfter(path).data.referenceCount == get(path).data.referenceCount + delta;
     }
 
@@ -113,8 +113,8 @@ service cloud.firestore {
      */
     function categoryShopReferenceAdjusted(oldData, newData) {
       return oldData.defaultShopId == newData.defaultShopId
-        || (refCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
-          && refCountAdjustedBy(shopPath(newData.defaultShopId), 1));
+        || (referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
+          && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
     }
 
     /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
@@ -127,10 +127,10 @@ service cloud.firestore {
      * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
      * and the new Category's must rise by 1, in the same batch.
      */
-    function categoryReferenceAdjusted(oldData, newData) {
+    function catalogueItemCategoryReferenceAdjusted(oldData, newData) {
       return oldData.categoryId == newData.categoryId
-        || (refCountAdjustedBy(categoryPath(oldData.categoryId), -1)
-          && refCountAdjustedBy(categoryPath(newData.categoryId), 1));
+        || (referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && referenceCountAdjustedBy(categoryPath(newData.categoryId), 1));
     }
 
     /**
@@ -138,13 +138,13 @@ service cloud.firestore {
      * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
      * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
      */
-    function shopReferenceAdjusted(oldData, newData) {
+    function catalogueItemShopReferenceAdjusted(oldData, newData) {
       return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
         || (
           (catalogueItemShopId(oldData) == null
-            || refCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
+            || referenceCountAdjustedBy(shopPath(catalogueItemShopId(oldData)), -1))
           && (catalogueItemShopId(newData) == null
-            || refCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
+            || referenceCountAdjustedBy(shopPath(catalogueItemShopId(newData)), 1))
         );
     }
 
@@ -237,21 +237,21 @@ service cloud.firestore {
        */
       allow create: if isMember()
         && isValidCatalogueItem(request.resource.data)
-        && refCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
+        && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
         && (catalogueItemShopId(request.resource.data) == null
-          || refCountAdjustedBy(shopPath(catalogueItemShopId(request.resource.data)), 1));
+          || referenceCountAdjustedBy(shopPath(catalogueItemShopId(request.resource.data)), 1));
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
-        && categoryReferenceAdjusted(resource.data, request.resource.data)
-        && shopReferenceAdjusted(resource.data, request.resource.data);
+        && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
+        && catalogueItemShopReferenceAdjusted(resource.data, request.resource.data);
       /**
        * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
        * in the same batch.
        */
       allow delete: if isMember()
-        && refCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
+        && referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
         && (catalogueItemShopId(resource.data) == null
-          || refCountAdjustedBy(shopPath(catalogueItemShopId(resource.data)), -1));
+          || referenceCountAdjustedBy(shopPath(catalogueItemShopId(resource.data)), -1));
     }
 
     match /categories/{categoryId} {
@@ -263,7 +263,7 @@ service cloud.firestore {
       allow create: if isMember()
         && isValidCategory(request.resource.data)
         && request.resource.data.referenceCount == 0
-        && refCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
+        && referenceCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
       allow update: if isMember()
         && isValidCategory(request.resource.data)
         && categoryShopReferenceAdjusted(resource.data, request.resource.data);
@@ -273,7 +273,7 @@ service cloud.firestore {
        */
       allow delete: if isMember()
         && resource.data.referenceCount == 0
-        && refCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
+        && referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
     }
 
     match /shops/{shopId} {
