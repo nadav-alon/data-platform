@@ -3,25 +3,37 @@ import assert from "node:assert/strict";
 import { SHOPS_COLLECTION, isShopId, shopId, shopSchema } from "./shop.ts";
 
 test("accepts a Shop with a name", () => {
-  const shop = shopSchema.parse({ name: "Pharmacy" });
+  const shop = shopSchema.parse({ name: "Pharmacy", referenceCount: 0 });
   assert.equal(shop.name, "Pharmacy");
 });
 
 test("tolerates an unknown field", () => {
-  const shop = shopSchema.parse({ name: "Pharmacy", unexpected: true });
+  const shop = shopSchema.parse({ name: "Pharmacy", referenceCount: 0, unexpected: true });
   assert.equal(shop.unexpected, true);
 });
 
 test("rejects an empty name", () => {
-  assert.throws(() => shopSchema.parse({ name: "" }));
+  assert.throws(() => shopSchema.parse({ name: "", referenceCount: 0 }));
 });
 
 test("rejects a missing name", () => {
-  assert.throws(() => shopSchema.parse({}));
+  assert.throws(() => shopSchema.parse({ referenceCount: 0 }));
 });
 
 test("rejects a non-string name", () => {
-  assert.throws(() => shopSchema.parse({ name: 123 }));
+  assert.throws(() => shopSchema.parse({ name: 123, referenceCount: 0 }));
+});
+
+test("rejects a missing referenceCount", () => {
+  assert.throws(() => shopSchema.parse({ name: "Pharmacy" }));
+});
+
+test("rejects a negative referenceCount", () => {
+  assert.throws(() => shopSchema.parse({ name: "Pharmacy", referenceCount: -1 }));
+});
+
+test("rejects a non-integer referenceCount", () => {
+  assert.throws(() => shopSchema.parse({ name: "Pharmacy", referenceCount: 1.5 }));
 });
 
 test("SHOPS_COLLECTION is stable", () => {

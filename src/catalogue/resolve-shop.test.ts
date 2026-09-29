@@ -4,7 +4,11 @@ import { catalogueItemSchema } from "./catalogue-item.ts";
 import { categorySchema } from "./category.ts";
 import { resolveShop } from "./resolve-shop.ts";
 
-const category = categorySchema.parse({ name: "Medicine", defaultShopId: "pharmacy" });
+const category = categorySchema.parse({
+  name: "Medicine",
+  defaultShopId: "pharmacy",
+  referenceCount: 0,
+});
 
 test("resolves to the Category's default when there is no override", () => {
   const catalogueItem = catalogueItemSchema.parse({

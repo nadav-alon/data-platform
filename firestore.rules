@@ -82,6 +82,83 @@ service cloud.firestore {
       return value in ['essential', 'important', 'optional'];
     }
 
+    /** How many other documents reference this one; never negative. */
+    function isReferenceCount(value) {
+      return value is int && value >= 0;
+    }
+
+    function shopPath(id) {
+      return /databases/$(database)/documents/shops/$(id);
+    }
+
+    function categoryPath(id) {
+      return /databases/$(database)/documents/categories/$(id);
+    }
+
+    /**
+     * Whether the doc at `path`'s `referenceCount` moves by exactly `delta` in this write's
+     * batch, comparing its state before (`get`) and after (`getAfter`) the whole batch commits.
+     * The doc that adds, removes, or changes a reference must carry this adjustment for the
+     * doc(s) it references, in the same batch — never the referenced doc's own rule, which has
+     * no way to tell which referencing write is responsible for a given change.
+     *
+     * `get`/`getAfter` see the whole batch's before/after state, so this only holds for a batch
+     * that touches `path` through one reference change. A batch that adds, removes, or moves two
+     * references to the same target in one go (two new CatalogueItems in one Category, say) needs
+     * a net delta this check can't express, and is denied — one write per referencing change per
+     * target, per batch.
+     */
+    function referenceCountAdjustedBy(path, delta) {
+      return getAfter(path).data.referenceCount == get(path).data.referenceCount + delta;
+    }
+
+    /**
+     * Whether a Category update correctly moves its `defaultShopId` reference: no adjustment
+     * required when it's unchanged, otherwise the old Shop's referenceCount must drop by 1 and
+     * the new Shop's must rise by 1, in the same batch.
+     */
+    function categoryShopReferenceAdjusted(oldData, newData) {
+      return oldData.defaultShopId == newData.defaultShopId
+        || (referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
+          && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
+    }
+
+    /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
+    function catalogueItemShopId(data) {
+      return ('shopId' in data) ? data.shopId : null;
+    }
+
+    /**
+     * Whether a CatalogueItem's Shop override has its Shop's referenceCount move by `delta`
+     * in the same batch; vacuously true when `data` has no override to adjust.
+     */
+    function catalogueItemShopReferenceAdjustedBy(data, delta) {
+      return catalogueItemShopId(data) == null
+        || referenceCountAdjustedBy(shopPath(catalogueItemShopId(data)), delta);
+    }
+
+    /**
+     * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
+     * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
+     * and the new Category's must rise by 1, in the same batch.
+     */
+    function catalogueItemCategoryReferenceAdjusted(oldData, newData) {
+      return oldData.categoryId == newData.categoryId
+        || (referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && referenceCountAdjustedBy(categoryPath(newData.categoryId), 1));
+    }
+
+    /**
+     * Whether a CatalogueItem update correctly moves its optional `shopId` override: no
+     * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
+     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
+     */
+    function catalogueItemShopReferenceAdjusted(oldData, newData) {
+      return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
+        || (catalogueItemShopReferenceAdjustedBy(oldData, -1)
+          && catalogueItemShopReferenceAdjustedBy(newData, 1));
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -91,12 +168,14 @@ service cloud.firestore {
 
     /** Matches `categorySchema`. */
     function isValidCategory(data) {
-      return isNonEmptyString(data.name) && isNonEmptyString(data.defaultShopId);
+      return isNonEmptyString(data.name)
+        && isNonEmptyString(data.defaultShopId)
+        && isReferenceCount(data.referenceCount);
     }
 
     /** Matches `shopSchema`. */
     function isValidShop(data) {
-      return isNonEmptyString(data.name);
+      return isNonEmptyString(data.name) && isReferenceCount(data.referenceCount);
     }
 
     /**
@@ -163,20 +242,58 @@ service cloud.firestore {
 
     match /catalogueItems/{itemId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidCatalogueItem(request.resource.data);
-      allow delete: if isMember();
+      /**
+       * A new CatalogueItem's `categoryId` must bump that Category's referenceCount in the same
+       * batch; its optional `shopId` override, when set, must likewise bump that Shop's.
+       */
+      allow create: if isMember()
+        && isValidCatalogueItem(request.resource.data)
+        && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
+        && catalogueItemShopReferenceAdjustedBy(request.resource.data, 1);
+      allow update: if isMember()
+        && isValidCatalogueItem(request.resource.data)
+        && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
+        && catalogueItemShopReferenceAdjusted(resource.data, request.resource.data);
+      /**
+       * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
+       * in the same batch.
+       */
+      allow delete: if isMember()
+        && referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
+        && catalogueItemShopReferenceAdjustedBy(resource.data, -1);
     }
 
     match /categories/{categoryId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidCategory(request.resource.data);
-      allow delete: if isMember();
+      /**
+       * A new Category starts unreferenced: nothing has had the chance to point at it yet. Its
+       * own `defaultShopId` reference must bump that Shop's referenceCount in the same batch.
+       */
+      allow create: if isMember()
+        && isValidCategory(request.resource.data)
+        && request.resource.data.referenceCount == 0
+        && referenceCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
+      allow update: if isMember()
+        && isValidCategory(request.resource.data)
+        && categoryShopReferenceAdjusted(resource.data, request.resource.data);
+      /**
+       * Denied while anything still references this Category (its own referenceCount), and its
+       * own outgoing reference to its default Shop must be dropped in the same batch.
+       */
+      allow delete: if isMember()
+        && resource.data.referenceCount == 0
+        && referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
     }
 
     match /shops/{shopId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidShop(request.resource.data);
-      allow delete: if isMember();
+      /** A new Shop starts unreferenced: nothing has had the chance to point at it yet. */
+      allow create: if isMember()
+        && isValidShop(request.resource.data)
+        && request.resource.data.referenceCount == 0;
+      allow update: if isMember() && isValidShop(request.resource.data);
+      /** Denied while anything still references this Shop (its own referenceCount). */
+      allow delete: if isMember() && resource.data.referenceCount == 0;
     }
 
     match /{document=**} {

@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.0
+
+Breaking for existing Households: redeploy (`npm run deploy`) before pinning an app to this
+release, or `checkPlatform` reports `outdated` where it used to report `ok`. Redeploying alone
+is not enough — a Shop or Category written before this release has no `referenceCount`, so once
+these rules are live it fails `shopSchema`/`categorySchema` parsing, can't be deleted, and can't
+be referenced by a new or updated Category/CatalogueItem; a CatalogueItem that already references
+one can't be updated or deleted either, until the Shop or Category is backfilled with a count.
+Backfill before deploying; tracked separately (#154).
+
+- **Schemas** (`src/catalogue/`): Shop and Category now carry a `referenceCount`
+  (`referenceCountSchema`), tightened from v0.2.0's shape, so a write that used to pass — one
+  missing it, or setting it outside a non-negative integer — can now be rejected.
+- **Rules** (`firestore.rules`): a Shop or Category may no longer be deleted while its
+  `referenceCount` is nonzero. Creating or updating a Category, or a CatalogueItem, must carry
+  the matching `referenceCount` adjustment(s) on the Shop and/or Category it newly references,
+  stops referencing, or moves its reference to/from, in the same batch — checked against that
+  document's before/after state with `getAfter`; a write that leaves a count out of step is
+  denied. A new Shop or Category must start at `referenceCount: 0`. A batch may only adjust a
+  given Shop or Category's count through one referencing change; a batch that adds, removes, or
+  moves two references to the same target at once is denied and must be split into one write per
+  reference.
+
 ## v0.2.0
 
 Breaking for existing Households: redeploy (`npm run deploy`) before pinning an app to this

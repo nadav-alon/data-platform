@@ -1,4 +1,6 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
+import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { memberDocPath } from "../../src/core/members.ts";
 import type { Uid } from "../../src/core/uid.ts";
@@ -21,4 +23,30 @@ export async function seedHousehold(testEnv: RulesTestEnvironment, owner: Uid): 
     await context.firestore().doc(HOUSEHOLD_DOC_PATH).set({ owner });
   });
   await seedMember(testEnv, owner);
+}
+
+/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
+export async function seedShop(
+  testEnv: RulesTestEnvironment,
+  id: ShopId,
+  referenceCount: number,
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
+  });
+}
+
+/** Seeds a Category directly, bypassing rules, so a test can start from a known referenceCount. */
+export async function seedCategory(
+  testEnv: RulesTestEnvironment,
+  id: CategoryId,
+  defaultShopId: ShopId,
+  referenceCount: number,
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${CATEGORIES_COLLECTION}/${id}`)
+      .set({ name: "Category", defaultShopId, referenceCount });
+  });
 }
