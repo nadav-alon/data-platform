@@ -1,42 +1,19 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { CATEGORIES_COLLECTION } from "../../src/catalogue/category.ts";
-import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
+import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.ts";
+import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold } from "./seed.ts";
+import { seedCategory, seedHousehold, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 
 const rulesTestEnv = setupRulesTestEnv();
 
-/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
-async function seedShop(
-  testEnv: RulesTestEnvironment,
-  id: string,
-  referenceCount: number,
-): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
-  });
-}
-
-/** Seeds a Category directly, bypassing rules, so a test can start from a known state. */
-async function seedCategory(
-  testEnv: RulesTestEnvironment,
-  id: string,
-  data: { name: string; defaultShopId: string; referenceCount: number },
-): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATEGORIES_COLLECTION}/${id}`).set(data);
-  });
-}
-
 test("reference count: creating a Category batched with its default Shop's referenceCount bump is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -52,7 +29,7 @@ test("reference count: creating a Category batched with its default Shop's refer
 
 test("reference count: creating a Category without also bumping its default Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
@@ -66,7 +43,7 @@ test("reference count: creating a Category without also bumping its default Shop
 
 test("reference count: creating a Category with the wrong Shop referenceCount delta is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -95,12 +72,8 @@ test("reference count: creating a Category whose default Shop doesn't exist is d
 
 test("reference count: updating a Category without changing its default Shop needs no Shop batch write", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 0,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const fixture: RulesFixture = {
     name: "Category rename, same defaultShopId",
@@ -115,13 +88,9 @@ test("reference count: updating a Category without changing its default Shop nee
 
 test("reference count: moving a Category to a new default Shop without adjusting either Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 0,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
@@ -135,13 +104,9 @@ test("reference count: moving a Category to a new default Shop without adjusting
 
 test("reference count: moving a Category to a new default Shop batched with both Shops' referenceCount adjustments is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 0,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -158,12 +123,8 @@ test("reference count: moving a Category to a new default Shop batched with both
 
 test("reference count: deleting an unreferenced Category batched with its default Shop's referenceCount drop is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 0,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -175,12 +136,8 @@ test("reference count: deleting an unreferenced Category batched with its defaul
 
 test("reference count: deleting a Category without dropping its default Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 0,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
@@ -188,12 +145,8 @@ test("reference count: deleting a Category without dropping its default Shop's r
 
 test("in-use guard: deleting a Category whose referenceCount is nonzero is denied, even with the Shop drop batched", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, "pharmacy", 1);
-  await seedCategory(rulesTestEnv.env, "medicine", {
-    name: "Medicine",
-    defaultShopId: "pharmacy",
-    referenceCount: 1,
-  });
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 1);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();

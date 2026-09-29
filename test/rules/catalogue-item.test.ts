@@ -1,46 +1,20 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
-import { CATEGORIES_COLLECTION } from "../../src/catalogue/category.ts";
-import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
+import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.ts";
+import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold } from "./seed.ts";
+import { seedCategory, seedHousehold, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
 
 const rulesTestEnv = setupRulesTestEnv();
 
-/** Seeds a Category directly, bypassing rules, so a test can start from a known referenceCount. */
-async function seedCategory(
-  testEnv: RulesTestEnvironment,
-  id: string,
-  referenceCount: number,
-): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${CATEGORIES_COLLECTION}/${id}`)
-      .set({ name: "Category", defaultShopId: "some-shop", referenceCount });
-  });
-}
-
-/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
-async function seedShop(
-  testEnv: RulesTestEnvironment,
-  id: string,
-  referenceCount: number,
-): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
-  });
-}
-
 test("reference count: creating a CatalogueItem batched with its Category's referenceCount bump is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -55,7 +29,7 @@ test("reference count: creating a CatalogueItem batched with its Category's refe
 
 test("reference count: creating a CatalogueItem without also bumping its Category's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
@@ -80,8 +54,8 @@ test("reference count: creating a CatalogueItem whose Category doesn't exist is 
 
 test("reference count: creating a CatalogueItem with a shopId override batched with both bumps is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 0);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -98,8 +72,8 @@ test("reference count: creating a CatalogueItem with a shopId override batched w
 
 test("reference count: creating a CatalogueItem with a shopId override without bumping the Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 0);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   const firestore = context.firestore();
@@ -115,7 +89,7 @@ test("reference count: creating a CatalogueItem with a shopId override without b
 
 test("reference count: updating a CatalogueItem without changing its Category or Shop needs no batch write", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -136,8 +110,8 @@ test("reference count: updating a CatalogueItem without changing its Category or
 
 test("reference count: moving a CatalogueItem to a new Category without adjusting either Category's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedCategory(rulesTestEnv.env, "kitchen", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -156,8 +130,8 @@ test("reference count: moving a CatalogueItem to a new Category without adjustin
 
 test("reference count: moving a CatalogueItem to a new Category batched with both Categories' referenceCount adjustments is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedCategory(rulesTestEnv.env, "kitchen", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -179,8 +153,8 @@ test("reference count: moving a CatalogueItem to a new Category batched with bot
 
 test("reference count: adding a shopId override to a CatalogueItem without bumping the Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -200,8 +174,8 @@ test("reference count: adding a shopId override to a CatalogueItem without bumpi
 
 test("reference count: adding a shopId override batched with the Shop's referenceCount bump is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -223,8 +197,8 @@ test("reference count: adding a shopId override batched with the Shop's referenc
 
 test("reference count: removing a CatalogueItem's shopId override batched with the Shop's referenceCount drop is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -246,9 +220,9 @@ test("reference count: removing a CatalogueItem's shopId override batched with t
 
 test("reference count: changing a CatalogueItem's shopId override without adjusting either Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 1);
-  await seedShop(rulesTestEnv.env, "pharmacy", 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -269,7 +243,7 @@ test("reference count: changing a CatalogueItem's shopId override without adjust
 
 test("reference count: deleting a CatalogueItem batched with its Category's referenceCount drop is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -287,7 +261,7 @@ test("reference count: deleting a CatalogueItem batched with its Category's refe
 
 test("reference count: deleting a CatalogueItem without dropping its Category's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -301,8 +275,8 @@ test("reference count: deleting a CatalogueItem without dropping its Category's 
 
 test("reference count: deleting a CatalogueItem with a shopId override batched with both drops is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
@@ -322,8 +296,8 @@ test("reference count: deleting a CatalogueItem with a shopId override batched w
 
 test("reference count: deleting a CatalogueItem with a shopId override without dropping the Shop's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, "cleaning", 1);
-  await seedShop(rulesTestEnv.env, "grocery", 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
