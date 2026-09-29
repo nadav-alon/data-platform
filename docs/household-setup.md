@@ -23,10 +23,10 @@ repo variable, never writing it into the repo itself.
    - **Firebase Rules Admin** — without it, deploy fails with `403 The caller does not have
      permission` from `firebaserules.googleapis.com/v1/projects/<id>:test`.
 
-   Deploy writes `meta/platform` before deploying rules, so a deploy that fails on either error
-   still leaves `meta/platform` claiming a version the rules don't match — if you see one of them,
-   grant the missing role and redeploy. The same key secures deploy-on-release, so it needs both
-   roles too.
+   Because `meta/platform` is written before the rules deploy (step 6), a deploy that fails on
+   either error still leaves `meta/platform` claiming a version the rules don't match — if you see
+   one of them, grant the missing role and redeploy. The same key secures deploy-on-release, so it
+   needs both roles too.
 6. **Deploy.** This deploys `firestore.rules` and writes `meta/platform` with this
    repo's version, so apps can tell what's live. Writing `meta/platform` is an Admin SDK write,
    made with the service account key from step 5.
