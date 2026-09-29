@@ -3,7 +3,12 @@
 ## v0.3.0
 
 Breaking for existing Households: redeploy (`npm run deploy`) before pinning an app to this
-release, or `checkPlatform` reports `outdated` where it used to report `ok`.
+release, or `checkPlatform` reports `outdated` where it used to report `ok`. Redeploying alone
+is not enough — a Shop or Category written before this release has no `referenceCount`, so once
+these rules are live it fails `shopSchema`/`categorySchema` parsing, can't be deleted, and can't
+be referenced by a new or updated Category/CatalogueItem; a CatalogueItem that already references
+one can't be updated or deleted either, until the Shop or Category is backfilled with a count.
+Backfill before deploying; tracked separately (#154).
 
 - **Schemas** (`src/catalogue/`): Shop and Category now carry a `referenceCount`
   (`referenceCountSchema`), tightened from v0.2.0's shape, so a write that used to pass — one
