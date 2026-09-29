@@ -43,7 +43,7 @@ await runDeploy({
       stdio: "inherit",
     });
   },
-  writeMeta: async () => {
+  writePlatformMeta: async () => {
     await platformDoc.set(platformMeta);
   },
 });

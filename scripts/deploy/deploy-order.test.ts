@@ -11,11 +11,11 @@ test("checks the credential, then deploys rules, then writes meta, in that order
     deployRules: () => {
       calls.push("deployRules");
     },
-    writeMeta: async () => {
-      calls.push("writeMeta");
+    writePlatformMeta: async () => {
+      calls.push("writePlatformMeta");
     },
   });
-  assert.deepEqual(calls, ["checkCredential", "deployRules", "writeMeta"]);
+  assert.deepEqual(calls, ["checkCredential", "deployRules", "writePlatformMeta"]);
 });
 
 test("never deploys rules or writes meta when the credential check fails", async () => {
@@ -28,8 +28,8 @@ test("never deploys rules or writes meta when the credential check fails", async
       deployRules: () => {
         calls.push("deployRules");
       },
-      writeMeta: async () => {
-        calls.push("writeMeta");
+      writePlatformMeta: async () => {
+        calls.push("writePlatformMeta");
       },
     }),
     /bad credentials/,
@@ -45,8 +45,8 @@ test("never writes meta when the rules deploy fails", async () => {
       deployRules: () => {
         throw new Error("403 caller does not have permission");
       },
-      writeMeta: async () => {
-        calls.push("writeMeta");
+      writePlatformMeta: async () => {
+        calls.push("writePlatformMeta");
       },
     }),
     /403/,
