@@ -394,14 +394,20 @@ service cloud.firestore {
       return request.auth.token.email.lower();
     }
 
+    /** Whether the Member doc being created records the caller's own token email, lowercased. */
+    function recordsOwnEmail() {
+      return request.resource.data.email == ownInviteId();
+    }
+
     /**
-     * Joining, the Member-create half: `uid`'s own doc, allowed while an invite for their
-     * verified token email exists and only in a batch that spends it, so an invite joins once.
-     * The other half is the invite's own delete rule.
+     * Joining, the Member-create half: `uid`'s own doc, recording their token email, allowed
+     * while an invite for that verified email exists and only in a batch that spends it, so an
+     * invite joins once. The other half is the invite's own delete rule.
      */
     function joinsWithInvite(uid) {
       return isSelf(uid)
         && hasVerifiedEmail()
+        && recordsOwnEmail()
         && exists(invitePath(ownInviteId()))
         && !existsAfter(invitePath(ownInviteId()));
     }

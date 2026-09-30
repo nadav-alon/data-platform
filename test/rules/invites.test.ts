@@ -134,10 +134,10 @@ test("get: a signed-out caller cannot get an invite", async () => {
 });
 
 /** The invitee's join: their own Member doc created and their invite deleted, in one batch. */
-function joinBatch(db: TestFirestore, joiner: Uid) {
+function joinBatch(db: TestFirestore, joiner: Uid, recordedEmail: string = guest) {
   const batch = db.batch();
   batch.set(db.doc(memberDocPath(joiner)), {
-    email: guest,
+    email: recordedEmail,
     addedAt: serverTimestamp(),
   });
   batch.delete(db.doc(inviteDocPath(guest)));
@@ -156,6 +156,22 @@ test("join: an invitee with a verified matching email joins, ending as a Member 
     assert.equal((await firestore.doc(memberDocPath(bob)).get()).exists, true);
     assert.equal((await firestore.doc(inviteDocPath(guest)).get()).exists, false);
   });
+});
+
+test("join: refused when the Member email is not the joiner's token email", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, bob, "member@example.com").commit());
+});
+
+test("join: refused when the Member email is the token email but not lowercased", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, bob, guestToken.email).commit());
 });
 
 test("join: refused when there is no matching invite", async () => {
