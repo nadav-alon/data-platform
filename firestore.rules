@@ -95,6 +95,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/categories/$(id);
     }
 
+    function memberPath(uid) {
+      return /databases/$(database)/documents/members/$(uid);
+    }
+
+    function invitePath(id) {
+      return /databases/$(database)/documents/invites/$(id);
+    }
+
     /**
      * Whether the doc at `path`'s `referenceCount` moves by exactly `delta` in this write's
      * batch, comparing its state before (`get`) and after (`getAfter`) the whole batch commits.
@@ -206,12 +214,14 @@ service cloud.firestore {
 
     /**
      * Joining, the Member-create half: `uid`'s own doc, allowed while an invite for their
-     * verified token email exists. The other half is the invite's own delete rule.
+     * verified token email exists and only in a batch that spends it, so an invite joins once.
+     * The other half is the invite's own delete rule.
      */
     function joinsWithInvite(uid) {
       return isSelf(uid)
         && hasVerifiedEmail()
-        && exists(/databases/$(database)/documents/invites/$(ownInviteId()));
+        && exists(invitePath(ownInviteId()))
+        && !existsAfter(invitePath(ownInviteId()));
     }
 
     /**
@@ -221,7 +231,7 @@ service cloud.firestore {
     function spendsOwnInvite(inviteId) {
       return hasVerifiedEmail()
         && inviteId == ownInviteId()
-        && existsAfter(/databases/$(database)/documents/members/$(request.auth.uid));
+        && existsAfter(memberPath(request.auth.uid));
     }
 
     /** Matches `inviteSchema`; `invitedAt` must be the server's own commit time. */

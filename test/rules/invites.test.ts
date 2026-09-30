@@ -173,7 +173,15 @@ test("join: refused for a Member doc under another uid", async () => {
   await seedInvite(rulesTestEnv.env, guest);
   const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
 
-  await assertFails(joinBatch(db, mallory).commit());
+  await assertFails(db.doc(memberDocPath(mallory)).set({ email: guest, addedAt: serverTimestamp() }));
+});
+
+test("join: refused for a Member create that does not spend the invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(db.doc(memberDocPath(bob)).set({ email: guest, addedAt: serverTimestamp() }));
 });
 
 test("join: a non-Member cannot delete their invite without joining", async () => {
