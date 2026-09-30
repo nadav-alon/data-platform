@@ -474,12 +474,13 @@ service cloud.firestore {
         && catalogueItemReferencesValid(resource.data, request.resource.data)
         && itemDeletedAtMatches(itemId, request.resource.data);
       /**
-       * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
-       * in the same batch.
+       * Deleting a live CatalogueItem drops its Category reference, and its Shop override's when
+       * set, in the same batch. A soft-deleted one already dropped them.
        */
       allow delete: if isMember()
-        && referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
-        && catalogueItemShopReferenceAdjustedBy(resource.data, -1);
+        && (isDeleted(resource.data)
+          || (referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
+            && catalogueItemShopReferenceAdjustedBy(resource.data, -1)));
     }
 
     match /categories/{categoryId} {
@@ -500,12 +501,14 @@ service cloud.firestore {
         && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
         && categoryReferencesValid(resource.data, request.resource.data);
       /**
-       * Denied while anything still references this Category (its own referenceCount), and its
-       * own outgoing reference to its default Shop must be dropped in the same batch.
+       * Denied while anything still references this Category (its own referenceCount), and a
+       * live one's outgoing reference to its default Shop must be dropped in the same batch. A
+       * soft-deleted one already dropped it.
        */
       allow delete: if isMember()
         && resource.data.referenceCount == 0
-        && referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
+        && (isDeleted(resource.data)
+          || referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1));
     }
 
     match /shops/{shopId} {

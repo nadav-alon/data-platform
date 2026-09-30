@@ -668,3 +668,12 @@ test("no references to deleted: restoring a CatalogueItem while moving it to a l
   batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
   await assertSucceeds(batch.commit());
 });
+
+test("soft delete: hard-deleting a soft-deleted CatalogueItem needs no further count adjustment", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+});
