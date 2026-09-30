@@ -194,6 +194,36 @@ service cloud.firestore {
       return isValidMember(data) && data.addedAt == request.time;
     }
 
+    /** Whether the caller's token carries a Google-verified email. */
+    function hasVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    /** The invite id the caller's own token email addresses: lowercased, as invites are keyed. */
+    function ownInviteId() {
+      return request.auth.token.email.lower();
+    }
+
+    /**
+     * Joining, the Member-create half: `uid`'s own doc, allowed while an invite for their
+     * verified token email exists. The other half is the invite's own delete rule.
+     */
+    function joinsWithInvite(uid) {
+      return isSelf(uid)
+        && hasVerifiedEmail()
+        && exists(/databases/$(database)/documents/invites/$(ownInviteId()));
+    }
+
+    /**
+     * Joining, the invite-delete half: the invitee spends their own invite, and only once the
+     * same batch leaves them a Member.
+     */
+    function spendsOwnInvite(inviteId) {
+      return hasVerifiedEmail()
+        && inviteId == ownInviteId()
+        && existsAfter(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
     /** Matches `inviteSchema`; `invitedAt` must be the server's own commit time. */
     function isValidNewInvite(inviteId, data) {
       return inviteId == inviteId.lower() && data.invitedAt == request.time;
@@ -221,7 +251,7 @@ service cloud.firestore {
       /** A non-member may only `get` their own doc, so they can tell whether they've been added. */
       allow get: if isMember() || isSelf(uid);
       allow list: if isMember();
-      allow create: if (claimsOwnMembership(uid) || isOwner()) && isValidNewMember(request.resource.data);
+      allow create: if (claimsOwnMembership(uid) || isOwner() || joinsWithInvite(uid)) && isValidNewMember(request.resource.data);
       /** `addedAt` is set once, on create; an update may not change it. */
       allow update: if isOwner()
         && isValidMember(request.resource.data)
@@ -235,10 +265,10 @@ service cloud.firestore {
 
     match /invites/{inviteId} {
       /** Only the invitee can tell whether they have been invited; `list` stays Owner-only. */
-      allow get: if isSignedIn() && inviteId == request.auth.token.email.lower();
+      allow get: if isSignedIn() && inviteId == ownInviteId();
       allow list: if isOwner();
       allow create: if isOwner() && isValidNewInvite(inviteId, request.resource.data);
-      allow delete: if isOwner();
+      allow delete: if isOwner() || spendsOwnInvite(inviteId);
     }
 
     match /items/{itemId} {

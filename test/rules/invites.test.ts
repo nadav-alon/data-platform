@@ -1,9 +1,12 @@
 import { test } from "node:test";
+import assert from "node:assert/strict";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
 import { email } from "../../src/core/email.ts";
 import { INVITES_COLLECTION, inviteDocPath } from "../../src/core/invites.ts";
-import { uid } from "../../src/core/uid.ts";
+import { memberDocPath } from "../../src/core/members.ts";
+import { uid, type Uid } from "../../src/core/uid.ts";
+import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { seedHousehold, seedInvite, seedMember } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
@@ -13,6 +16,8 @@ const mallory = uid("mallory");
 const guest = email("guest@example.com");
 
 const rulesTestEnv = setupRulesTestEnv();
+
+type TestFirestore = ReturnType<ReturnType<RulesTestEnvironment["authenticatedContext"]>["firestore"]>;
 
 test("owner: the Owner can create an invite", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
@@ -118,4 +123,29 @@ test("get: a signed-out caller cannot get an invite", async () => {
   const db = rulesTestEnv.env.unauthenticatedContext().firestore();
 
   await assertFails(db.doc(inviteDocPath(guest)).get());
+});
+
+/** The invitee's join: their own Member doc created and their invite deleted, in one batch. */
+function joinBatch(db: TestFirestore, joiner: Uid) {
+  const batch = db.batch();
+  batch.set(db.doc(memberDocPath(joiner)), {
+    email: guest,
+    addedAt: serverTimestamp(),
+  });
+  batch.delete(db.doc(inviteDocPath(guest)));
+  return batch;
+}
+
+test("join: an invitee with a verified matching email joins, ending as a Member with the invite gone", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertSucceeds(joinBatch(db, bob).commit());
+
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    const firestore = context.firestore();
+    assert.equal((await firestore.doc(memberDocPath(bob)).get()).exists, true);
+    assert.equal((await firestore.doc(inviteDocPath(guest)).get()).exists, false);
+  });
 });
