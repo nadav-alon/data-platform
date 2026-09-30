@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { deletedAtSchema } from "../core/deleted-at.ts";
-import type { ItemId } from "../core/index.ts";
+import { deletedAtSchema, type ItemId } from "../core/index.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
 import { shopIdSchema } from "./shop.ts";

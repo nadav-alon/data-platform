@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deletedAtSchema } from "../core/deleted-at.ts";
+import { deletedAtSchema } from "../core/index.ts";
 import { referenceCountSchema } from "./reference-count.ts";
 
 export const SHOPS_COLLECTION = "shops";
