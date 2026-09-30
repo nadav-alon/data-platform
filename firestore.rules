@@ -29,9 +29,14 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/members/$(request.auth.uid));
     }
 
-    /** The other half of first-claim: `uid`'s own doc, batched with `claimsHousehold()`. */
+    /**
+     * The other half of first-claim: `uid`'s own doc, recording their verified token email,
+     * batched with `claimsHousehold()`.
+     */
     function claimsOwnMembership(uid) {
       return isSelf(uid)
+        && hasVerifiedEmail()
+        && recordsOwnEmail()
         && !exists(/databases/$(database)/documents/meta/household)
         && existsAfter(/databases/$(database)/documents/meta/household)
         && getAfter(/databases/$(database)/documents/meta/household).data.owner == request.auth.uid;

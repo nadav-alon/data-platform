@@ -29,6 +29,9 @@ const validMemberData = {
 /** A create payload that satisfies isValidNewMember's addedAt == request.time check. */
 const serverStampedMemberData = { email: email("member@example.com"), addedAt: serverTimestamp() };
 
+/** The token of a verified Google sign-in whose email matches `serverStampedMemberData`. */
+const memberToken = { email: "member@example.com", email_verified: true };
+
 let testEnv: RulesTestEnvironment;
 
 before(async () => {
@@ -174,11 +177,30 @@ test("members list: a Member's list of members is allowed", async () => {
 // accept fixture where zod and the emulator agree on this field.
 
 test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
-  const context = testEnv.authenticatedContext(alice);
+  const context = testEnv.authenticatedContext(alice, memberToken);
   const batch = context.firestore().batch();
   batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
   batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
   await assertSucceeds(batch.commit());
+});
+
+test("first-claim bootstrap: a claim whose Member email is not the claimant's token email is denied", async () => {
+  const context = testEnv.authenticatedContext(alice, {
+    email: "someone-else@example.com",
+    email_verified: true,
+  });
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
+  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
+  await assertFails(batch.commit());
+});
+
+test("first-claim bootstrap: a claim by a caller whose token email is unverified is denied", async () => {
+  const context = testEnv.authenticatedContext(alice, { ...memberToken, email_verified: false });
+  const batch = context.firestore().batch();
+  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
+  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
+  await assertFails(batch.commit());
 });
 
 test("first-claim bootstrap: creating meta/household without the claimant's own members doc in the same batch is denied", async () => {
