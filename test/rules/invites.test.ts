@@ -89,3 +89,33 @@ test("owner: an invite whose invitedAt is not the server's commit time is denied
     db.doc(inviteDocPath(guest)).set({ invitedAt: { seconds: 1_700_000_000, nanoseconds: 0 } }),
   );
 });
+
+const guestToken = { email: "Guest@Example.com", email_verified: true };
+
+test("get: a signed-in user can get the invite keyed by their own token email, lowercased", async () => {
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertSucceeds(db.doc(inviteDocPath(guest)).get());
+});
+
+test("get: a signed-in user cannot get another email's invite", async () => {
+  await seedInvite(rulesTestEnv.env, email("other@example.com"));
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(db.doc(inviteDocPath(email("other@example.com"))).get());
+});
+
+test("get: a signed-in user with no token email cannot get an invite", async () => {
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob).firestore();
+
+  await assertFails(db.doc(inviteDocPath(guest)).get());
+});
+
+test("get: a signed-out caller cannot get an invite", async () => {
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.unauthenticatedContext().firestore();
+
+  await assertFails(db.doc(inviteDocPath(guest)).get());
+});

@@ -234,6 +234,8 @@ service cloud.firestore {
     }
 
     match /invites/{inviteId} {
+      /** Only the invitee can tell whether they have been invited; `list` stays Owner-only. */
+      allow get: if isSignedIn() && inviteId == request.auth.token.email.lower();
       allow list: if isOwner();
       allow create: if isOwner() && isValidNewInvite(inviteId, request.resource.data);
       allow delete: if isOwner();
