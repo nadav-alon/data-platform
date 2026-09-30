@@ -456,7 +456,7 @@ service cloud.firestore {
     }
 
     match /invites/{inviteId} {
-      /** Only the invitee can tell whether they have been invited; any Member can `list`. */
+      /** `get` is limited to the invite keyed by the caller's own email; any Member can `list`. */
       allow get: if isSignedIn() && inviteId == ownInviteId();
       allow list: if isMember();
       allow create: if isOwner() && isValidNewInvite(inviteId, request.resource.data);
