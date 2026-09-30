@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.0
+
+Redeploy (`npm run deploy`) before pinning an app to this release, or `checkPlatform` reports
+`outdated` where it used to report `ok`; until the rules are live an invitee's join is denied.
+
+- **Schemas** (`src/core/`): the `invites` collection — `invites/{email}`, keyed by the invited
+  Google email, lowercased — with `inviteSchema` (`{invitedAt}`), `INVITES_COLLECTION` and
+  `inviteDocPath(email)` beside `members`, and registered in `CORE_COLLECTION_SCHEMAS`.
+- **Rules** (`firestore.rules`): only the Owner may create, list and delete invites; a new invite's
+  `invitedAt` must be the server's own commit time and its id lowercased. A signed-in user may
+  `get` only the invite whose id is their own token email, lowercased. An invitee joins with one
+  batch that creates `members/{their uid}` and deletes `invites/{their email}`: the Member create
+  needs that invite to exist and `request.auth.token.email_verified` to be true, and the invite
+  delete needs the Member doc to exist after the batch. A join with no matching invite, an
+  unverified email, or a Member doc under another uid is denied.
+
 ## v0.3.0
 
 Breaking for existing Households: redeploy (`npm run deploy`) before pinning an app to this
