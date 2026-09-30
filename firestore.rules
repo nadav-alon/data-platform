@@ -65,10 +65,53 @@ service cloud.firestore {
       return value is list && (value.size() == 0 || isBarcode(value[0]));
     }
 
+    /** Matches `deletedAtSchema`: absent, or a timestamp. A `null` is neither, so it never gets through. */
+    function isValidDeletedAt(data) {
+      return !('deletedAt' in data) || data.deletedAt is timestamp;
+    }
+
+    /** When `data` was soft-deleted, or `null` while it is live (no `deletedAt`). */
+    function deletedAtOf(data) {
+      return ('deletedAt' in data) ? data.deletedAt : null;
+    }
+
+    function isDeleted(data) {
+      return deletedAtOf(data) != null;
+    }
+
+    /**
+     * A doc is created live: a soft delete is an update, so the counts a live doc holds are
+     * released by one write that can be checked against them.
+     */
+    function isCreatedLive(data) {
+      return !isDeleted(data);
+    }
+
+    /**
+     * An update leaves `deletedAt` as it was, or clears it (a restore), or, on a live doc, sets
+     * it to the server's own commit time. A doc that stays soft-deleted keeps its original time.
+     */
+    function deletedAtUpdateValid(oldData, newData) {
+      return deletedAtOf(oldData) == deletedAtOf(newData)
+        || !isDeleted(newData)
+        || (isSoftDeleting(oldData, newData) && newData.deletedAt == request.time);
+    }
+
+    /** Whether an update sets `deletedAt` on a live doc. */
+    function isSoftDeleting(oldData, newData) {
+      return !isDeleted(oldData) && isDeleted(newData);
+    }
+
+    /** Whether an update clears `deletedAt` on a soft-deleted doc. */
+    function isRestoring(oldData, newData) {
+      return isDeleted(oldData) && !isDeleted(newData);
+    }
+
     /** Matches `itemSchema`: extra fields tolerate additive evolution. */
     function isValidItem(data) {
       return isNonEmptyString(data.name)
         && isState(data.state)
+        && isValidDeletedAt(data)
         && (!('brandNote' in data) || data.brandNote is string)
         && (!('barcodes' in data) || isValidBarcodes(data.barcodes));
     }
@@ -103,6 +146,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/invites/$(id);
     }
 
+    function itemPath(id) {
+      return /databases/$(database)/documents/items/$(id);
+    }
+
+    function catalogueItemPath(id) {
+      return /databases/$(database)/documents/catalogueItems/$(id);
+    }
+
     /**
      * Whether the doc at `path`'s `referenceCount` moves by exactly `delta` in this write's
      * batch, comparing its state before (`get`) and after (`getAfter`) the whole batch commits.
@@ -121,6 +172,53 @@ service cloud.firestore {
     }
 
     /**
+     * Whether the doc at `path` is live before this batch. A write that points at a Shop or
+     * Category needs it live then, not merely after the batch: restoring a Category and the Shop
+     * it names takes one batch each.
+     */
+    function isLiveAt(path) {
+      return !isDeleted(get(path).data);
+    }
+
+    /**
+     * Whether an update leaves a reference needing no liveness check: it names nothing, or it is
+     * unchanged on a doc that isn't being restored, so its target already holds a count a
+     * Category or Shop can't be soft-deleted under.
+     */
+    function referenceKept(oldData, newData, oldId, newId) {
+      return newId == null || (!isRestoring(oldData, newData) && oldId == newId);
+    }
+
+    /**
+     * Whether a Category update leaves its default Shop live: a soft-deleted Category references
+     * nothing, and a live one that keeps its Shop already holds a count on it, which a Shop can't
+     * be soft-deleted under. Only a new or restored reference, or a moved one, is checked.
+     */
+    function categoryUpdateNamesLiveShop(oldData, newData) {
+      return isDeleted(newData)
+        || referenceKept(oldData, newData, oldData.defaultShopId, newData.defaultShopId)
+        || isLiveAt(shopPath(newData.defaultShopId));
+    }
+
+    /** Whether a new CatalogueItem's Category, and Shop override when set, are live. */
+    function catalogueItemNamesLiveTargets(data) {
+      return isLiveAt(categoryPath(data.categoryId))
+        && (catalogueItemShopId(data) == null || isLiveAt(shopPath(catalogueItemShopId(data))));
+    }
+
+    /**
+     * `categoryUpdateNamesLiveShop` for a CatalogueItem's Category and Shop override: each is
+     * checked only when it is new, moved, or restored.
+     */
+    function catalogueItemUpdateNamesLiveTargets(oldData, newData) {
+      return isDeleted(newData)
+        || ((referenceKept(oldData, newData, oldData.categoryId, newData.categoryId)
+            || isLiveAt(categoryPath(newData.categoryId)))
+          && (referenceKept(oldData, newData, catalogueItemShopId(oldData), catalogueItemShopId(newData))
+            || isLiveAt(shopPath(catalogueItemShopId(newData)))));
+    }
+
+    /**
      * Whether a Category update correctly moves its `defaultShopId` reference: no adjustment
      * required when it's unchanged, otherwise the old Shop's referenceCount must drop by 1 and
      * the new Shop's must rise by 1, in the same batch.
@@ -129,6 +227,30 @@ service cloud.firestore {
       return oldData.defaultShopId == newData.defaultShopId
         || (referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
           && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
+    }
+
+    /**
+     * Whether a Category update, live or soft-deleted on either side, keeps its reference to its
+     * default Shop counted exactly while it is live. A live Category holds one count on its
+     * default Shop; a soft-deleted one holds none, so:
+     *
+     * - live to live: `categoryShopReferenceAdjusted`;
+     * - soft delete: only at `referenceCount == 0`, with the default Shop unchanged and dropped by 1;
+     * - restore: the default Shop it names afterwards (possibly a new one) rises by 1;
+     * - soft-deleted to soft-deleted: the default Shop stays as it was, with nothing to adjust.
+     */
+    function categoryReferencesValid(oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && categoryShopReferenceAdjusted(oldData, newData))
+        || (isSoftDeleting(oldData, newData)
+          && oldData.referenceCount == 0
+          && newData.referenceCount == 0
+          && oldData.defaultShopId == newData.defaultShopId
+          && referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1))
+        || (isRestoring(oldData, newData)
+          && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1))
+        || (isDeleted(oldData) && isDeleted(newData)
+          && oldData.defaultShopId == newData.defaultShopId);
     }
 
     /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
@@ -167,10 +289,61 @@ service cloud.firestore {
           && catalogueItemShopReferenceAdjustedBy(newData, 1));
     }
 
+    /**
+     * Whether a CatalogueItem update, live or soft-deleted on either side, keeps its references
+     * to its Category and optional Shop override counted exactly while it is live. As with a
+     * Category (`categoryReferencesValid`): a live one holds a count on each, a soft-deleted one
+     * holds none.
+     *
+     * - live to live: the old and new references are moved with `catalogueItemCategoryReferenceAdjusted`
+     *   and `catalogueItemShopReferenceAdjusted`;
+     * - soft delete: both references unchanged, and each dropped by 1;
+     * - restore: each reference it names afterwards (possibly new ones) rises by 1;
+     * - soft-deleted to soft-deleted: both references stay as they were, with nothing to adjust.
+     */
+    function catalogueItemReferencesValid(oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && catalogueItemCategoryReferenceAdjusted(oldData, newData)
+          && catalogueItemShopReferenceAdjusted(oldData, newData))
+        || (isSoftDeleting(oldData, newData)
+          && catalogueItemReferencesUnchanged(oldData, newData)
+          && referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && catalogueItemShopReferenceAdjustedBy(oldData, -1))
+        || (isRestoring(oldData, newData)
+          && referenceCountAdjustedBy(categoryPath(newData.categoryId), 1)
+          && catalogueItemShopReferenceAdjustedBy(newData, 1))
+        || (isDeleted(oldData) && isDeleted(newData)
+          && catalogueItemReferencesUnchanged(oldData, newData));
+    }
+
+    function catalogueItemReferencesUnchanged(oldData, newData) {
+      return oldData.categoryId == newData.categoryId
+        && catalogueItemShopId(oldData) == catalogueItemShopId(newData);
+    }
+
+    /** Whether the doc at `path`, when it exists after the batch, has the same `deletedAt` as `data`. */
+    function deletedAtMatchesAt(path, data) {
+      return !existsAfter(path) || deletedAtOf(getAfter(path).data) == deletedAtOf(data);
+    }
+
+    /**
+     * A CatalogueItem and the Item it extends are soft-deleted together: when the `items` doc
+     * exists after the batch, its `deletedAt` is the CatalogueItem's own.
+     */
+    function itemDeletedAtMatches(itemId, catalogueItemData) {
+      return deletedAtMatchesAt(itemPath(itemId), catalogueItemData);
+    }
+
+    /** The other half of `itemDeletedAtMatches`: an Item's `deletedAt` follows its CatalogueItem's. */
+    function catalogueItemDeletedAtMatches(itemId, itemData) {
+      return deletedAtMatchesAt(catalogueItemPath(itemId), itemData);
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
         && isNecessity(data.necessity)
+        && isValidDeletedAt(data)
         && (!('shopId' in data) || isNonEmptyString(data.shopId));
     }
 
@@ -178,12 +351,21 @@ service cloud.firestore {
     function isValidCategory(data) {
       return isNonEmptyString(data.name)
         && isNonEmptyString(data.defaultShopId)
-        && isReferenceCount(data.referenceCount);
+        && isReferenceCount(data.referenceCount)
+        && isValidDeletedAt(data);
+    }
+
+    /** A Shop is soft-deleted only while nothing references it, as a hard delete is. */
+    function shopSoftDeleteAllowed(oldData, newData) {
+      return !isSoftDeleting(oldData, newData)
+        || (oldData.referenceCount == 0 && newData.referenceCount == 0);
     }
 
     /** Matches `shopSchema`. */
     function isValidShop(data) {
-      return isNonEmptyString(data.name) && isReferenceCount(data.referenceCount);
+      return isNonEmptyString(data.name)
+        && isReferenceCount(data.referenceCount)
+        && isValidDeletedAt(data);
     }
 
     /**
@@ -283,7 +465,13 @@ service cloud.firestore {
 
     match /items/{itemId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidItem(request.resource.data);
+      allow create: if isMember()
+        && isValidItem(request.resource.data)
+        && isCreatedLive(request.resource.data);
+      allow update: if isMember()
+        && isValidItem(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && catalogueItemDeletedAtMatches(itemId, request.resource.data);
       allow delete: if isMember();
 
       match /stateHistory/{entryId} {
@@ -301,19 +489,24 @@ service cloud.firestore {
        */
       allow create: if isMember()
         && isValidCatalogueItem(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && catalogueItemNamesLiveTargets(request.resource.data)
         && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
         && catalogueItemShopReferenceAdjustedBy(request.resource.data, 1);
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
-        && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
-        && catalogueItemShopReferenceAdjusted(resource.data, request.resource.data);
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && catalogueItemUpdateNamesLiveTargets(resource.data, request.resource.data)
+        && catalogueItemReferencesValid(resource.data, request.resource.data)
+        && itemDeletedAtMatches(itemId, request.resource.data);
       /**
-       * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
-       * in the same batch.
+       * Deleting a live CatalogueItem drops its Category reference, and its Shop override's when
+       * set, in the same batch. A soft-deleted one already dropped them.
        */
       allow delete: if isMember()
-        && referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
-        && catalogueItemShopReferenceAdjustedBy(resource.data, -1);
+        && (isDeleted(resource.data)
+          || (referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
+            && catalogueItemShopReferenceAdjustedBy(resource.data, -1)));
     }
 
     match /categories/{categoryId} {
@@ -324,18 +517,24 @@ service cloud.firestore {
        */
       allow create: if isMember()
         && isValidCategory(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && isLiveAt(shopPath(request.resource.data.defaultShopId))
         && request.resource.data.referenceCount == 0
         && referenceCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
       allow update: if isMember()
         && isValidCategory(request.resource.data)
-        && categoryShopReferenceAdjusted(resource.data, request.resource.data);
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
+        && categoryReferencesValid(resource.data, request.resource.data);
       /**
-       * Denied while anything still references this Category (its own referenceCount), and its
-       * own outgoing reference to its default Shop must be dropped in the same batch.
+       * Denied while anything still references this Category (its own referenceCount), and a
+       * live one's outgoing reference to its default Shop must be dropped in the same batch. A
+       * soft-deleted one already dropped it.
        */
       allow delete: if isMember()
         && resource.data.referenceCount == 0
-        && referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1);
+        && (isDeleted(resource.data)
+          || referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1));
     }
 
     match /shops/{shopId} {
@@ -343,8 +542,12 @@ service cloud.firestore {
       /** A new Shop starts unreferenced: nothing has had the chance to point at it yet. */
       allow create: if isMember()
         && isValidShop(request.resource.data)
+        && isCreatedLive(request.resource.data)
         && request.resource.data.referenceCount == 0;
-      allow update: if isMember() && isValidShop(request.resource.data);
+      allow update: if isMember()
+        && isValidShop(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && shopSoftDeleteAllowed(resource.data, request.resource.data);
       /** Denied while anything still references this Shop (its own referenceCount). */
       allow delete: if isMember() && resource.data.referenceCount == 0;
     }

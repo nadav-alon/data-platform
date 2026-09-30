@@ -1,6 +1,9 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { Timestamp } from "firebase/firestore";
+import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
 import { inviteDocPath } from "../../src/core/invites.ts";
@@ -27,14 +30,29 @@ export async function seedHousehold(testEnv: RulesTestEnvironment, owner: Uid): 
   await seedMember(testEnv, owner);
 }
 
-/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
+/** A `deletedAt` a seeded doc can carry to start out soft-deleted. */
+export const seededDeletedAt = Timestamp.fromMillis(1_700_000_000_000);
+
+/** The fields a seeder spreads in to start its doc soft-deleted, or none when it is live. */
+function deletedFields(deleted: boolean): { deletedAt?: Timestamp } {
+  return deleted ? { deletedAt: seededDeletedAt } : {};
+}
+
+/**
+ * Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount;
+ * soft-deleted when `deleted` is set.
+ */
 export async function seedShop(
   testEnv: RulesTestEnvironment,
   id: ShopId,
   referenceCount: number,
+  { deleted = false }: { deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/${id}`)
+      .set({ name: "Shop", referenceCount, ...deletedFields(deleted) });
   });
 }
 
@@ -44,12 +62,18 @@ export async function seedCategory(
   id: CategoryId,
   defaultShopId: ShopId,
   referenceCount: number,
+  { deleted = false }: { deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
       .firestore()
       .doc(`${CATEGORIES_COLLECTION}/${id}`)
-      .set({ name: "Category", defaultShopId, referenceCount });
+      .set({
+        name: "Category",
+        defaultShopId,
+        referenceCount,
+        ...deletedFields(deleted),
+      });
   });
 }
 
@@ -59,5 +83,39 @@ export async function seedInvite(testEnv: RulesTestEnvironment, invitee: Email):
     await context.firestore().doc(inviteDocPath(invitee)).set({
       invitedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
+  });
+}
+
+/** Seeds an Item directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedItem(
+  testEnv: RulesTestEnvironment,
+  id: ItemId,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${ITEMS_COLLECTION}/${id}`)
+      .set({ name: "Item", state: "enough", ...deletedFields(deleted) });
+  });
+}
+
+/** Seeds a CatalogueItem directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedCatalogueItem(
+  testEnv: RulesTestEnvironment,
+  id: ItemId,
+  categoryId: CategoryId,
+  { shopId, deleted = false }: { shopId?: ShopId; deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${CATALOGUE_ITEMS_COLLECTION}/${id}`)
+      .set({
+        categoryId,
+        necessity: "essential",
+        ...(shopId === undefined ? {} : { shopId }),
+        ...deletedFields(deleted),
+      });
   });
 }

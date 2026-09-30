@@ -105,3 +105,16 @@ test("ItemId's guard, constructor and schema are reachable through core", () => 
   assert.equal(core.itemId, itemId);
   assert.equal(core.itemIdSchema, itemIdSchema);
 });
+
+test("accepts an Item soft-deleted with a deletedAt timestamp", () => {
+  const item = itemSchema.parse({
+    name: "Dish soap",
+    state: "enough",
+    deletedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+  });
+  assert.equal(item.deletedAt?.seconds, 1_700_000_000);
+});
+
+test("rejects a non-timestamp deletedAt", () => {
+  assert.throws(() => itemSchema.parse({ name: "Dish soap", state: "enough", deletedAt: true }));
+});

@@ -79,3 +79,18 @@ test("catalogueItemDocPath rejects a CategoryId", () => {
   // @ts-expect-error a CategoryId isn't an ItemId
   catalogueItemDocPath(categoryId("medicine"));
 });
+
+test("accepts a CatalogueItem soft-deleted with a deletedAt timestamp", () => {
+  const catalogueItem = catalogueItemSchema.parse({
+    categoryId: "cleaning",
+    necessity: "essential",
+    deletedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+  });
+  assert.equal(catalogueItem.deletedAt?.seconds, 1_700_000_000);
+});
+
+test("rejects a non-timestamp deletedAt", () => {
+  assert.throws(() =>
+    catalogueItemSchema.parse({ categoryId: "cleaning", necessity: "essential", deletedAt: "now" }),
+  );
+});
