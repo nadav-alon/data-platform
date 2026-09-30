@@ -15,6 +15,8 @@ export { firestoreTimestampSchema } from "./timestamp.ts";
 export type { FirestoreTimestamp } from "./timestamp.ts";
 export { MEMBERS_COLLECTION, memberDocPath, memberSchema } from "./members.ts";
 export type { Member } from "./members.ts";
+export { INVITES_COLLECTION, inviteDocPath, inviteSchema } from "./invites.ts";
+export type { Invite } from "./invites.ts";
 export { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
 export type { HouseholdMeta } from "./household.ts";
 export { PLATFORM_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
