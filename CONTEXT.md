@@ -66,7 +66,8 @@ optional Shop override that takes precedence over the Category's default.
 
 **Soft delete**:
 Marking an Item, CatalogueItem, Category or Shop deleted with `deletedAt` rather than removing it,
-so its history survives. A soft-deleted record holds no reference counts and can't be referenced.
+so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
+reference counts and can't be referenced.
 _Avoid_: archive
 
 **Necessity**:
