@@ -534,6 +534,22 @@ test("soft delete: restoring an Item and its CatalogueItem in one batch, with th
   await assertSucceeds(batch.commit());
 });
 
+test("soft delete: restoring a CatalogueItem without clearing its Item's deletedAt in the same batch is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+  });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 1 });
+  await assertFails(batch.commit());
+});
+
 test("soft delete: restoring a CatalogueItem without raising its Category's referenceCount is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
@@ -644,6 +660,42 @@ test("no references to deleted: restoring a CatalogueItem into its still soft-de
     necessity: "essential",
   });
   batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 1 });
+  await assertFails(batch.commit());
+});
+
+test("no references to deleted: moving a CatalogueItem's Shop override to a soft-deleted Shop is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0, { deleted: true });
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), { shopId: "grocery" });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
+  await assertFails(batch.commit());
+});
+
+test("no references to deleted: restoring a CatalogueItem whose Shop override is still soft-deleted is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0, { deleted: true });
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), {
+    shopId: shopId("grocery"),
+    deleted: true,
+  });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`), { name: "Item", state: "enough" });
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+    shopId: "grocery",
+  });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 1 });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
   await assertFails(batch.commit());
 });
 
