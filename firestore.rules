@@ -228,6 +228,55 @@ service cloud.firestore {
           && catalogueItemShopReferenceAdjustedBy(newData, 1));
     }
 
+    /**
+     * Whether a CatalogueItem update, live or soft-deleted on either side, keeps its references
+     * to its Category and optional Shop override counted exactly while it is live. As with a
+     * Category (`categoryReferencesValid`): a live one holds a count on each, a soft-deleted one
+     * holds none.
+     *
+     * - live to live: the old and new references are moved with `catalogueItemCategoryReferenceAdjusted`
+     *   and `catalogueItemShopReferenceAdjusted`;
+     * - soft delete: both references unchanged, and each dropped by 1;
+     * - restore: each reference it names afterwards (possibly new ones) rises by 1;
+     * - soft-deleted to soft-deleted: both references stay as they were, with nothing to adjust.
+     */
+    function catalogueItemReferencesValid(oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && catalogueItemCategoryReferenceAdjusted(oldData, newData)
+          && catalogueItemShopReferenceAdjusted(oldData, newData))
+        || (isSoftDeleting(oldData, newData)
+          && catalogueItemReferencesUnchanged(oldData, newData)
+          && referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+          && catalogueItemShopReferenceAdjustedBy(oldData, -1))
+        || (isRestoring(oldData, newData)
+          && referenceCountAdjustedBy(categoryPath(newData.categoryId), 1)
+          && catalogueItemShopReferenceAdjustedBy(newData, 1))
+        || (isDeleted(oldData) && isDeleted(newData)
+          && catalogueItemReferencesUnchanged(oldData, newData));
+    }
+
+    function catalogueItemReferencesUnchanged(oldData, newData) {
+      return oldData.categoryId == newData.categoryId
+        && catalogueItemShopId(oldData) == catalogueItemShopId(newData);
+    }
+
+    /**
+     * A CatalogueItem and the Item it extends are soft-deleted together: when the `items` doc
+     * exists after the batch, its `deletedAt` is the CatalogueItem's own.
+     */
+    function itemDeletedAtMatches(itemId, catalogueItemData) {
+      return !existsAfter(/databases/$(database)/documents/items/$(itemId))
+        || deletedAtOf(getAfter(/databases/$(database)/documents/items/$(itemId)).data)
+          == deletedAtOf(catalogueItemData);
+    }
+
+    /** The other half of `itemDeletedAtMatches`: an Item's `deletedAt` follows its CatalogueItem's. */
+    function catalogueItemDeletedAtMatches(itemId, itemData) {
+      return !existsAfter(/databases/$(database)/documents/catalogueItems/$(itemId))
+        || deletedAtOf(getAfter(/databases/$(database)/documents/catalogueItems/$(itemId)).data)
+          == deletedAtOf(itemData);
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
@@ -355,7 +404,8 @@ service cloud.firestore {
         && isCreatedLive(request.resource.data);
       allow update: if isMember()
         && isValidItem(request.resource.data)
-        && deletedAtUpdateValid(resource.data, request.resource.data);
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && catalogueItemDeletedAtMatches(itemId, request.resource.data);
       allow delete: if isMember();
 
       match /stateHistory/{entryId} {
@@ -379,8 +429,8 @@ service cloud.firestore {
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
-        && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
-        && catalogueItemShopReferenceAdjusted(resource.data, request.resource.data);
+        && catalogueItemReferencesValid(resource.data, request.resource.data)
+        && itemDeletedAtMatches(itemId, request.resource.data);
       /**
        * Deleting a CatalogueItem drops its Category reference, and its Shop override's when set,
        * in the same batch.

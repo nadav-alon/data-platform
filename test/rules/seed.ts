@@ -1,4 +1,5 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
@@ -83,5 +84,25 @@ export async function seedItem(
       .firestore()
       .doc(`${ITEMS_COLLECTION}/${id}`)
       .set({ name: "Item", state: "enough", ...(deleted ? { deletedAt: seededDeletedAt } : {}) });
+  });
+}
+
+/** Seeds a CatalogueItem directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedCatalogueItem(
+  testEnv: RulesTestEnvironment,
+  id: ItemId,
+  categoryId: CategoryId,
+  { shopId, deleted = false }: { shopId?: ShopId; deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${CATALOGUE_ITEMS_COLLECTION}/${id}`)
+      .set({
+        categoryId,
+        necessity: "essential",
+        ...(shopId === undefined ? {} : { shopId }),
+        ...(deleted ? { deletedAt: seededDeletedAt } : {}),
+      });
   });
 }
