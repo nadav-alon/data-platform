@@ -76,3 +76,19 @@ test("categoryId narrows a valid value", () => {
 test("categoryId throws on an empty value", () => {
   assert.throws(() => categoryId(""));
 });
+
+test("accepts a Category soft-deleted with a deletedAt timestamp", () => {
+  const category = categorySchema.parse({
+    name: "Medicine",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+    deletedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+  });
+  assert.equal(category.deletedAt?.seconds, 1_700_000_000);
+});
+
+test("rejects a non-timestamp deletedAt", () => {
+  assert.throws(() =>
+    categorySchema.parse({ name: "Medicine", defaultShopId: "pharmacy", referenceCount: 0, deletedAt: 1 }),
+  );
+});

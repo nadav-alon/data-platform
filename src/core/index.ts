@@ -21,3 +21,4 @@ export { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
 export type { HouseholdMeta } from "./household.ts";
 export { PLATFORM_VERSION, PLATFORM_DOC_PATH, checkPlatform, platformMetaSchema } from "./platform.ts";
 export type { PlatformMeta, PlatformCheck } from "./platform.ts";
+export { deletedAtSchema } from "./deleted-at.ts";

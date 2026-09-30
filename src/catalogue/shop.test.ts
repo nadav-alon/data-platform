@@ -55,3 +55,16 @@ test("shopId narrows a valid value", () => {
 test("shopId throws on an empty value", () => {
   assert.throws(() => shopId(""));
 });
+
+test("accepts a Shop soft-deleted with a deletedAt timestamp", () => {
+  const shop = shopSchema.parse({
+    name: "Pharmacy",
+    referenceCount: 0,
+    deletedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+  });
+  assert.equal(shop.deletedAt?.seconds, 1_700_000_000);
+});
+
+test("rejects a non-timestamp deletedAt", () => {
+  assert.throws(() => shopSchema.parse({ name: "Pharmacy", referenceCount: 0, deletedAt: "yesterday" }));
+});

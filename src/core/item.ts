@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { barcodeSchema } from "./barcode.ts";
+import { deletedAtSchema } from "./deleted-at.ts";
 import { stateSchema } from "./state.ts";
 
 export const ITEMS_COLLECTION = "items";
@@ -26,6 +27,7 @@ export const itemSchema = z.looseObject({
   brandNote: z.string().optional(),
   barcodes: z.array(barcodeSchema).optional(),
   state: stateSchema,
+  deletedAt: deletedAtSchema,
 });
 
 export type Item = z.infer<typeof itemSchema>;

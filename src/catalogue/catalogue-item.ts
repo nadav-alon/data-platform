@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deletedAtSchema } from "../core/deleted-at.ts";
 import type { ItemId } from "../core/index.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
@@ -18,6 +19,7 @@ export const catalogueItemSchema = z.looseObject({
   categoryId: categoryIdSchema,
   necessity: necessitySchema,
   shopId: shopIdSchema.optional(),
+  deletedAt: deletedAtSchema,
 });
 
 export type CatalogueItem = z.infer<typeof catalogueItemSchema>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deletedAtSchema } from "../core/deleted-at.ts";
 import { referenceCountSchema } from "./reference-count.ts";
 
 export const SHOPS_COLLECTION = "shops";
@@ -27,6 +28,7 @@ export const shopSchema = z.looseObject({
   name: z.string().min(1),
   /** Categories whose `defaultShopId` and CatalogueItems whose `shopId` point at this Shop. */
   referenceCount: referenceCountSchema,
+  deletedAt: deletedAtSchema,
 });
 
 export type Shop = z.infer<typeof shopSchema>;
