@@ -65,7 +65,12 @@ service cloud.firestore {
       return value is list && (value.size() == 0 || isBarcode(value[0]));
     }
 
-    /** When `data` was soft-deleted, or `null` while it is live (no `deletedAt`, or one set to null). */
+    /** Matches `deletedAtSchema`: absent, or a timestamp. A `null` is neither, so it never gets through. */
+    function isValidDeletedAt(data) {
+      return !('deletedAt' in data) || data.deletedAt is timestamp;
+    }
+
+    /** When `data` was soft-deleted, or `null` while it is live (no `deletedAt`). */
     function deletedAtOf(data) {
       return ('deletedAt' in data) ? data.deletedAt : null;
     }
@@ -106,6 +111,7 @@ service cloud.firestore {
     function isValidItem(data) {
       return isNonEmptyString(data.name)
         && isState(data.state)
+        && isValidDeletedAt(data)
         && (!('brandNote' in data) || data.brandNote is string)
         && (!('barcodes' in data) || isValidBarcodes(data.barcodes));
     }
@@ -321,6 +327,7 @@ service cloud.firestore {
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
         && isNecessity(data.necessity)
+        && isValidDeletedAt(data)
         && (!('shopId' in data) || isNonEmptyString(data.shopId));
     }
 
@@ -328,7 +335,8 @@ service cloud.firestore {
     function isValidCategory(data) {
       return isNonEmptyString(data.name)
         && isNonEmptyString(data.defaultShopId)
-        && isReferenceCount(data.referenceCount);
+        && isReferenceCount(data.referenceCount)
+        && isValidDeletedAt(data);
     }
 
     /** A Shop is soft-deleted only while nothing references it, as a hard delete is. */
@@ -339,7 +347,9 @@ service cloud.firestore {
 
     /** Matches `shopSchema`. */
     function isValidShop(data) {
-      return isNonEmptyString(data.name) && isReferenceCount(data.referenceCount);
+      return isNonEmptyString(data.name)
+        && isReferenceCount(data.referenceCount)
+        && isValidDeletedAt(data);
     }
 
     /**

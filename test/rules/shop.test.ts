@@ -214,3 +214,23 @@ test("soft delete: a soft-deleted Shop can be restored", async () => {
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy", referenceCount: 0 }),
   );
 });
+
+test("soft delete: restoring a Shop by writing deletedAt: null is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: null }));
+});
+
+test("soft delete: creating a Shop with deletedAt: null is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .set({ name: "Pharmacy", referenceCount: 0, deletedAt: null }),
+  );
+});
