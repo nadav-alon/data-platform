@@ -2,6 +2,8 @@ import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
+import type { Email } from "../../src/core/email.ts";
+import { inviteDocPath } from "../../src/core/invites.ts";
 import { memberDocPath } from "../../src/core/members.ts";
 import type { Uid } from "../../src/core/uid.ts";
 
@@ -48,5 +50,14 @@ export async function seedCategory(
       .firestore()
       .doc(`${CATEGORIES_COLLECTION}/${id}`)
       .set({ name: "Category", defaultShopId, referenceCount });
+  });
+}
+
+/** Seeds `invites/{email}` directly, bypassing rules, so a test can assume an invite is pending. */
+export async function seedInvite(testEnv: RulesTestEnvironment, invitee: Email): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(inviteDocPath(invitee)).set({
+      invitedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
+    });
   });
 }

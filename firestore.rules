@@ -194,6 +194,11 @@ service cloud.firestore {
       return isValidMember(data) && data.addedAt == request.time;
     }
 
+    /** Matches `inviteSchema`; `invitedAt` must be the server's own commit time. */
+    function isValidNewInvite(inviteId, data) {
+      return inviteId == inviteId.lower() && data.invitedAt == request.time;
+    }
+
     match /meta/{doc} {
       allow get, list: if isMember();
     }
@@ -226,6 +231,12 @@ service cloud.firestore {
        * Household without an Owner for good.
        */
       allow delete: if isOwner() && !isRecordedOwner(uid);
+    }
+
+    match /invites/{inviteId} {
+      allow list: if isOwner();
+      allow create: if isOwner() && isValidNewInvite(inviteId, request.resource.data);
+      allow delete: if isOwner();
     }
 
     match /items/{itemId} {

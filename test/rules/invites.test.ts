@@ -1,0 +1,91 @@
+import { test } from "node:test";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
+import { serverTimestamp } from "firebase/firestore";
+import { email } from "../../src/core/email.ts";
+import { INVITES_COLLECTION, inviteDocPath } from "../../src/core/invites.ts";
+import { uid } from "../../src/core/uid.ts";
+import { seedHousehold, seedInvite, seedMember } from "./seed.ts";
+import { setupRulesTestEnv } from "./test-env.ts";
+
+const alice = uid("alice");
+const bob = uid("bob");
+const mallory = uid("mallory");
+const guest = email("guest@example.com");
+
+const rulesTestEnv = setupRulesTestEnv();
+
+test("owner: the Owner can create an invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const db = rulesTestEnv.env.authenticatedContext(alice).firestore();
+
+  await assertSucceeds(db.doc(inviteDocPath(guest)).set({ invitedAt: serverTimestamp() }));
+});
+
+test("owner: the Owner can list invites", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(alice).firestore();
+
+  await assertSucceeds(db.collection(INVITES_COLLECTION).get());
+});
+
+test("owner: the Owner can delete an invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(alice).firestore();
+
+  await assertSucceeds(db.doc(inviteDocPath(guest)).delete());
+});
+
+test("owner: a non-Owner Member cannot create, list or delete an invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob).firestore();
+
+  await assertFails(
+    db.doc(inviteDocPath(email("other@example.com"))).set({ invitedAt: serverTimestamp() }),
+  );
+  await assertFails(db.collection(INVITES_COLLECTION).get());
+  await assertFails(db.doc(inviteDocPath(guest)).delete());
+});
+
+test("owner: a non-Member cannot create, list or delete an invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(mallory).firestore();
+
+  await assertFails(
+    db.doc(inviteDocPath(email("other@example.com"))).set({ invitedAt: serverTimestamp() }),
+  );
+  await assertFails(db.collection(INVITES_COLLECTION).get());
+  await assertFails(db.doc(inviteDocPath(guest)).delete());
+});
+
+test("owner: a signed-out caller cannot create, list or delete an invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.unauthenticatedContext().firestore();
+
+  await assertFails(db.doc(inviteDocPath(email("other@example.com"))).set({ invitedAt: serverTimestamp() }));
+  await assertFails(db.collection(INVITES_COLLECTION).get());
+  await assertFails(db.doc(inviteDocPath(guest)).delete());
+});
+
+test("owner: an invite keyed by a non-lowercased email is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const db = rulesTestEnv.env.authenticatedContext(alice).firestore();
+
+  await assertFails(
+    db.doc(`${INVITES_COLLECTION}/Guest@Example.com`).set({ invitedAt: serverTimestamp() }),
+  );
+});
+
+test("owner: an invite whose invitedAt is not the server's commit time is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const db = rulesTestEnv.env.authenticatedContext(alice).firestore();
+
+  await assertFails(
+    db.doc(inviteDocPath(guest)).set({ invitedAt: { seconds: 1_700_000_000, nanoseconds: 0 } }),
+  );
+});
