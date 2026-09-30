@@ -22,6 +22,11 @@ _Avoid_: user (for the gated role), account
 The Member who claimed the Household and manages its Members. Same data access as any Member.
 _Avoid_: admin
 
+**Invite**:
+The Owner's standing offer of Membership to one Google email, recorded as `invites/{email}`
+(lowercased) and spent when that person joins, or revoked by the Owner. Single-use, no expiry.
+_Avoid_: invitation, pending member
+
 ### Ownership
 
 **Core**:
