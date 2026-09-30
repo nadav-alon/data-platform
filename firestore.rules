@@ -92,6 +92,16 @@ service cloud.firestore {
         || newData.deletedAt == request.time;
     }
 
+    /** Whether an update sets `deletedAt` on a live doc. */
+    function isSoftDeleting(oldData, newData) {
+      return !isDeleted(oldData) && isDeleted(newData);
+    }
+
+    /** Whether an update clears `deletedAt` on a soft-deleted doc. */
+    function isRestoring(oldData, newData) {
+      return isDeleted(oldData) && !isDeleted(newData);
+    }
+
     /** Matches `itemSchema`: extra fields tolerate additive evolution. */
     function isValidItem(data) {
       return isNonEmptyString(data.name)
@@ -206,6 +216,12 @@ service cloud.firestore {
       return isNonEmptyString(data.name)
         && isNonEmptyString(data.defaultShopId)
         && isReferenceCount(data.referenceCount);
+    }
+
+    /** A Shop is soft-deleted only while nothing references it, as a hard delete is. */
+    function shopSoftDeleteAllowed(oldData, newData) {
+      return !isSoftDeleting(oldData, newData)
+        || (oldData.referenceCount == 0 && newData.referenceCount == 0);
     }
 
     /** Matches `shopSchema`. */
@@ -383,7 +399,8 @@ service cloud.firestore {
         && request.resource.data.referenceCount == 0;
       allow update: if isMember()
         && isValidShop(request.resource.data)
-        && deletedAtUpdateValid(resource.data, request.resource.data);
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && shopSoftDeleteAllowed(resource.data, request.resource.data);
       /** Denied while anything still references this Shop (its own referenceCount). */
       allow delete: if isMember() && resource.data.referenceCount == 0;
     }

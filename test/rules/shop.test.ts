@@ -4,7 +4,7 @@ import { serverTimestamp } from "firebase/firestore";
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold, seedShop } from "./seed.ts";
+import { seededDeletedAt, seedHousehold, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -164,5 +164,53 @@ test("soft delete: a Member creating a Shop that is already soft-deleted is deni
       .firestore()
       .doc(`${SHOPS_COLLECTION}/pharmacy`)
       .set({ name: "Pharmacy", referenceCount: 0, deletedAt: serverTimestamp() }),
+  );
+});
+
+test("soft delete: a Shop with referenceCount 0 can be soft-deleted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: serverTimestamp() }),
+  );
+});
+
+test("soft delete: a Shop with a nonzero referenceCount cannot be soft-deleted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: serverTimestamp() }),
+  );
+});
+
+test("soft delete: zeroing a Shop's referenceCount in the same write does not let it be soft-deleted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .update({ deletedAt: serverTimestamp(), referenceCount: 0 }),
+  );
+});
+
+test("soft delete: a soft-deleted Shop can be restored", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .set({ name: "Pharmacy", referenceCount: 0, deletedAt: seededDeletedAt });
+  });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy", referenceCount: 0 }),
   );
 });
