@@ -42,7 +42,16 @@ test("owner: the Owner can delete an invite", async () => {
   await assertSucceeds(db.doc(inviteDocPath(guest)).delete());
 });
 
-test("owner: a non-Owner Member cannot create, list or delete an invite", async () => {
+test("owner: a non-Owner Member can list invites", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob).firestore();
+
+  await assertSucceeds(db.collection(INVITES_COLLECTION).get());
+});
+
+test("owner: a non-Owner Member cannot create or delete an invite", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
   await seedInvite(rulesTestEnv.env, guest);
@@ -51,7 +60,6 @@ test("owner: a non-Owner Member cannot create, list or delete an invite", async 
   await assertFails(
     db.doc(inviteDocPath(email("other@example.com"))).set({ invitedAt: serverTimestamp() }),
   );
-  await assertFails(db.collection(INVITES_COLLECTION).get());
   await assertFails(db.doc(inviteDocPath(guest)).delete());
 });
 
