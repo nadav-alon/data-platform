@@ -20,7 +20,7 @@ npx data-platform-local owner-with-items
 | ------------------ | ----------------------------------------------------- | ---------------------- |
 | `empty`            | unclaimed, nothing seeded                             | any new account        |
 | `owner-with-items` | claimed; a Shop, Category, two Items, a CatalogueItem | `owner@example.com`, the Owner |
-| `invited-member`   | claimed by another Owner; one Item                    | `member@example.com`, a Member |
+| `invited-member`   | claimed by another Owner; one Item; no Invite pending  | `member@example.com`, a Member |
 
 An unknown name fails listing the known ones. With no name the bin starts `empty`. Auth listens on
 `127.0.0.1:9099` and Firestore on `127.0.0.1:8090`.

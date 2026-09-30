@@ -23,7 +23,7 @@ test("an unknown scenario name fails listing the known ones", async () => {
     for (const name of SCENARIO_NAMES) assert.match(error.message, new RegExp(name));
     return true;
   });
-  await assert.rejects(seedScenario(nullWriter, "toString"), /known scenarios/);
+  assert.throws(() => scenarioName("toString"), /known scenarios/);
 });
 
 test("a scenario's users are each a Member doc, and the Owner is the household's owner", () => {

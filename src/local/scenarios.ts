@@ -88,9 +88,9 @@ export function scenarioName(value: string): ScenarioName {
   return value;
 }
 
-/** Seeds the named scenario's fixtures, validated against `COLLECTION_SCHEMAS`. */
-export async function seedScenario(writer: FixtureWriter, name: string): Promise<Scenario> {
-  const scenario: Scenario = SCENARIOS[scenarioName(name)];
+/** Seeds the named scenario's fixtures (narrow outside input with {@link scenarioName} first), validated against `COLLECTION_SCHEMAS`. */
+export async function seedScenario(writer: FixtureWriter, name: ScenarioName): Promise<Scenario> {
+  const scenario: Scenario = SCENARIOS[name];
   await seedFixtures(writer, scenario.fixtures);
   return scenario;
 }
