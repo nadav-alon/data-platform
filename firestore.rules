@@ -88,13 +88,13 @@ service cloud.firestore {
     }
 
     /**
-     * An update leaves `deletedAt` as it was, or sets it to the server's own commit time, or
-     * clears it (a restore).
+     * An update leaves `deletedAt` as it was, or clears it (a restore), or, on a live doc, sets
+     * it to the server's own commit time. A doc that stays soft-deleted keeps its original time.
      */
     function deletedAtUpdateValid(oldData, newData) {
       return deletedAtOf(oldData) == deletedAtOf(newData)
         || !isDeleted(newData)
-        || newData.deletedAt == request.time;
+        || (isSoftDeleting(oldData, newData) && newData.deletedAt == request.time);
     }
 
     /** Whether an update sets `deletedAt` on a live doc. */

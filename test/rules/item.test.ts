@@ -227,3 +227,13 @@ test("soft delete: an Item without a deletedAt is updated exactly as before", as
     context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ state: "out" }),
   );
 });
+
+test("soft delete: re-stamping an already soft-deleted Item's deletedAt is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ deletedAt: serverTimestamp() }),
+  );
+});
