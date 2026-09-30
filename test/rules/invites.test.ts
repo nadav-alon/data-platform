@@ -149,3 +149,37 @@ test("join: an invitee with a verified matching email joins, ending as a Member 
     assert.equal((await firestore.doc(inviteDocPath(guest)).get()).exists, false);
   });
 });
+
+test("join: refused when there is no matching invite", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, email("other@example.com"));
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, bob).commit());
+});
+
+test("join: refused when the token email is not verified", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env
+    .authenticatedContext(bob, { ...guestToken, email_verified: false })
+    .firestore();
+
+  await assertFails(joinBatch(db, bob).commit());
+});
+
+test("join: refused for a Member doc under another uid", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, mallory).commit());
+});
+
+test("join: a non-Member cannot delete their invite without joining", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(db.doc(inviteDocPath(guest)).delete());
+});
