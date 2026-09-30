@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Email } from "./email.ts";
 import { firestoreTimestampSchema } from "./timestamp.ts";
 
-/** The collection backing `invites/{email}`: a pending invitation for a future Member. */
+/** The collection backing `invites/{email}`: each an Invite, the Owner's offer of Membership to one Google email. */
 export const INVITES_COLLECTION = "invites";
 
 /**
