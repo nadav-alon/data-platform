@@ -13,7 +13,7 @@ import {
   FIRESTORE_EMULATOR_PORT,
   LOCAL_PROJECT_ID,
 } from "./emulator-config.ts";
-import { SCENARIO_NAMES, scenarioName, seedScenario, type ScenarioName } from "./scenarios.ts";
+import { knownScenarios, scenarioName, seedScenario, type ScenarioName } from "./scenarios.ts";
 
 /**
  * firebase-tools' own entry point, resolved from the app's install: the bin may run outside an
@@ -40,7 +40,7 @@ export function emulatorConfig(rulesPath: string = RULES_PATH) {
 export function parseScenario(args: readonly string[]): ScenarioName {
   const [name = "empty", ...extra] = args;
   if (extra.length > 0) {
-    throw new Error(`Usage: data-platform-local [scenario]; known scenarios: ${SCENARIO_NAMES.join(", ")}`);
+    throw new Error(`Usage: data-platform-local [scenario]; known scenarios: ${knownScenarios()}`);
   }
   return scenarioName(name);
 }
@@ -106,14 +106,12 @@ export async function launchLocal(args: readonly string[]): Promise<void> {
     for (const { email, role } of users) {
       console.log(`Sign in with Google as ${email} to be the ${role}.`);
     }
+    process.exitCode = await exited;
   } catch (error) {
     emulators.kill("SIGTERM");
     await exited;
-    rmSync(configDir, { recursive: true, force: true });
     throw error;
+  } finally {
+    rmSync(configDir, { recursive: true, force: true });
   }
-
-  const code = await exited;
-  rmSync(configDir, { recursive: true, force: true });
-  process.exitCode = code;
 }

@@ -74,6 +74,11 @@ export type ScenarioName = keyof typeof SCENARIOS;
 
 export const SCENARIO_NAMES = Object.keys(SCENARIOS) as ScenarioName[];
 
+/** The scenario names as one comma-separated list, for error messages. */
+export function knownScenarios(): string {
+  return SCENARIO_NAMES.join(", ");
+}
+
 export function isScenarioName(value: string): value is ScenarioName {
   return Object.hasOwn(SCENARIOS, value);
 }
@@ -82,7 +87,7 @@ export function isScenarioName(value: string): value is ScenarioName {
 export function scenarioName(value: string): ScenarioName {
   if (!isScenarioName(value)) {
     throw new Error(
-      `Unknown scenario ${JSON.stringify(value)}; known scenarios: ${SCENARIO_NAMES.join(", ")}`,
+      `Unknown scenario ${JSON.stringify(value)}; known scenarios: ${knownScenarios()}`,
     );
   }
   return value;
