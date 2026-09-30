@@ -64,5 +64,10 @@ A grouping of CatalogueItems, carrying the default Shop they're bought at.
 Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, and an
 optional Shop override that takes precedence over the Category's default.
 
+**Soft delete**:
+Marking an Item, CatalogueItem, Category or Shop deleted with `deletedAt` rather than removing it,
+so its history survives. A soft-deleted record holds no reference counts and can't be referenced.
+_Avoid_: archive
+
 **Necessity**:
 How essential a CatalogueItem is: `essential` / `important` / `optional`.

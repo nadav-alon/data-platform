@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.0
+
+Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating: a doc without
+`deletedAt` is live and behaves exactly as before, and hard delete is still allowed.
+
+- **Schemas**: an optional `deletedAt` (a Firestore timestamp) on Item, CatalogueItem, Category
+  and Shop (`deletedAtSchema`). A record with it set is soft-deleted; without it, live.
+- **Rules** (`firestore.rules`): `deletedAt` may only be set to the server's commit time
+  (`request.time`), and a doc can't be created already soft-deleted.
+  - A CatalogueItem soft-deleted in a batch must lower its Category's `referenceCount` by 1, and
+    its Shop override's when set; restoring it (clearing `deletedAt`) must raise them. Its `items`
+    doc must carry the same `deletedAt` after the batch, and the other way round.
+  - A Category or Shop can be soft-deleted only at `referenceCount == 0`, in the same write that
+    leaves that count as it was. A Category soft-deleted lowers its default Shop's count by 1;
+    restoring it raises the Shop it then names by 1.
+  - A CatalogueItem or Category may not be created, moved, or restored to point at a Category or
+    Shop that is soft-deleted (live before the batch), though a restore may move to a live one in
+    the same write.
+  - Hard-deleting an already soft-deleted CatalogueItem or Category no longer adjusts counts: its
+    soft delete already did.
+
 ## v0.4.0
 
 Redeploy (`npm run deploy`) before pinning an app to this release, or `checkPlatform` reports
