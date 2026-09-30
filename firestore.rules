@@ -168,6 +168,30 @@ service cloud.firestore {
           && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
     }
 
+    /**
+     * Whether a Category update, live or soft-deleted on either side, keeps its reference to its
+     * default Shop counted exactly while it is live. A live Category holds one count on its
+     * default Shop; a soft-deleted one holds none, so:
+     *
+     * - live to live: `categoryShopReferenceAdjusted`;
+     * - soft delete: only at `referenceCount == 0`, with the default Shop unchanged and dropped by 1;
+     * - restore: the default Shop it names afterwards (possibly a new one) rises by 1;
+     * - soft-deleted to soft-deleted: the default Shop stays as it was, with nothing to adjust.
+     */
+    function categoryReferencesValid(oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && categoryShopReferenceAdjusted(oldData, newData))
+        || (isSoftDeleting(oldData, newData)
+          && oldData.referenceCount == 0
+          && newData.referenceCount == 0
+          && oldData.defaultShopId == newData.defaultShopId
+          && referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1))
+        || (isRestoring(oldData, newData)
+          && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1))
+        || (isDeleted(oldData) && isDeleted(newData)
+          && oldData.defaultShopId == newData.defaultShopId);
+    }
+
     /** The Shop a CatalogueItem overrides its Category's default with, or `null` when unset. */
     function catalogueItemShopId(data) {
       return ('shopId' in data) ? data.shopId : null;
@@ -380,7 +404,7 @@ service cloud.firestore {
       allow update: if isMember()
         && isValidCategory(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
-        && categoryShopReferenceAdjusted(resource.data, request.resource.data);
+        && categoryReferencesValid(resource.data, request.resource.data);
       /**
        * Denied while anything still references this Category (its own referenceCount), and its
        * own outgoing reference to its default Shop must be dropped in the same batch.

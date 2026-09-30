@@ -45,12 +45,18 @@ export async function seedCategory(
   id: CategoryId,
   defaultShopId: ShopId,
   referenceCount: number,
+  { deleted = false }: { deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
       .firestore()
       .doc(`${CATEGORIES_COLLECTION}/${id}`)
-      .set({ name: "Category", defaultShopId, referenceCount });
+      .set({
+        name: "Category",
+        defaultShopId,
+        referenceCount,
+        ...(deleted ? { deletedAt: seededDeletedAt } : {}),
+      });
   });
 }
 
