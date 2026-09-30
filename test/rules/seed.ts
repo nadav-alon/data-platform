@@ -1,6 +1,7 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
 import { inviteDocPath } from "../../src/core/invites.ts";
@@ -59,5 +60,22 @@ export async function seedInvite(testEnv: RulesTestEnvironment, invitee: Email):
     await context.firestore().doc(inviteDocPath(invitee)).set({
       invitedAt: { seconds: 1_700_000_000, nanoseconds: 0 },
     });
+  });
+}
+
+/** A `deletedAt` a seeded doc can carry to start out soft-deleted. */
+export const seededDeletedAt = { seconds: 1_700_000_000, nanoseconds: 0 };
+
+/** Seeds an Item directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedItem(
+  testEnv: RulesTestEnvironment,
+  id: ItemId,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${ITEMS_COLLECTION}/${id}`)
+      .set({ name: "Item", state: "enough", ...(deleted ? { deletedAt: seededDeletedAt } : {}) });
   });
 }

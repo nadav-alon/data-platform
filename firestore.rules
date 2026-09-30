@@ -65,6 +65,33 @@ service cloud.firestore {
       return value is list && (value.size() == 0 || isBarcode(value[0]));
     }
 
+    /** When `data` was soft-deleted, or `null` while it is live (no `deletedAt`, or one set to null). */
+    function deletedAtOf(data) {
+      return ('deletedAt' in data) ? data.deletedAt : null;
+    }
+
+    function isDeleted(data) {
+      return deletedAtOf(data) != null;
+    }
+
+    /**
+     * A doc is created live: a soft delete is an update, so the counts a live doc holds are
+     * released by one write that can be checked against them.
+     */
+    function isCreatedLive(data) {
+      return !isDeleted(data);
+    }
+
+    /**
+     * An update leaves `deletedAt` as it was, or sets it to the server's own commit time, or
+     * clears it (a restore).
+     */
+    function deletedAtUpdateValid(oldData, newData) {
+      return deletedAtOf(oldData) == deletedAtOf(newData)
+        || !isDeleted(newData)
+        || newData.deletedAt == request.time;
+    }
+
     /** Matches `itemSchema`: extra fields tolerate additive evolution. */
     function isValidItem(data) {
       return isNonEmptyString(data.name)
@@ -283,7 +310,12 @@ service cloud.firestore {
 
     match /items/{itemId} {
       allow read: if isMember();
-      allow create, update: if isMember() && isValidItem(request.resource.data);
+      allow create: if isMember()
+        && isValidItem(request.resource.data)
+        && isCreatedLive(request.resource.data);
+      allow update: if isMember()
+        && isValidItem(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data);
       allow delete: if isMember();
 
       match /stateHistory/{entryId} {
@@ -301,10 +333,12 @@ service cloud.firestore {
        */
       allow create: if isMember()
         && isValidCatalogueItem(request.resource.data)
+        && isCreatedLive(request.resource.data)
         && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
         && catalogueItemShopReferenceAdjustedBy(request.resource.data, 1);
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
         && catalogueItemCategoryReferenceAdjusted(resource.data, request.resource.data)
         && catalogueItemShopReferenceAdjusted(resource.data, request.resource.data);
       /**
@@ -324,10 +358,12 @@ service cloud.firestore {
        */
       allow create: if isMember()
         && isValidCategory(request.resource.data)
+        && isCreatedLive(request.resource.data)
         && request.resource.data.referenceCount == 0
         && referenceCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
       allow update: if isMember()
         && isValidCategory(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
         && categoryShopReferenceAdjusted(resource.data, request.resource.data);
       /**
        * Denied while anything still references this Category (its own referenceCount), and its
@@ -343,8 +379,11 @@ service cloud.firestore {
       /** A new Shop starts unreferenced: nothing has had the chance to point at it yet. */
       allow create: if isMember()
         && isValidShop(request.resource.data)
+        && isCreatedLive(request.resource.data)
         && request.resource.data.referenceCount == 0;
-      allow update: if isMember() && isValidShop(request.resource.data);
+      allow update: if isMember()
+        && isValidShop(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data);
       /** Denied while anything still references this Shop (its own referenceCount). */
       allow delete: if isMember() && resource.data.referenceCount == 0;
     }

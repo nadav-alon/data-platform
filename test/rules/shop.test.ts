@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { SHOPS_COLLECTION } from "../../src/catalogue/shop.ts";
+import { serverTimestamp } from "firebase/firestore";
+import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold } from "./seed.ts";
+import { seedHousehold, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -141,5 +142,27 @@ test("isMember() gate: a signed-in non-member creating a Shop is denied", async 
   const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy" }),
+  );
+});
+
+test("soft delete: a Member setting a Shop's deletedAt to a client-chosen time is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: new Date(0) }),
+  );
+});
+
+test("soft delete: a Member creating a Shop that is already soft-deleted is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/pharmacy`)
+      .set({ name: "Pharmacy", referenceCount: 0, deletedAt: serverTimestamp() }),
   );
 });

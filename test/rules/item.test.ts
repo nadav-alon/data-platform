@@ -1,9 +1,10 @@
 import { test } from "node:test";
-import { assertFails } from "@firebase/rules-unit-testing";
-import { ITEMS_COLLECTION } from "../../src/core/item.ts";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
+import { serverTimestamp } from "firebase/firestore";
+import { ITEMS_COLLECTION, itemId } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold } from "./seed.ts";
+import { seedHousehold, seedItem } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -162,5 +163,67 @@ test("isMember() gate: a signed-in non-member creating an Item is denied", async
       name: "Dish soap",
       state: "enough",
     }),
+  );
+});
+
+test("soft delete: a Member setting an Item's deletedAt to the server's commit time is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ deletedAt: serverTimestamp() }),
+  );
+});
+
+test("soft delete: a Member setting an Item's deletedAt to a client-chosen time is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ deletedAt: new Date(0) }),
+  );
+});
+
+test("soft delete: a Member restoring an Item by clearing its deletedAt is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).set({ name: "Item", state: "enough" }),
+  );
+});
+
+test("soft delete: updating a soft-deleted Item while keeping its deletedAt is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ name: "Dish soap" }),
+  );
+});
+
+test("soft delete: a Member creating an Item that is already soft-deleted is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertFails(
+    context
+      .firestore()
+      .doc(`${ITEMS_COLLECTION}/dish-soap`)
+      .set({ name: "Dish soap", state: "enough", deletedAt: serverTimestamp() }),
+  );
+});
+
+test("soft delete: an Item without a deletedAt is updated exactly as before", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+
+  const context = rulesTestEnv.env.authenticatedContext(alice);
+  await assertSucceeds(
+    context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ state: "out" }),
   );
 });
