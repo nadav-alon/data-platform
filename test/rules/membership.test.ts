@@ -12,7 +12,7 @@ import { email } from "../../src/core/email.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import { MEMBERS_COLLECTION, memberDocPath } from "../../src/core/members.ts";
 import { PLATFORM_DOC_PATH } from "../../src/core/platform.ts";
-import { uid } from "../../src/core/uid.ts";
+import { uid, type Uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold, seedMember } from "./seed.ts";
 
@@ -29,8 +29,8 @@ const validMemberData = {
 /** A create payload that satisfies isValidNewMember's addedAt == request.time check. */
 const serverStampedMemberData = { email: email("member@example.com"), addedAt: serverTimestamp() };
 
-/** The token of a verified Google sign-in whose email matches `serverStampedMemberData`. */
-const memberToken = { email: "member@example.com", email_verified: true };
+/** The token of a verified Google sign-in whose email, lowercased, is `serverStampedMemberData`'s. */
+const memberToken = { email: "Member@Example.com", email_verified: true };
 
 let testEnv: RulesTestEnvironment;
 
@@ -176,66 +176,71 @@ test("members list: a Member's list of members is allowed", async () => {
 // fails to parse against `memberSchema.addedAt` (see that schema's comment), so there is no
 // accept fixture where zod and the emulator agree on this field.
 
+type TestFirestore = ReturnType<ReturnType<RulesTestEnvironment["authenticatedContext"]>["firestore"]>;
+
+/** The first-claim batch: meta/household and the claimant's own Member doc, committed together. */
+function claimBatch(db: TestFirestore, claimant: Uid, memberData: object = serverStampedMemberData) {
+  const batch = db.batch();
+  batch.set(db.doc(HOUSEHOLD_DOC_PATH), { owner: claimant });
+  batch.set(db.doc(memberDocPath(claimant)), memberData);
+  return batch;
+}
+
 test("first-claim bootstrap: a batched claim of meta/household and the claimant's own members doc is accepted", async () => {
-  const context = testEnv.authenticatedContext(alice, memberToken);
-  const batch = context.firestore().batch();
-  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
-  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
-  await assertSucceeds(batch.commit());
+  const db = testEnv.authenticatedContext(alice, memberToken).firestore();
+  await assertSucceeds(claimBatch(db, alice).commit());
+});
+
+test("first-claim bootstrap: a claim recording the token email verbatim rather than lowercased is denied", async () => {
+  const db = testEnv.authenticatedContext(alice, memberToken).firestore();
+  await assertFails(
+    claimBatch(db, alice, { ...serverStampedMemberData, email: email(memberToken.email) }).commit(),
+  );
 });
 
 test("first-claim bootstrap: a claim whose Member email is not the claimant's token email is denied", async () => {
-  const context = testEnv.authenticatedContext(alice, {
-    email: "someone-else@example.com",
-    email_verified: true,
-  });
-  const batch = context.firestore().batch();
-  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
-  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
-  await assertFails(batch.commit());
+  const db = testEnv
+    .authenticatedContext(alice, { ...memberToken, email: "someone-else@example.com" })
+    .firestore();
+  await assertFails(claimBatch(db, alice).commit());
 });
 
 test("first-claim bootstrap: a claim by a caller whose token email is unverified is denied", async () => {
-  const context = testEnv.authenticatedContext(alice, { ...memberToken, email_verified: false });
-  const batch = context.firestore().batch();
-  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
-  batch.set(context.firestore().doc(memberDocPath(alice)), serverStampedMemberData);
-  await assertFails(batch.commit());
+  const db = testEnv
+    .authenticatedContext(alice, { ...memberToken, email_verified: false })
+    .firestore();
+  await assertFails(claimBatch(db, alice).commit());
 });
 
 test("first-claim bootstrap: creating meta/household without the claimant's own members doc in the same batch is denied", async () => {
-  const context = testEnv.authenticatedContext(alice);
+  const context = testEnv.authenticatedContext(alice, memberToken);
   await assertFails(
     context.firestore().doc(HOUSEHOLD_DOC_PATH).set({ owner: alice }),
   );
 });
 
 test("first-claim bootstrap: creating a members doc without meta/household in the same batch is denied", async () => {
-  const context = testEnv.authenticatedContext(alice);
+  const context = testEnv.authenticatedContext(alice, memberToken);
   await assertFails(
     context.firestore().doc(memberDocPath(alice)).set(serverStampedMemberData),
   );
 });
 
 test("first-claim bootstrap: a batched claim with a client Timestamp for addedAt is denied", async () => {
-  const context = testEnv.authenticatedContext(alice);
-  const batch = context.firestore().batch();
-  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: alice });
-  batch.set(context.firestore().doc(memberDocPath(alice)), {
-    email: email("member@example.com"),
-    addedAt: Timestamp.fromDate(new Date()),
-  });
-  await assertFails(batch.commit());
+  const db = testEnv.authenticatedContext(alice, memberToken).firestore();
+  await assertFails(
+    claimBatch(db, alice, {
+      email: email("member@example.com"),
+      addedAt: Timestamp.fromDate(new Date()),
+    }).commit(),
+  );
 });
 
 test("first-claim bootstrap: once meta/household exists, a second user can't claim it", async () => {
   await seedHousehold(testEnv, alice);
 
-  const context = testEnv.authenticatedContext(mallory);
-  const batch = context.firestore().batch();
-  batch.set(context.firestore().doc(HOUSEHOLD_DOC_PATH), { owner: mallory });
-  batch.set(context.firestore().doc(memberDocPath(mallory)), serverStampedMemberData);
-  await assertFails(batch.commit());
+  const db = testEnv.authenticatedContext(mallory, memberToken).firestore();
+  await assertFails(claimBatch(db, mallory).commit());
 });
 
 test("isMember() gate: once the household is claimed, a signed-in non-member can't self-enrol as a member", async () => {
