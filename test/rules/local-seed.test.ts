@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { initializeApp, deleteApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
+import { seedScenario } from "../../src/local/scenarios.ts";
 import { seedFixtures } from "../../src/local/seed.ts";
+import { assertSucceeds } from "@firebase/rules-unit-testing";
 import { setupRulesTestEnv } from "./test-env.ts";
 
-setupRulesTestEnv();
+const ref = setupRulesTestEnv();
 
 const projectId = process.env.GCLOUD_PROJECT;
 const host = process.env.FIRESTORE_EMULATOR_HOST;
@@ -51,4 +53,23 @@ test("seedFixtures leaves the emulator untouched when a fixture fails its schema
     /shops\/bad/,
   );
   assert.equal((await readDoc("shops/ok")).exists, false);
+});
+
+for (const name of ["owner-with-items", "invited-member"] as const) {
+  test(`the ${name} scenario lets its signed-in user read the Household under the rules`, async () => {
+    const { users } = await withEmulatorWriter((writer) => seedScenario(writer, name), {
+      projectId,
+      host,
+    });
+    const [user] = users;
+    assert.ok(user);
+
+    const db = ref.env.authenticatedContext(user.uid, { email: user.email }).firestore();
+    await assertSucceeds(db.doc("items/dishSoap").get());
+  });
+}
+
+test("the empty scenario seeds nothing", async () => {
+  await withEmulatorWriter((writer) => seedScenario(writer, "empty"), { projectId, host });
+  assert.equal((await readDoc("meta/household")).exists, false);
 });
