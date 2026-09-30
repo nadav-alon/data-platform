@@ -146,6 +146,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/invites/$(id);
     }
 
+    function itemPath(id) {
+      return /databases/$(database)/documents/items/$(id);
+    }
+
+    function catalogueItemPath(id) {
+      return /databases/$(database)/documents/catalogueItems/$(id);
+    }
+
     /**
      * Whether the doc at `path`'s `referenceCount` moves by exactly `delta` in this write's
      * batch, comparing its state before (`get`) and after (`getAfter`) the whole batch commits.
@@ -306,21 +314,22 @@ service cloud.firestore {
         && catalogueItemShopId(oldData) == catalogueItemShopId(newData);
     }
 
+    /** Whether the doc at `path`, when it exists after the batch, has the same `deletedAt` as `data`. */
+    function deletedAtMatchesAt(path, data) {
+      return !existsAfter(path) || deletedAtOf(getAfter(path).data) == deletedAtOf(data);
+    }
+
     /**
      * A CatalogueItem and the Item it extends are soft-deleted together: when the `items` doc
      * exists after the batch, its `deletedAt` is the CatalogueItem's own.
      */
     function itemDeletedAtMatches(itemId, catalogueItemData) {
-      return !existsAfter(/databases/$(database)/documents/items/$(itemId))
-        || deletedAtOf(getAfter(/databases/$(database)/documents/items/$(itemId)).data)
-          == deletedAtOf(catalogueItemData);
+      return deletedAtMatchesAt(itemPath(itemId), catalogueItemData);
     }
 
     /** The other half of `itemDeletedAtMatches`: an Item's `deletedAt` follows its CatalogueItem's. */
     function catalogueItemDeletedAtMatches(itemId, itemData) {
-      return !existsAfter(/databases/$(database)/documents/catalogueItems/$(itemId))
-        || deletedAtOf(getAfter(/databases/$(database)/documents/catalogueItems/$(itemId)).data)
-          == deletedAtOf(itemData);
+      return deletedAtMatchesAt(catalogueItemPath(itemId), itemData);
     }
 
     /** Matches `catalogueItemSchema`. */
