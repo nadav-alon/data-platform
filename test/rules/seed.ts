@@ -106,3 +106,13 @@ export async function seedCatalogueItem(
       });
   });
 }
+
+/** Seeds a soft-deleted Shop directly, bypassing rules. */
+export async function seedDeletedShop(testEnv: RulesTestEnvironment, id: ShopId): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/${id}`)
+      .set({ name: "Shop", referenceCount: 0, deletedAt: seededDeletedAt });
+  });
+}

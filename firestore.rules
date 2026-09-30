@@ -158,6 +158,46 @@ service cloud.firestore {
     }
 
     /**
+     * Whether the doc at `path` is live before this batch. A write that points at a Shop or
+     * Category needs it live then, not merely after the batch: restoring a Category and the Shop
+     * it names takes one batch each.
+     */
+    function isLiveAt(path) {
+      return !isDeleted(get(path).data);
+    }
+
+    /**
+     * Whether a Category update leaves its default Shop live: a soft-deleted Category references
+     * nothing, and a live one that keeps its Shop already holds a count on it, which a Shop can't
+     * be soft-deleted under. Only a new or restored reference, or a moved one, is checked.
+     */
+    function categoryUpdateNamesLiveShop(oldData, newData) {
+      return isDeleted(newData)
+        || (!isRestoring(oldData, newData) && oldData.defaultShopId == newData.defaultShopId)
+        || isLiveAt(shopPath(newData.defaultShopId));
+    }
+
+    /** Whether a new CatalogueItem's Category, and Shop override when set, are live. */
+    function catalogueItemNamesLiveTargets(data) {
+      return isLiveAt(categoryPath(data.categoryId))
+        && (catalogueItemShopId(data) == null || isLiveAt(shopPath(catalogueItemShopId(data))));
+    }
+
+    /**
+     * `categoryUpdateNamesLiveShop` for a CatalogueItem's Category and Shop override: each is
+     * checked only when it is new, moved, or restored.
+     */
+    function catalogueItemUpdateNamesLiveTargets(oldData, newData) {
+      return isDeleted(newData)
+        || (((!isRestoring(oldData, newData) && oldData.categoryId == newData.categoryId)
+            || isLiveAt(categoryPath(newData.categoryId)))
+          && ((!isRestoring(oldData, newData)
+              && catalogueItemShopId(oldData) == catalogueItemShopId(newData))
+            || catalogueItemShopId(newData) == null
+            || isLiveAt(shopPath(catalogueItemShopId(newData)))));
+    }
+
+    /**
      * Whether a Category update correctly moves its `defaultShopId` reference: no adjustment
      * required when it's unchanged, otherwise the old Shop's referenceCount must drop by 1 and
      * the new Shop's must rise by 1, in the same batch.
@@ -424,11 +464,13 @@ service cloud.firestore {
       allow create: if isMember()
         && isValidCatalogueItem(request.resource.data)
         && isCreatedLive(request.resource.data)
+        && catalogueItemNamesLiveTargets(request.resource.data)
         && referenceCountAdjustedBy(categoryPath(request.resource.data.categoryId), 1)
         && catalogueItemShopReferenceAdjustedBy(request.resource.data, 1);
       allow update: if isMember()
         && isValidCatalogueItem(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
+        && catalogueItemUpdateNamesLiveTargets(resource.data, request.resource.data)
         && catalogueItemReferencesValid(resource.data, request.resource.data)
         && itemDeletedAtMatches(itemId, request.resource.data);
       /**
@@ -449,11 +491,13 @@ service cloud.firestore {
       allow create: if isMember()
         && isValidCategory(request.resource.data)
         && isCreatedLive(request.resource.data)
+        && isLiveAt(shopPath(request.resource.data.defaultShopId))
         && request.resource.data.referenceCount == 0
         && referenceCountAdjustedBy(shopPath(request.resource.data.defaultShopId), 1);
       allow update: if isMember()
         && isValidCategory(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
+        && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
         && categoryReferencesValid(resource.data, request.resource.data);
       /**
        * Denied while anything still references this Category (its own referenceCount), and its
