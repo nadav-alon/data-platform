@@ -9,7 +9,8 @@ No redeploy needed: the rules and schemas are unchanged.
   Firestore emulators with `firestore.rules` under a `demo-` project ID and seeds a scenario
   (`empty`, `owner-with-items`, `invited-member`) picked by name. `connectLocal(app)` points a web
   app's Auth and Firestore at them, and seeding validates every fixture against
-  `COLLECTION_SCHEMAS`. `firebase`, `firebase-admin` and `firebase-tools` are now peer dependencies.
+  `COLLECTION_SCHEMAS`. `firebase`, `firebase-admin` and `firebase-tools` are now optional peer dependencies, needed only
+  for `data-platform/local`.
 - **Tests**: `npm run test:rules` now starts the Auth emulator too, for the sign-in tests.
 
 ## v0.7.0

@@ -5,8 +5,10 @@ Firestore emulators with this repo's `firestore.rules`, seeds a named scenario, 
 package as the `data-platform/local` export and the `data-platform-local` bin. It only ever uses
 the `demo-data-platform-local` project ID, so it cannot touch a live Household.
 
-The app installs `firebase`, `firebase-admin` and `firebase-tools` itself; they are peer
-dependencies of this package, and Java must be on the PATH for the Firestore emulator.
+A consumer that only uses `COLLECTION_SCHEMAS` installs none of this. To use the kit the app installs
+`firebase`, `firebase-admin` and `firebase-tools` itself; they are optional peer dependencies of
+this package, needed only for `data-platform/local`, and Java must be on the PATH for the Firestore
+emulator.
 
 ## Start a scenario
 
