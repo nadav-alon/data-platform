@@ -1,14 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assertSucceeds } from "@firebase/rules-unit-testing";
+import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
 import { seedAuthUsers } from "../../src/local/auth-users.ts";
-import { SCENARIOS, type ScenarioName } from "../../src/local/scenarios.ts";
+import { SCENARIOS, seedScenario, type ScenarioName } from "../../src/local/scenarios.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const ref = setupRulesTestEnv();
 
 const projectId = process.env.GCLOUD_PROJECT;
 const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST;
 
 /** What the Auth emulator's fake Google popup does: sign in by a Google id token for `email`. */
 async function fakeGoogleSignIn(email: string): Promise<{ localId: string; idToken: string }> {
@@ -43,13 +45,15 @@ for (const name of ["owner-with-items", "invited-member"] as const satisfies Sce
 
     assert.equal(signedIn.localId, user.uid);
     const db = ref.env.authenticatedContext(signedIn.localId, { email: user.email }).firestore();
-    await ref.env.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc("items/dishSoap").set({ name: "Dish soap", state: "enough" });
-      await context.firestore().doc(`members/${user.uid}`).set({
-        email: user.email,
-        addedAt: { seconds: 1, nanoseconds: 0 },
-      });
+    await withEmulatorWriter((writer) => seedScenario(writer, name), {
+      projectId,
+      host: firestoreHost,
     });
+    let householdOwner: unknown;
+    await ref.env.withSecurityRulesDisabled(async (context) => {
+      householdOwner = (await context.firestore().doc("meta/household").get()).get("owner");
+    });
+    assert.equal(householdOwner === signedIn.localId, user.role === "owner");
     await assertSucceeds(db.doc("items/dishSoap").get());
   });
 }
