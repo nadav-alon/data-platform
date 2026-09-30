@@ -1,4 +1,5 @@
 import { email, type Email } from "../core/email.ts";
+import type { FirestoreTimestamp } from "../core/timestamp.ts";
 import { uid, type Uid } from "../core/uid.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
@@ -14,12 +15,12 @@ export interface Scenario {
   readonly fixtures: readonly Fixture[];
 }
 
-const addedAt = { seconds: 1_700_000_000, nanoseconds: 0 };
+const addedAt: FirestoreTimestamp = { seconds: 1_700_000_000, nanoseconds: 0 };
 
 const owner: ScenarioUser = { uid: uid("local-owner"), email: email("owner@example.com"), role: "owner" };
 const member: ScenarioUser = { uid: uid("local-member"), email: email("member@example.com"), role: "member" };
 
-const household = (ownerUid: Uid): Fixture => ({
+const householdMeta = (ownerUid: Uid): Fixture => ({
   collection: "meta",
   id: "household",
   data: { owner: ownerUid },
@@ -34,14 +35,14 @@ const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
 /**
  * The named Households the local kit can seed. `empty` is an unclaimed Household; the others are
  * claimed, and every `users` entry is seeded as a Member (the Owner included) so the emulator's
- * fake Google sign-in as that email lands on a user the rules let in.
+ * fake Google sign-in as that email lands on a Member the rules let in.
  */
 export const SCENARIOS = {
   empty: { users: [], fixtures: [] },
   "owner-with-items": {
     users: [owner],
     fixtures: [
-      household(owner.uid),
+      householdMeta(owner.uid),
       memberDoc(owner),
       { collection: "shops", id: "grocery", data: { name: "Grocery", referenceCount: 1 } },
       {
@@ -61,7 +62,7 @@ export const SCENARIOS = {
   "invited-member": {
     users: [member],
     fixtures: [
-      household(owner.uid),
+      householdMeta(owner.uid),
       memberDoc(owner),
       memberDoc(member),
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "out" } },
