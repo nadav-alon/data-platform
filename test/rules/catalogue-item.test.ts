@@ -10,7 +10,6 @@ import { assertFixture, type RulesFixture } from "./fixture.ts";
 import {
   seedCatalogueItem,
   seedCategory,
-  seedDeletedShop,
   seedHousehold,
   seedItem,
   seedShop,
@@ -603,7 +602,7 @@ test("no references to deleted: creating a CatalogueItem in a soft-deleted Categ
 test("no references to deleted: creating a CatalogueItem with a soft-deleted Shop override is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
-  await seedDeletedShop(rulesTestEnv.env, shopId("grocery"));
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0, { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   const batch = firestore.batch();

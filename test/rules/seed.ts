@@ -1,4 +1,5 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { Timestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
@@ -29,14 +30,29 @@ export async function seedHousehold(testEnv: RulesTestEnvironment, owner: Uid): 
   await seedMember(testEnv, owner);
 }
 
-/** Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount. */
+/** A `deletedAt` a seeded doc can carry to start out soft-deleted. */
+export const seededDeletedAt = Timestamp.fromMillis(1_700_000_000_000);
+
+/** The fields a seeder spreads in to start its doc soft-deleted, or none when it is live. */
+function deletedFields(deleted: boolean): { deletedAt?: Timestamp } {
+  return deleted ? { deletedAt: seededDeletedAt } : {};
+}
+
+/**
+ * Seeds a Shop directly, bypassing rules, so a test can start from a known referenceCount;
+ * soft-deleted when `deleted` is set.
+ */
 export async function seedShop(
   testEnv: RulesTestEnvironment,
   id: ShopId,
   referenceCount: number,
+  { deleted = false }: { deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${SHOPS_COLLECTION}/${id}`).set({ name: "Shop", referenceCount });
+    await context
+      .firestore()
+      .doc(`${SHOPS_COLLECTION}/${id}`)
+      .set({ name: "Shop", referenceCount, ...deletedFields(deleted) });
   });
 }
 
@@ -56,7 +72,7 @@ export async function seedCategory(
         name: "Category",
         defaultShopId,
         referenceCount,
-        ...(deleted ? { deletedAt: seededDeletedAt } : {}),
+        ...deletedFields(deleted),
       });
   });
 }
@@ -70,9 +86,6 @@ export async function seedInvite(testEnv: RulesTestEnvironment, invitee: Email):
   });
 }
 
-/** A `deletedAt` a seeded doc can carry to start out soft-deleted. */
-export const seededDeletedAt = { seconds: 1_700_000_000, nanoseconds: 0 };
-
 /** Seeds an Item directly, bypassing rules; soft-deleted when `deleted` is set. */
 export async function seedItem(
   testEnv: RulesTestEnvironment,
@@ -83,7 +96,7 @@ export async function seedItem(
     await context
       .firestore()
       .doc(`${ITEMS_COLLECTION}/${id}`)
-      .set({ name: "Item", state: "enough", ...(deleted ? { deletedAt: seededDeletedAt } : {}) });
+      .set({ name: "Item", state: "enough", ...deletedFields(deleted) });
   });
 }
 
@@ -102,17 +115,7 @@ export async function seedCatalogueItem(
         categoryId,
         necessity: "essential",
         ...(shopId === undefined ? {} : { shopId }),
-        ...(deleted ? { deletedAt: seededDeletedAt } : {}),
+        ...deletedFields(deleted),
       });
-  });
-}
-
-/** Seeds a soft-deleted Shop directly, bypassing rules. */
-export async function seedDeletedShop(testEnv: RulesTestEnvironment, id: ShopId): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${SHOPS_COLLECTION}/${id}`)
-      .set({ name: "Shop", referenceCount: 0, deletedAt: seededDeletedAt });
   });
 }

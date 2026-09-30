@@ -5,7 +5,7 @@ import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedCategory, seedDeletedShop, seedHousehold, seedShop } from "./seed.ts";
+import { seedCategory, seedHousehold, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -351,7 +351,7 @@ test("soft delete: renaming a soft-deleted Category needs no Shop batch write", 
 
 test("no references to deleted: creating a Category whose default Shop is soft-deleted is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedDeletedShop(rulesTestEnv.env, shopId("pharmacy"));
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   const batch = firestore.batch();
@@ -367,7 +367,7 @@ test("no references to deleted: creating a Category whose default Shop is soft-d
 test("no references to deleted: moving a Category's default Shop to a soft-deleted Shop is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
-  await seedDeletedShop(rulesTestEnv.env, shopId("grocery"));
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 0, { deleted: true });
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -384,7 +384,7 @@ test("no references to deleted: moving a Category's default Shop to a soft-delet
 
 test("no references to deleted: restoring a Category whose default Shop is still soft-deleted is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedDeletedShop(rulesTestEnv.env, shopId("pharmacy"));
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0, { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -400,7 +400,7 @@ test("no references to deleted: restoring a Category whose default Shop is still
 
 test("no references to deleted: restoring a Category while moving it to a live default Shop in the same write is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedDeletedShop(rulesTestEnv.env, shopId("pharmacy"));
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
   await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0, { deleted: true });
 
