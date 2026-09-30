@@ -394,14 +394,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    /** The caller's own token email, lowercased. */
+    function ownLowercasedEmail() {
+      return request.auth.token.email.lower();
+    }
+
     /** The invite id the caller's own token email addresses: lowercased, as invites are keyed. */
     function ownInviteId() {
-      return request.auth.token.email.lower();
+      return ownLowercasedEmail();
     }
 
     /** Whether the Member doc being created records the caller's own token email, lowercased. */
     function recordsOwnEmail() {
-      return request.resource.data.email == ownInviteId();
+      return request.resource.data.email == ownLowercasedEmail();
     }
 
     /**
