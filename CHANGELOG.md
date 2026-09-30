@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating.
+
+- **Rules** (`firestore.rules`): any Member, not only the Owner, may `list` the Household's
+  invites. Create and delete stay Owner-only (an invitee still deletes their own invite when
+  joining), and `get` stays limited to the invite keyed by the caller's own token email. A
+  non-Member is still refused.
+
 ## v0.5.0
 
 Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating: a doc without
