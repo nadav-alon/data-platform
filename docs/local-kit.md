@@ -33,6 +33,7 @@ const app = initializeApp({ projectId: "demo-data-platform-local", apiKey: "loca
 if (import.meta.env.DEV) connectLocal(app);
 ```
 
-Call `connectLocal` before the app's first Auth or Firestore call. `seedScenario` and
-`seedFixtures` are exported too; a fixture that fails its schema in `COLLECTION_SCHEMAS` throws
+Call `connectLocal` before the app's first Auth or Firestore call. The export is browser-safe: it
+needs only `firebase` and `zod`, while the Admin SDK writer and Auth seeding stay inside the bin.
+`seedScenario` and `seedFixtures` are exported too; a fixture that fails its schema in `COLLECTION_SCHEMAS` throws
 naming the collection and doc, before anything is written.
