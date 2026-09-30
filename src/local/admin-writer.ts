@@ -1,16 +1,11 @@
 import { initializeApp, deleteApp } from "firebase-admin/app";
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { firestoreTimestampSchema, type FirestoreTimestamp } from "../core/timestamp.ts";
 import { EMULATOR_HOST, FIRESTORE_EMULATOR_PORT, LOCAL_PROJECT_ID } from "./emulator-config.ts";
 import type { FixtureWriter } from "./seed.ts";
 
-function isTimestampShape(value: unknown): value is { seconds: number; nanoseconds: number } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.keys(value).length === 2 &&
-    "seconds" in value &&
-    "nanoseconds" in value
-  );
+function isFirestoreTimestamp(value: unknown): value is FirestoreTimestamp {
+  return firestoreTimestampSchema.safeParse(value).success;
 }
 
 /** Fixtures hold timestamps in the shape reads return; Firestore must store them as Timestamps. */
@@ -18,7 +13,7 @@ function toStoredData(data: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(data).map(([key, value]) => [
       key,
-      isTimestampShape(value) ? new Timestamp(value.seconds, value.nanoseconds) : value,
+      isFirestoreTimestamp(value) ? new Timestamp(value.seconds, value.nanoseconds) : value,
     ]),
   );
 }
