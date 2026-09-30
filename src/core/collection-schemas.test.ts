@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CORE_COLLECTION_SCHEMAS } from "./collection-schemas.ts";
 import { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
 import { ITEMS_COLLECTION, itemSchema } from "./item.ts";
+import { INVITES_COLLECTION, inviteSchema } from "./invites.ts";
 import { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
 import { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
 import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-history.ts";
@@ -10,6 +11,7 @@ import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-histo
 test("keys each Core collection's schema by its own collection name", () => {
   assert.equal(CORE_COLLECTION_SCHEMAS[ITEMS_COLLECTION], itemSchema);
   assert.equal(CORE_COLLECTION_SCHEMAS[MEMBERS_COLLECTION], memberSchema);
+  assert.equal(CORE_COLLECTION_SCHEMAS[INVITES_COLLECTION], inviteSchema);
 });
 
 test("keys meta's two singleton docs by their full doc path, not the bare collection name", () => {

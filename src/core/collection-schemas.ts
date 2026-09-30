@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import { HOUSEHOLD_DOC_PATH, householdMetaSchema } from "./household.ts";
 import { ITEMS_COLLECTION, itemSchema } from "./item.ts";
+import { INVITES_COLLECTION, inviteSchema } from "./invites.ts";
 import { MEMBERS_COLLECTION, memberSchema } from "./members.ts";
 import { PLATFORM_DOC_PATH, platformMetaSchema } from "./platform.ts";
 import { STATE_HISTORY_COLLECTION, stateHistoryEntrySchema } from "./state-history.ts";
@@ -25,5 +26,6 @@ export const CORE_COLLECTION_SCHEMAS: CollectionSchemas = {
   [PLATFORM_DOC_PATH]: platformMetaSchema,
   [ITEMS_COLLECTION]: itemSchema,
   [MEMBERS_COLLECTION]: memberSchema,
+  [INVITES_COLLECTION]: inviteSchema,
   [`${ITEMS_COLLECTION}/*/${STATE_HISTORY_COLLECTION}`]: stateHistoryEntrySchema,
 };
