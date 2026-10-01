@@ -13,7 +13,7 @@ at `ok` against a `0.10.0` deploy.
 
 No redeploy needed: the rules and schemas are unchanged, and a patch release keeps `checkPlatform` at `ok` against a `0.10.0` deploy.
 
-- **Local kit** (`src/local/`, `docs/local-kit.md`): every scenario (`empty`, `owner-with-items`, `invited-member`) now
+- **Local kit** (`src/local/`): every scenario (`empty`, `owner-with-items`, `invited-member`) now
   seeds `meta/platform` with this release's `PLATFORM_VERSION`, so an app pinned to this release
   no longer reads `missing` against a local Household.
 
