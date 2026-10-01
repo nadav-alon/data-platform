@@ -320,12 +320,7 @@ test("collection validation: a Member updating an existing CatalogueItem into a 
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
-      categoryId: "cleaning",
-      necessity: "essential",
-    });
-  });
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
 
   const fixture: RulesFixture = {
     name: "CatalogueItem update with a necessity outside the Necessity enum",
