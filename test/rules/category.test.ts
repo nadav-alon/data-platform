@@ -5,10 +5,11 @@ import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedCategory, seedHousehold, seedShop } from "./seed.ts";
+import { seedCategory, seedHousehold, seedMember, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -380,7 +381,7 @@ test("no references to deleted: restoring a Category while moving it to a live d
   await assertSucceeds(batch.commit());
 });
 
-test("hard delete: a Member cannot delete an unreferenced Category, even batched with its Shop's count drop", async () => {
+test("hard delete: the Owner cannot delete an unreferenced Category, even batched with its Shop's count drop", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
@@ -393,11 +394,21 @@ test("hard delete: a Member cannot delete an unreferenced Category, even batched
   await assertFails(batch.commit());
 });
 
-test("hard delete: a Member cannot delete a soft-deleted Category", async () => {
+test("hard delete: the Owner cannot delete a soft-deleted Category", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0, { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete a Category", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
 });

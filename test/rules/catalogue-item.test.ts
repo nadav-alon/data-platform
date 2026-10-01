@@ -12,11 +12,13 @@ import {
   seedCategory,
   seedHousehold,
   seedItem,
+  seedMember,
   seedShop,
 } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -647,7 +649,7 @@ test("no references to deleted: restoring a CatalogueItem while moving it to a l
   await assertSucceeds(batch.commit());
 });
 
-test("hard delete: a Member cannot delete a live CatalogueItem, even batched with its count drops", async () => {
+test("hard delete: the Owner cannot delete a live CatalogueItem, even batched with its count drops", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
@@ -664,11 +666,21 @@ test("hard delete: a Member cannot delete a live CatalogueItem, even batched wit
   await assertFails(batch.commit());
 });
 
-test("hard delete: a Member cannot delete a soft-deleted CatalogueItem", async () => {
+test("hard delete: the Owner cannot delete a soft-deleted CatalogueItem", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
   await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete a CatalogueItem", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
 });
