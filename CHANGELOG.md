@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.0
+
+Redeploy (`npm run deploy`) before pinning an app to this release; until the rules are live a
+Member doc's `email` is still unchecked on create.
+
+- **Rules** (`firestore.rules`): a Member doc created by an invitee's join or by first-claim must
+  record the caller's own verified token email, lowercased, as its `email`. A create whose
+  `email` differs from it, or whose token email is unverified, is denied. Owner-created Member
+  docs and existing Member docs are unchanged; nothing is migrated.
+
 ## v0.6.0
 
 Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating.

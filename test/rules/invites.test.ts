@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
-import { email } from "../../src/core/email.ts";
+import { email, type Email } from "../../src/core/email.ts";
 import { INVITES_COLLECTION, inviteDocPath } from "../../src/core/invites.ts";
 import { memberDocPath } from "../../src/core/members.ts";
 import { uid, type Uid } from "../../src/core/uid.ts";
@@ -134,10 +134,10 @@ test("get: a signed-out caller cannot get an invite", async () => {
 });
 
 /** The invitee's join: their own Member doc created and their invite deleted, in one batch. */
-function joinBatch(db: TestFirestore, joiner: Uid) {
+function joinBatch(db: TestFirestore, joiner: Uid, recordedEmail: Email = guest) {
   const batch = db.batch();
   batch.set(db.doc(memberDocPath(joiner)), {
-    email: guest,
+    email: recordedEmail,
     addedAt: serverTimestamp(),
   });
   batch.delete(db.doc(inviteDocPath(guest)));
@@ -156,6 +156,22 @@ test("join: an invitee with a verified matching email joins, ending as a Member 
     assert.equal((await firestore.doc(memberDocPath(bob)).get()).exists, true);
     assert.equal((await firestore.doc(inviteDocPath(guest)).get()).exists, false);
   });
+});
+
+test("join: refused when the Member email is not the joiner's token email", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, bob, email("member@example.com")).commit());
+});
+
+test("join: refused when the Member email is the token email but not lowercased", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedInvite(rulesTestEnv.env, guest);
+  const db = rulesTestEnv.env.authenticatedContext(bob, guestToken).firestore();
+
+  await assertFails(joinBatch(db, bob, email(guestToken.email)).commit());
 });
 
 test("join: refused when there is no matching invite", async () => {
