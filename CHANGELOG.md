@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11.0
+
+No redeploy needed: the rules and schemas are unchanged.
+
+- **Local kit** (`src/local/`): every scenario (`empty`, `owner-with-items`, `invited-member`) now
+  seeds `meta/platform` with this release's `PLATFORM_VERSION`, so an app pinned to this release
+  no longer reads `missing` against a local Household.
+
 ## v0.10.0
 
 Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating.
