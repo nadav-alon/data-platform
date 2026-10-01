@@ -1,5 +1,6 @@
 import { email, type Email } from "../core/email.ts";
 import type { FirestoreTimestamp } from "../core/timestamp.ts";
+import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import { uid, type Uid } from "../core/uid.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
@@ -26,6 +27,15 @@ const householdMeta = (ownerUid: Uid): Fixture => ({
   data: { owner: ownerUid },
 });
 
+const [platformCollection, platformId] = PLATFORM_DOC_PATH.split("/") as [string, string];
+
+/** What a household deploy writes, so an app pinned to this release finds a matching platform. */
+const platformMeta: Fixture = {
+  collection: platformCollection,
+  id: platformId,
+  data: { version: PLATFORM_VERSION },
+};
+
 const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
   collection: "members",
   id: uid,
@@ -33,15 +43,16 @@ const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
 });
 
 /**
- * The named Households the local kit can seed. `empty` is an unclaimed Household; the others are
- * claimed, and every `users` entry is seeded as a Member (the Owner included) so the emulator's
+ * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
+ * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users` entry is seeded as a Member (the Owner included) so the emulator's
  * fake Google sign-in as that email lands on a Member the rules let in.
  */
 export const SCENARIOS = {
-  empty: { users: [], fixtures: [] },
+  empty: { users: [], fixtures: [platformMeta] },
   "owner-with-items": {
     users: [owner],
     fixtures: [
+      platformMeta,
       householdMeta(owner.uid),
       memberDoc(owner),
       { collection: "shops", id: "grocery", data: { name: "Grocery", referenceCount: 1 } },
@@ -62,6 +73,7 @@ export const SCENARIOS = {
   "invited-member": {
     users: [member],
     fixtures: [
+      platformMeta,
       householdMeta(owner.uid),
       memberDoc(owner),
       memberDoc(member),

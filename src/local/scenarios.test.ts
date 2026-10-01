@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENARIO_NAMES, SCENARIOS, scenarioName, seedScenario, type Scenario } from "./scenarios.ts";
+import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import type { FixtureWriter } from "./seed.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
@@ -39,3 +40,11 @@ test("a scenario's users are each a Member doc, and the Owner is the household's
     }
   }
 });
+
+for (const name of SCENARIO_NAMES) {
+  test(`${name} seeds meta/platform with this release's PLATFORM_VERSION`, async () => {
+    const written = new Map<string, Record<string, unknown>>();
+    await seedScenario({ async set(path, data) { written.set(path, data); } }, name);
+    assert.deepEqual(written.get(PLATFORM_DOC_PATH), { version: PLATFORM_VERSION });
+  });
+}
