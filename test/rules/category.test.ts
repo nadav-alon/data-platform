@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import assert from "node:assert/strict";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
 import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.ts";
@@ -411,4 +412,29 @@ test("hard delete: a non-Owner Member cannot delete a Category", async () => {
 
   const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+});
+
+test("reference count: a restore batch against a Category that is still live is denied, leaving its default Shop's referenceCount unchanged", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const deleteBatch = firestore.batch();
+  deleteBatch.update(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`), { deletedAt: serverTimestamp() });
+  await assertFails(deleteBatch.commit());
+
+  const restoreBatch = firestore.batch();
+  restoreBatch.set(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`), {
+    name: "Category",
+    defaultShopId: "pharmacy",
+    referenceCount: 0,
+  });
+  restoreBatch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 2 });
+  await assertFails(restoreBatch.commit());
+
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    const shop = await context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).get();
+    assert.equal(shop.data()?.referenceCount, 1);
+  });
 });
