@@ -4,10 +4,11 @@ import { serverTimestamp } from "firebase/firestore";
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seededDeletedAt, seedHousehold, seedShop } from "./seed.ts";
+import { seededDeletedAt, seedHousehold, seedMember, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -108,32 +109,6 @@ test("new-doc invariant: a Member creating a Shop with a nonzero referenceCount 
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).set({ name: "Pharmacy", referenceCount: 1 }),
   );
-});
-
-test("in-use guard: deleting an unreferenced Shop is accepted", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${SHOPS_COLLECTION}/pharmacy`)
-      .set({ name: "Pharmacy", referenceCount: 0 });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertSucceeds(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
-});
-
-test("in-use guard: deleting a Shop whose referenceCount is nonzero is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${SHOPS_COLLECTION}/pharmacy`)
-      .set({ name: "Pharmacy", referenceCount: 1 });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertFails(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
 });
 
 test("isMember() gate: a signed-in non-member creating a Shop is denied", async () => {
@@ -243,4 +218,29 @@ test("soft delete: re-stamping an already soft-deleted Shop's deletedAt is denie
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: serverTimestamp() }),
   );
+});
+
+test("hard delete: the Owner cannot delete an unreferenced Shop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
+});
+
+test("hard delete: the Owner cannot delete a soft-deleted Shop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete a Shop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
+  await assertFails(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
 });

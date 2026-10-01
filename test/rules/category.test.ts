@@ -5,10 +5,11 @@ import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedCategory, seedHousehold, seedShop } from "./seed.ts";
+import { seedCategory, seedHousehold, seedMember, seedShop } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -120,41 +121,6 @@ test("reference count: moving a Category to a new default Shop batched with both
   batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
   batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
   await assertSucceeds(batch.commit());
-});
-
-test("reference count: deleting an unreferenced Category batched with its default Shop's referenceCount drop is accepted", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
-  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  const firestore = context.firestore();
-  const batch = firestore.batch();
-  batch.delete(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`));
-  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
-  await assertSucceeds(batch.commit());
-});
-
-test("reference count: deleting a Category without dropping its default Shop's referenceCount is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
-  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertFails(context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
-});
-
-test("in-use guard: deleting a Category whose referenceCount is nonzero is denied, even with the Shop drop batched", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
-  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 1);
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  const firestore = context.firestore();
-  const batch = firestore.batch();
-  batch.delete(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`));
-  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
-  await assertFails(batch.commit());
 });
 
 test("collection validation: a Member creating a Category with a non-string name is denied", async () => {
@@ -415,11 +381,34 @@ test("no references to deleted: restoring a Category while moving it to a live d
   await assertSucceeds(batch.commit());
 });
 
-test("soft delete: hard-deleting a soft-deleted Category needs no further Shop adjustment", async () => {
+test("hard delete: the Owner cannot delete an unreferenced Category, even batched with its Shop's count drop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`));
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 0 });
+  await assertFails(batch.commit());
+});
+
+test("hard delete: the Owner cannot delete a soft-deleted Category", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
   await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0, { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
-  await assertSucceeds(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+  await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete a Category", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("medicine"), shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
+  await assertFails(firestore.doc(`${CATEGORIES_COLLECTION}/medicine`).delete());
 });

@@ -12,11 +12,13 @@ import {
   seedCategory,
   seedHousehold,
   seedItem,
+  seedMember,
   seedShop,
 } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -266,79 +268,6 @@ test("reference count: changing a CatalogueItem's shopId override without adjust
       shopId: "pharmacy",
     }),
   );
-});
-
-test("reference count: deleting a CatalogueItem batched with its Category's referenceCount drop is accepted", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
-      categoryId: "cleaning",
-      necessity: "essential",
-    });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  const firestore = context.firestore();
-  const batch = firestore.batch();
-  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
-  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
-  await assertSucceeds(batch.commit());
-});
-
-test("reference count: deleting a CatalogueItem without dropping its Category's referenceCount is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
-      categoryId: "cleaning",
-      necessity: "essential",
-    });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertFails(context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
-});
-
-test("reference count: deleting a CatalogueItem with a shopId override batched with both drops is accepted", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
-  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
-      categoryId: "cleaning",
-      necessity: "essential",
-      shopId: "grocery",
-    });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  const firestore = context.firestore();
-  const batch = firestore.batch();
-  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
-  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
-  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 0 });
-  await assertSucceeds(batch.commit());
-});
-
-test("reference count: deleting a CatalogueItem with a shopId override without dropping the Shop's referenceCount is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
-  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
-      categoryId: "cleaning",
-      necessity: "essential",
-      shopId: "grocery",
-    });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  const firestore = context.firestore();
-  const batch = firestore.batch();
-  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
-  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
-  await assertFails(batch.commit());
 });
 
 test("collection validation: a Member creating a CatalogueItem with a non-string categoryId is denied", async () => {
@@ -720,11 +649,38 @@ test("no references to deleted: restoring a CatalogueItem while moving it to a l
   await assertSucceeds(batch.commit());
 });
 
-test("soft delete: hard-deleting a soft-deleted CatalogueItem needs no further count adjustment", async () => {
+test("hard delete: the Owner cannot delete a live CatalogueItem, even batched with its count drops", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), {
+    shopId: shopId("grocery"),
+  });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+  const batch = firestore.batch();
+  batch.delete(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`));
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 0 });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 0 });
+  await assertFails(batch.commit());
+});
+
+test("hard delete: the Owner cannot delete a soft-deleted CatalogueItem", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
   await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
-  await assertSucceeds(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+  await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete a CatalogueItem", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
+  await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
 });

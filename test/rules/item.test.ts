@@ -4,10 +4,11 @@ import { serverTimestamp } from "firebase/firestore";
 import { ITEMS_COLLECTION, itemId } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seedHousehold, seedItem } from "./seed.ts";
+import { seedHousehold, seedItem, seedMember } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
+const bob = uid("bob");
 
 const rulesTestEnv = setupRulesTestEnv();
 
@@ -236,4 +237,29 @@ test("soft delete: re-stamping an already soft-deleted Item's deletedAt is denie
   await assertFails(
     context.firestore().doc(`${ITEMS_COLLECTION}/dish-soap`).update({ deletedAt: serverTimestamp() }),
   );
+});
+
+test("hard delete: the Owner cannot delete a live Item", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`).delete());
+});
+
+test("hard delete: the Owner cannot delete a soft-deleted Item", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("sponge"), { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${ITEMS_COLLECTION}/sponge`).delete());
+});
+
+test("hard delete: a non-Owner Member cannot delete an Item", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
+  await assertFails(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`).delete());
 });

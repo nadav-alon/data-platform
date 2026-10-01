@@ -67,7 +67,8 @@ optional Shop override that takes precedence over the Category's default.
 **Soft delete**:
 Marking an Item, CatalogueItem, Category or Shop deleted with `deletedAt` rather than removing it,
 so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
-reference counts and can't be referenced.
+reference counts and can't be referenced. It is the only way an app deletes: the rules deny hard
+delete on all four, and only the Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
 **Necessity**:

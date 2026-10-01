@@ -80,6 +80,10 @@ service cloud.firestore {
       return ('deletedAt' in data) ? data.deletedAt : null;
     }
 
+    /**
+     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories
+     * and shops all `allow delete: if false`; the console's admin access can still hard delete.
+     */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
     }
@@ -360,7 +364,7 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
-    /** A Shop is soft-deleted only while nothing references it, as a hard delete is. */
+    /** A Shop is soft-deleted only while nothing references it. */
     function shopSoftDeleteAllowed(oldData, newData) {
       return !isSoftDeleting(oldData, newData)
         || (oldData.referenceCount == 0 && newData.referenceCount == 0);
@@ -488,7 +492,7 @@ service cloud.firestore {
         && isValidItem(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && catalogueItemDeletedAtMatches(itemId, request.resource.data);
-      allow delete: if isMember();
+      allow delete: if false;
 
       match /stateHistory/{entryId} {
         allow read: if isMember();
@@ -515,14 +519,7 @@ service cloud.firestore {
         && catalogueItemUpdateNamesLiveTargets(resource.data, request.resource.data)
         && catalogueItemReferencesValid(resource.data, request.resource.data)
         && itemDeletedAtMatches(itemId, request.resource.data);
-      /**
-       * Deleting a live CatalogueItem drops its Category reference, and its Shop override's when
-       * set, in the same batch. A soft-deleted one already dropped them.
-       */
-      allow delete: if isMember()
-        && (isDeleted(resource.data)
-          || (referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
-            && catalogueItemShopReferenceAdjustedBy(resource.data, -1)));
+      allow delete: if false;
     }
 
     match /categories/{categoryId} {
@@ -542,15 +539,7 @@ service cloud.firestore {
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
         && categoryReferencesValid(resource.data, request.resource.data);
-      /**
-       * Denied while anything still references this Category (its own referenceCount), and a
-       * live one's outgoing reference to its default Shop must be dropped in the same batch. A
-       * soft-deleted one already dropped it.
-       */
-      allow delete: if isMember()
-        && resource.data.referenceCount == 0
-        && (isDeleted(resource.data)
-          || referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1));
+      allow delete: if false;
     }
 
     match /shops/{shopId} {
@@ -564,8 +553,7 @@ service cloud.firestore {
         && isValidShop(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && shopSoftDeleteAllowed(resource.data, request.resource.data);
-      /** Denied while anything still references this Shop (its own referenceCount). */
-      allow delete: if isMember() && resource.data.referenceCount == 0;
+      allow delete: if false;
     }
 
     match /{document=**} {

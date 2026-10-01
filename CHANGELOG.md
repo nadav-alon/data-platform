@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0
+
+Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating. Pin an app to this
+release only once it soft-deletes Categories and Shops, or its Delete buttons will be denied.
+
+- **Rules** (`firestore.rules`): hard delete is denied on `items`, `catalogueItems`,
+  `categories` and `shops`, for every Member, the Owner included, live or soft-deleted. Setting
+  `deletedAt` and restoring are unchanged. The Firebase console, as admin, can still delete.
+
 ## v0.8.0
 
 No redeploy needed: the rules and schemas are unchanged.
