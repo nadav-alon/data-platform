@@ -110,32 +110,6 @@ test("new-doc invariant: a Member creating a Shop with a nonzero referenceCount 
   );
 });
 
-test("in-use guard: deleting an unreferenced Shop is accepted", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${SHOPS_COLLECTION}/pharmacy`)
-      .set({ name: "Pharmacy", referenceCount: 0 });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertSucceeds(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
-});
-
-test("in-use guard: deleting a Shop whose referenceCount is nonzero is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${SHOPS_COLLECTION}/pharmacy`)
-      .set({ name: "Pharmacy", referenceCount: 1 });
-  });
-
-  const context = rulesTestEnv.env.authenticatedContext(alice);
-  await assertFails(context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
-});
-
 test("isMember() gate: a signed-in non-member creating a Shop is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
 
@@ -243,4 +217,20 @@ test("soft delete: re-stamping an already soft-deleted Shop's deletedAt is denie
   await assertFails(
     context.firestore().doc(`${SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: serverTimestamp() }),
   );
+});
+
+test("hard delete: a Member cannot delete an unreferenced Shop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
+});
+
+test("hard delete: a Member cannot delete a soft-deleted Shop", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0, { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`).delete());
 });

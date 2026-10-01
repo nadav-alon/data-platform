@@ -552,8 +552,8 @@ service cloud.firestore {
         && isValidShop(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && shopSoftDeleteAllowed(resource.data, request.resource.data);
-      /** Denied while anything still references this Shop (its own referenceCount). */
-      allow delete: if isMember() && resource.data.referenceCount == 0;
+      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
+      allow delete: if false;
     }
 
     match /{document=**} {
