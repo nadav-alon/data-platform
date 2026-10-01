@@ -8,7 +8,7 @@ Redeploy (`npm run deploy`) to get the new rules. Nothing needs migrating.
   of a reference that didn't change. A live Category update that keeps its default Shop is denied
   if that Shop's count moves, unless the Category's own count moves in the same write; a live
   CatalogueItem update that keeps its Category, or its Shop override, is denied if that target's
-  count moves. A restore batch against a doc that is still live is therefore refused as a whole,
+  count moves. A restore batch against a Category or CatalogueItem that is still live is therefore refused as a whole,
   instead of leaving the count one too high for good.
 
 ## v0.9.0
