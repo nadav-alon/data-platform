@@ -747,10 +747,14 @@ test("reference count: a CatalogueItem whose Shop override is its Category's def
   await assertSucceeds(restore.commit());
 });
 
-for (const shopCount of [3, 0]) {
-  test(`reference count: raising a Category's referenceCount by 1 while moving its unchanged default Shop's from 1 to ${shopCount} is denied`, async () => {
+const seededShopCount = 1;
+// The rule accepts a Shop count move of 0 or of the Category's own delta (+1); these are +2 and -1.
+const deniedShopCounts = [3, 0];
+
+for (const shopCount of deniedShopCounts) {
+  test(`reference count: raising a Category's referenceCount by 1 while moving its unchanged default Shop's from ${seededShopCount} to ${shopCount} is denied`, async () => {
     await seedHousehold(rulesTestEnv.env, alice);
-    await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
+    await seedShop(rulesTestEnv.env, shopId("grocery"), seededShopCount);
     await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 1);
 
     const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
