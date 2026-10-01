@@ -684,3 +684,48 @@ test("hard delete: a non-Owner Member cannot delete a CatalogueItem", async () =
   const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).delete());
 });
+
+test("reference count: a CatalogueItem whose Shop override is its Category's default Shop is still created, soft-deleted and restored", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 0);
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const catalogueItem = firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`);
+  const category = firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`);
+  const shop = firestore.doc(`${SHOPS_COLLECTION}/grocery`);
+
+  const create = firestore.batch();
+  create.set(catalogueItem, { categoryId: "cleaning", necessity: "essential", shopId: "grocery" });
+  create.update(category, { referenceCount: 1 });
+  create.update(shop, { referenceCount: 2 });
+  await assertSucceeds(create.commit());
+
+  const softDelete = firestore.batch();
+  softDelete.update(catalogueItem, { deletedAt: serverTimestamp() });
+  softDelete.update(category, { referenceCount: 0 });
+  softDelete.update(shop, { referenceCount: 1 });
+  await assertSucceeds(softDelete.commit());
+
+  const restore = firestore.batch();
+  restore.set(catalogueItem, { categoryId: "cleaning", necessity: "essential", shopId: "grocery" });
+  restore.update(category, { referenceCount: 1 });
+  restore.update(shop, { referenceCount: 2 });
+  await assertSucceeds(restore.commit());
+});
+
+test("reference count: changing only a CatalogueItem's Shop override is accepted when its Category's default Shop is the old override", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 2);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 0);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 1);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), {
+    shopId: shopId("grocery"),
+  });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), { shopId: "pharmacy" });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
+  batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 1 });
+  await assertSucceeds(batch.commit());
+});

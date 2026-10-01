@@ -228,13 +228,18 @@ service cloud.firestore {
     }
 
     /**
-     * Whether a Category update correctly moves its `defaultShopId` reference: no adjustment
-     * required when it's unchanged, otherwise the old Shop's referenceCount must drop by 1 and
-     * the new Shop's must rise by 1, in the same batch.
+     * Whether a Category update correctly moves its `defaultShopId` reference: when it's
+     * unchanged, the Shop's referenceCount must not move, unless the Category's own
+     * referenceCount does (a CatalogueItem in the batch references it, and may name the same Shop
+     * as its override); otherwise the old Shop's referenceCount must drop by 1 and the new
+     * Shop's must rise by 1, in the same batch.
      */
     function categoryShopReferenceAdjusted(oldData, newData) {
-      return oldData.defaultShopId == newData.defaultShopId
-        || (referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
+      return (oldData.defaultShopId == newData.defaultShopId
+          && (oldData.referenceCount != newData.referenceCount
+            || referenceCountAdjustedBy(shopPath(oldData.defaultShopId), 0)))
+        || (oldData.defaultShopId != newData.defaultShopId
+          && referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
           && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
     }
 
