@@ -537,15 +537,8 @@ service cloud.firestore {
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
         && categoryReferencesValid(resource.data, request.resource.data);
-      /**
-       * Denied while anything still references this Category (its own referenceCount), and a
-       * live one's outgoing reference to its default Shop must be dropped in the same batch. A
-       * soft-deleted one already dropped it.
-       */
-      allow delete: if isMember()
-        && resource.data.referenceCount == 0
-        && (isDeleted(resource.data)
-          || referenceCountAdjustedBy(shopPath(resource.data.defaultShopId), -1));
+      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
+      allow delete: if false;
     }
 
     match /shops/{shopId} {
