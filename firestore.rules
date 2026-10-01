@@ -296,11 +296,13 @@ service cloud.firestore {
     /**
      * Whether a CatalogueItem update correctly moves its optional `shopId` override: no
      * adjustment for whichever end (old, new, or both) has no Shop set, otherwise that end's
-     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch.
+     * Shop referenceCount must move by 1 in the corresponding direction, in the same batch. An
+     * override that is unchanged leaves its Shop's referenceCount where it was.
      */
     function catalogueItemShopReferenceAdjusted(oldData, newData) {
       return catalogueItemShopId(oldData) == catalogueItemShopId(newData)
-        || (catalogueItemShopReferenceAdjustedBy(oldData, -1)
+        ? catalogueItemShopReferenceAdjustedBy(oldData, 0)
+        : (catalogueItemShopReferenceAdjustedBy(oldData, -1)
           && catalogueItemShopReferenceAdjustedBy(newData, 1));
     }
 
