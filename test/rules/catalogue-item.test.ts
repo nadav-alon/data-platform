@@ -25,6 +25,7 @@ const rulesTestEnv = setupRulesTestEnv();
 
 test("reference count: creating a CatalogueItem batched with its Category's referenceCount bump is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
@@ -84,6 +85,7 @@ test("reference count: creating a CatalogueItem whose Category doesn't exist is 
 
 test("reference count: creating a CatalogueItem with a shopId override batched with both bumps is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
 
@@ -160,6 +162,7 @@ test("reference count: moving a CatalogueItem to a new Category without adjustin
 
 test("reference count: moving a CatalogueItem to a new Category batched with both Categories' referenceCount adjustments is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
@@ -364,6 +367,7 @@ test("isMember() gate: a signed-in non-member creating a CatalogueItem is denied
 
 test("soft delete: an Item and its CatalogueItem soft-deleted in one batch, with the Category's referenceCount dropped, is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await seedItem(rulesTestEnv.env, itemId("dish-soap"));
   await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
@@ -378,6 +382,7 @@ test("soft delete: an Item and its CatalogueItem soft-deleted in one batch, with
 
 test("soft delete: soft-deleting a CatalogueItem with a Shop override drops both counts in the same batch", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 1);
   await seedItem(rulesTestEnv.env, itemId("dish-soap"));
@@ -449,6 +454,7 @@ test("soft delete: soft-deleting an Item's doc alone, leaving its CatalogueItem 
 
 test("soft delete: restoring an Item and its CatalogueItem in one batch, with the Category's referenceCount raised, is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
   await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
   await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), { deleted: true });
@@ -498,6 +504,7 @@ test("soft delete: restoring a CatalogueItem without raising its Category's refe
 
 test("soft delete: restoring a CatalogueItem with a Shop override raises both counts", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
   await seedItem(rulesTestEnv.env, itemId("dish-soap"), { deleted: true });
@@ -631,6 +638,7 @@ test("no references to deleted: restoring a CatalogueItem whose Shop override is
 
 test("no references to deleted: restoring a CatalogueItem while moving it to a live Category and Shop in the same write is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0, { deleted: true });
   await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 0);
@@ -712,6 +720,20 @@ test("reference count: a CatalogueItem whose Shop override is its Category's def
   restore.update(category, { referenceCount: 1 });
   restore.update(shop, { referenceCount: 2 });
   await assertSucceeds(restore.commit());
+});
+
+test("reference count: raising a Category's referenceCount by 1 while moving its unchanged default Shop's by any other amount is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("grocery"), 5);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 1);
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  for (const shopCount of [7, 2]) {
+    const batch = firestore.batch();
+    batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 2 });
+    batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: shopCount });
+    await assertFails(batch.commit());
+  }
 });
 
 test("reference count: changing only a CatalogueItem's Shop override is accepted when its Category's default Shop is the old override", async () => {
