@@ -40,7 +40,7 @@ if (import.meta.env.DEV) {
 
 `initLocalAuth` creates the app's Auth with in-memory persistence, so every local run starts signed
 out, and the browser popup resolver, so `signInWithPopup` works against the Auth emulator. Call it
-after `initializeApp` and before `connectLocal`. An app that calls `initializeAuth` itself must
+after `initializeApp` and before the app's first Auth call, including `connectLocal`. An app that calls `initializeAuth` itself must
 pass `popupRedirectResolver` too, or sign-in through the popup throws `auth/argument-error`.
 
 Call `connectLocal` before the app's first Auth or Firestore call. The export is browser-safe: it
