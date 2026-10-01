@@ -80,6 +80,10 @@ service cloud.firestore {
       return ('deletedAt' in data) ? data.deletedAt : null;
     }
 
+    /**
+     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories
+     * and shops all `allow delete: if false`; the console's admin access can still hard delete.
+     */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
     }
@@ -488,7 +492,6 @@ service cloud.firestore {
         && isValidItem(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && catalogueItemDeletedAtMatches(itemId, request.resource.data);
-      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
       allow delete: if false;
 
       match /stateHistory/{entryId} {
@@ -516,7 +519,6 @@ service cloud.firestore {
         && catalogueItemUpdateNamesLiveTargets(resource.data, request.resource.data)
         && catalogueItemReferencesValid(resource.data, request.resource.data)
         && itemDeletedAtMatches(itemId, request.resource.data);
-      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
       allow delete: if false;
     }
 
@@ -537,7 +539,6 @@ service cloud.firestore {
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && categoryUpdateNamesLiveShop(resource.data, request.resource.data)
         && categoryReferencesValid(resource.data, request.resource.data);
-      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
       allow delete: if false;
     }
 
@@ -552,7 +553,6 @@ service cloud.firestore {
         && isValidShop(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && shopSoftDeleteAllowed(resource.data, request.resource.data);
-      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
       allow delete: if false;
     }
 
