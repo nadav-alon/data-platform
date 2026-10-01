@@ -1,20 +1,24 @@
 {
   "name": "data-platform",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=22.18"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./local": {
+      "types": "./dist/local/index.d.ts",
+      "default": "./dist/local/index.js"
+    }
   },
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
-    "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only firestore \"node --test --test-concurrency=1 'test/rules/**/*.test.ts'\"",
+    "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only auth,firestore \"node --test --test-concurrency=1 'test/rules/**/*.test.ts'\"",
     "deploy": "node scripts/deploy/deploy.ts"
   },
   "dependencies": {
@@ -27,5 +31,24 @@
     "firebase-admin": "^14.5.0",
     "firebase-tools": "^15.31.0",
     "typescript": "^7.0.2"
+  },
+  "bin": {
+    "data-platform-local": "./dist/local/bin.js"
+  },
+  "peerDependencies": {
+    "firebase": "^12.0.0",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.31.0"
+  },
+  "peerDependenciesMeta": {
+    "firebase": {
+      "optional": true
+    },
+    "firebase-admin": {
+      "optional": true
+    },
+    "firebase-tools": {
+      "optional": true
+    }
   }
 }
