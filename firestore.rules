@@ -488,7 +488,8 @@ service cloud.firestore {
         && isValidItem(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && catalogueItemDeletedAtMatches(itemId, request.resource.data);
-      allow delete: if isMember();
+      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
+      allow delete: if false;
 
       match /stateHistory/{entryId} {
         allow read: if isMember();
