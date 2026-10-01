@@ -44,8 +44,9 @@ const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
 
 /**
  * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
- * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users` entry is seeded as a Member (the Owner included) so the emulator's
- * fake Google sign-in as that email lands on a Member the rules let in.
+ * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users`
+ * entry is seeded as a Member (the Owner included) so the emulator's fake Google sign-in as that
+ * email lands on a Member the rules let in.
  */
 export const SCENARIOS = {
   empty: { users: [], fixtures: [platformMeta] },
