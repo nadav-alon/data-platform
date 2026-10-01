@@ -232,7 +232,10 @@ service cloud.firestore {
      * unchanged, the Shop's referenceCount must not move, or must move by the same amount as the
      * Category's own referenceCount (a CatalogueItem in the batch references the Category, and
      * names the same Shop as its override); otherwise the old Shop's referenceCount must drop by
-     * 1 and the new Shop's must rise by 1, in the same batch.
+     * 1 and the new Shop's must rise by 1, in the same batch. So a CatalogueItem that moves
+     * between two Categories sharing a default Shop can't also add or remove that Shop as its
+     * override in the same batch: the old Category's move and the Shop's would disagree. That
+     * takes two writes.
      */
     function categoryShopReferenceAdjusted(oldData, newData) {
       return oldData.defaultShopId == newData.defaultShopId

@@ -162,7 +162,7 @@ test("reference count: moving a CatalogueItem to a new Category without adjustin
 
 test("reference count: moving a CatalogueItem to a new Category batched with both Categories' referenceCount adjustments is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 2);
   await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
@@ -722,19 +722,19 @@ test("reference count: a CatalogueItem whose Shop override is its Category's def
   await assertSucceeds(restore.commit());
 });
 
-test("reference count: raising a Category's referenceCount by 1 while moving its unchanged default Shop's by any other amount is denied", async () => {
-  await seedHousehold(rulesTestEnv.env, alice);
-  await seedShop(rulesTestEnv.env, shopId("grocery"), 5);
-  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 1);
+for (const shopCount of [7, 2]) {
+  test(`reference count: raising a Category's referenceCount by 1 while moving its unchanged default Shop's from 5 to ${shopCount} is denied`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await seedShop(rulesTestEnv.env, shopId("grocery"), 5);
+    await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("grocery"), 1);
 
-  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
-  for (const shopCount of [7, 2]) {
-    const batch = firestore.batch();
-    batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 2 });
-    batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: shopCount });
-    await assertFails(batch.commit());
-  }
-});
+    const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+    const raiseCategoryAndMoveShop = firestore.batch();
+    raiseCategoryAndMoveShop.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 2 });
+    raiseCategoryAndMoveShop.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: shopCount });
+    await assertFails(raiseCategoryAndMoveShop.commit());
+  });
+}
 
 test("reference count: changing only a CatalogueItem's Shop override is accepted when its Category's default Shop is the old override", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
@@ -786,4 +786,36 @@ test("reference count: a restore batch against a CatalogueItem that is still liv
     assert.equal(category.data()?.referenceCount, 1);
     assert.equal(shop.data()?.referenceCount, 1);
   });
+});
+
+test("reference count: moving a CatalogueItem to a Category with the same default Shop while adding that Shop as its override in one batch is denied, and accepted as two writes", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 2);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("kitchen"), shopId("some-shop"), 0);
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const catalogueItem = firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`);
+  const cleaning = firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`);
+  const kitchen = firestore.doc(`${CATEGORIES_COLLECTION}/kitchen`);
+  const shop = firestore.doc(`${SHOPS_COLLECTION}/some-shop`);
+
+  const combined = firestore.batch();
+  combined.update(catalogueItem, { categoryId: "kitchen", shopId: "some-shop" });
+  combined.update(cleaning, { referenceCount: 0 });
+  combined.update(kitchen, { referenceCount: 1 });
+  combined.update(shop, { referenceCount: 3 });
+  await assertFails(combined.commit());
+
+  const moveCategory = firestore.batch();
+  moveCategory.update(catalogueItem, { categoryId: "kitchen" });
+  moveCategory.update(cleaning, { referenceCount: 0 });
+  moveCategory.update(kitchen, { referenceCount: 1 });
+  await assertSucceeds(moveCategory.commit());
+
+  const addOverride = firestore.batch();
+  addOverride.update(catalogueItem, { shopId: "some-shop" });
+  addOverride.update(shop, { referenceCount: 3 });
+  await assertSucceeds(addOverride.commit());
 });
