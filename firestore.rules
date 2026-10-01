@@ -360,7 +360,7 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
-    /** A Shop is soft-deleted only while nothing references it, as a hard delete is. */
+    /** A Shop is soft-deleted only while nothing references it. */
     function shopSoftDeleteAllowed(oldData, newData) {
       return !isSoftDeleting(oldData, newData)
         || (oldData.referenceCount == 0 && newData.referenceCount == 0);
