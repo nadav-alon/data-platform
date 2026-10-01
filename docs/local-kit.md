@@ -29,11 +29,19 @@ An unknown name fails listing the known ones. With no name the bin starts `empty
 
 ```ts
 import { initializeApp } from "firebase/app";
-import { connectLocal } from "data-platform/local";
+import { connectLocal, initLocalAuth } from "data-platform/local";
 
 const app = initializeApp({ projectId: "demo-data-platform-local", apiKey: "local" });
-if (import.meta.env.DEV) connectLocal(app);
+if (import.meta.env.DEV) {
+  initLocalAuth(app);
+  connectLocal(app);
+}
 ```
+
+`initLocalAuth` creates the app's Auth with in-memory persistence, so every local run starts signed
+out, and the browser popup resolver, so `signInWithPopup` works against the Auth emulator. Call it
+after `initializeApp` and before the app's first Auth call, including `connectLocal`. An app that calls `initializeAuth` itself must
+pass `popupRedirectResolver` too, or sign-in through the popup throws `auth/argument-error`.
 
 Call `connectLocal` before the app's first Auth or Firestore call. The export is browser-safe: it
 needs only `firebase` and `zod`, while the Admin SDK writer and Auth seeding stay inside the bin.
