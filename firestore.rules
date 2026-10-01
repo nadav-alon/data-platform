@@ -516,14 +516,8 @@ service cloud.firestore {
         && catalogueItemUpdateNamesLiveTargets(resource.data, request.resource.data)
         && catalogueItemReferencesValid(resource.data, request.resource.data)
         && itemDeletedAtMatches(itemId, request.resource.data);
-      /**
-       * Deleting a live CatalogueItem drops its Category reference, and its Shop override's when
-       * set, in the same batch. A soft-deleted one already dropped them.
-       */
-      allow delete: if isMember()
-        && (isDeleted(resource.data)
-          || (referenceCountAdjustedBy(categoryPath(resource.data.categoryId), -1)
-            && catalogueItemShopReferenceAdjustedBy(resource.data, -1)));
+      /** Soft delete (`deletedAt`) is the only way an app deletes; the console's admin access can still hard delete. */
+      allow delete: if false;
     }
 
     match /categories/{categoryId} {
