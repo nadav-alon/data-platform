@@ -154,6 +154,7 @@ test("collection validation: a Member creating a Category missing its defaultSho
 
 test("collection validation: a Member updating an existing Category to remove its defaultShopId is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("pharmacy"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATEGORIES_COLLECTION}/medicine`).set({
       name: "Medicine",
