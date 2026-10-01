@@ -282,13 +282,14 @@ service cloud.firestore {
     }
 
     /**
-     * Whether a CatalogueItem update correctly moves its `categoryId` reference: no adjustment
-     * required when it's unchanged, otherwise the old Category's referenceCount must drop by 1
-     * and the new Category's must rise by 1, in the same batch.
+     * Whether a CatalogueItem update correctly moves its `categoryId` reference: when it's
+     * unchanged, the Category's referenceCount must not move; otherwise the old Category's
+     * referenceCount must drop by 1 and the new Category's must rise by 1, in the same batch.
      */
     function catalogueItemCategoryReferenceAdjusted(oldData, newData) {
       return oldData.categoryId == newData.categoryId
-        || (referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
+        ? referenceCountAdjustedBy(categoryPath(oldData.categoryId), 0)
+        : (referenceCountAdjustedBy(categoryPath(oldData.categoryId), -1)
           && referenceCountAdjustedBy(categoryPath(newData.categoryId), 1));
     }
 

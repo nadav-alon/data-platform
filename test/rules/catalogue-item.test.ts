@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import assert from "node:assert/strict";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
@@ -728,4 +729,31 @@ test("reference count: changing only a CatalogueItem's Shop override is accepted
   batch.update(firestore.doc(`${SHOPS_COLLECTION}/grocery`), { referenceCount: 1 });
   batch.update(firestore.doc(`${SHOPS_COLLECTION}/pharmacy`), { referenceCount: 1 });
   await assertSucceeds(batch.commit());
+});
+
+test("reference count: a restore batch against a CatalogueItem that is still live is denied, leaving its Category's referenceCount unchanged", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
+  await seedItem(rulesTestEnv.env, itemId("dish-soap"));
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const deleteBatch = firestore.batch();
+  deleteBatch.update(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`), { deletedAt: serverTimestamp() });
+  deleteBatch.update(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), { deletedAt: serverTimestamp() });
+  await assertFails(deleteBatch.commit());
+
+  const restoreBatch = firestore.batch();
+  restoreBatch.set(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`), { name: "Item", state: "enough" });
+  restoreBatch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+  });
+  restoreBatch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 2 });
+  await assertFails(restoreBatch.commit());
+
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    const category = await context.firestore().doc(`${CATEGORIES_COLLECTION}/cleaning`).get();
+    assert.equal(category.data()?.referenceCount, 1);
+  });
 });
