@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.0
+
+No redeploy needed: the rules and schemas are unchanged.
+
+- **Local kit** (`src/local/`, `docs/local-kit.md`): the `data-platform/local` export and the
+  `data-platform-local` bin run an app against a local Household. The bin starts the Auth and
+  Firestore emulators with `firestore.rules` under a `demo-` project ID and seeds a scenario
+  (`empty`, `owner-with-items`, `invited-member`) picked by name. `connectLocal(app)` points a web
+  app's Auth and Firestore at them, and seeding validates every fixture against
+  `COLLECTION_SCHEMAS`. `firebase`, `firebase-admin` and `firebase-tools` are now peer dependencies.
+- **Tests**: `npm run test:rules` now starts the Auth emulator too, for the sign-in tests.
+
 ## v0.7.0
 
 Redeploy (`npm run deploy`) before pinning an app to this release; until the rules are live a
