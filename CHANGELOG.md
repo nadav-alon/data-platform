@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.11.0
+## v0.10.1
 
-No redeploy needed: the rules and schemas are unchanged.
+No redeploy needed: the rules and schemas are unchanged, and a patch release keeps `checkPlatform` at `ok` against a `0.10.0` deploy.
 
 - **Local kit** (`src/local/`): every scenario (`empty`, `owner-with-items`, `invited-member`) now
   seeds `meta/platform` with this release's `PLATFORM_VERSION`, so an app pinned to this release
@@ -30,7 +30,7 @@ release only once it soft-deletes Categories and Shops, or its Delete buttons wi
 
 ## v0.8.0
 
-No redeploy needed: the rules and schemas are unchanged.
+No redeploy needed: the rules and schemas are unchanged, and a patch release keeps `checkPlatform` at `ok` against a `0.10.0` deploy.
 
 - **Local kit** (`src/local/`, `docs/local-kit.md`): the `data-platform/local` export and the
   `data-platform-local` bin run an app against a local Household. The bin starts the Auth and
