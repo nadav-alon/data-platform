@@ -233,13 +233,16 @@ service cloud.firestore {
      * referenceCount does (a CatalogueItem in the batch references it, and may name the same Shop
      * as its override); otherwise the old Shop's referenceCount must drop by 1 and the new
      * Shop's must rise by 1, in the same batch.
+     *
+     * When the Category's own referenceCount moves, the Shop's referenceCount goes unchecked: it
+     * may move by any amount, not just by the Category's delta.
+     * TODO[#197]: bound that move by the Category's own.
      */
     function categoryShopReferenceAdjusted(oldData, newData) {
-      return (oldData.defaultShopId == newData.defaultShopId
-          && (oldData.referenceCount != newData.referenceCount
-            || referenceCountAdjustedBy(shopPath(oldData.defaultShopId), 0)))
-        || (oldData.defaultShopId != newData.defaultShopId
-          && referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
+      return oldData.defaultShopId == newData.defaultShopId
+        ? (oldData.referenceCount != newData.referenceCount
+          || referenceCountAdjustedBy(shopPath(oldData.defaultShopId), 0))
+        : (referenceCountAdjustedBy(shopPath(oldData.defaultShopId), -1)
           && referenceCountAdjustedBy(shopPath(newData.defaultShopId), 1));
     }
 
