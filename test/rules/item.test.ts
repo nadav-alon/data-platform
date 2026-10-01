@@ -239,13 +239,19 @@ test("soft delete: re-stamping an already soft-deleted Item's deletedAt is denie
   );
 });
 
-test("hard delete: the Owner cannot delete a live or a soft-deleted Item", async () => {
+test("hard delete: the Owner cannot delete a live Item", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedItem(rulesTestEnv.env, itemId("dish-soap"));
-  await seedItem(rulesTestEnv.env, itemId("sponge"), { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${ITEMS_COLLECTION}/dish-soap`).delete());
+});
+
+test("hard delete: the Owner cannot delete a soft-deleted Item", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedItem(rulesTestEnv.env, itemId("sponge"), { deleted: true });
+
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${ITEMS_COLLECTION}/sponge`).delete());
 });
 
