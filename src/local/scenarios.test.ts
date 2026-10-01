@@ -1,9 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENARIO_NAMES, SCENARIOS, scenarioName, seedScenario, type Scenario } from "./scenarios.ts";
+import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import type { FixtureWriter } from "./seed.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
+
+/** A writer that records every doc it is given, keyed by path. */
+function recordingWriter(): { writer: FixtureWriter; written: Map<string, Record<string, unknown>> } {
+  const written = new Map<string, Record<string, unknown>>();
+  return { writer: { async set(path, data) { written.set(path, data); } }, written };
+}
 
 test("the known scenarios include empty, owner-with-items and invited-member", () => {
   for (const name of ["empty", "owner-with-items", "invited-member"]) {
@@ -39,3 +46,11 @@ test("a scenario's users are each a Member doc, and the Owner is the household's
     }
   }
 });
+
+for (const name of SCENARIO_NAMES) {
+  test(`${name} seeds meta/platform with this release's PLATFORM_VERSION`, async () => {
+    const { writer, written } = recordingWriter();
+    await seedScenario(writer, name);
+    assert.deepEqual(written.get(PLATFORM_DOC_PATH), { version: PLATFORM_VERSION });
+  });
+}

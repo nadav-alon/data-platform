@@ -1,5 +1,7 @@
 import { email, type Email } from "../core/email.ts";
 import type { FirestoreTimestamp } from "../core/timestamp.ts";
+import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
+import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import { uid, type Uid } from "../core/uid.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
@@ -20,11 +22,21 @@ const addedAt: FirestoreTimestamp = { seconds: 1_700_000_000, nanoseconds: 0 };
 const owner: ScenarioUser = { uid: uid("local-owner"), email: email("owner@example.com"), role: "owner" };
 const member: ScenarioUser = { uid: uid("local-member"), email: email("member@example.com"), role: "member" };
 
-const householdMeta = (ownerUid: Uid): Fixture => ({
-  collection: "meta",
-  id: "household",
-  data: { owner: ownerUid },
-});
+/** A fixture at a `collection/id` doc path; anything else is a typo in the path, so it throws. */
+const fixtureAt = (docPath: string, data: Record<string, unknown>): Fixture => {
+  const segments = docPath.split("/");
+  const [collection, id] = segments;
+  if (segments.length !== 2 || !collection || !id) {
+    throw new Error(`fixture path "${docPath}" is not "collection/id"`);
+  }
+  return { collection, id, data };
+};
+
+const householdMeta = (ownerUid: Uid): Fixture =>
+  fixtureAt(HOUSEHOLD_DOC_PATH, { owner: ownerUid });
+
+/** What a Household deploy writes, so an app pinned to this release finds a matching platform. */
+const platformMetaFixture: Fixture = fixtureAt(PLATFORM_DOC_PATH, { version: PLATFORM_VERSION });
 
 const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
   collection: "members",
@@ -33,15 +45,17 @@ const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
 });
 
 /**
- * The named Households the local kit can seed. `empty` is an unclaimed Household; the others are
- * claimed, and every `users` entry is seeded as a Member (the Owner included) so the emulator's
- * fake Google sign-in as that email lands on a Member the rules let in.
+ * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
+ * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users`
+ * entry is seeded as a Member (the Owner included) so the emulator's fake Google sign-in as that
+ * email lands on a Member the rules let in.
  */
 export const SCENARIOS = {
-  empty: { users: [], fixtures: [] },
+  empty: { users: [], fixtures: [platformMetaFixture] },
   "owner-with-items": {
     users: [owner],
     fixtures: [
+      platformMetaFixture,
       householdMeta(owner.uid),
       memberDoc(owner),
       { collection: "shops", id: "grocery", data: { name: "Grocery", referenceCount: 1 } },
@@ -62,6 +76,7 @@ export const SCENARIOS = {
   "invited-member": {
     users: [member],
     fixtures: [
+      platformMetaFixture,
       householdMeta(owner.uid),
       memberDoc(owner),
       memberDoc(member),
