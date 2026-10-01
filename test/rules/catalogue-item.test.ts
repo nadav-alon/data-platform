@@ -318,6 +318,8 @@ test("collection validation: a Member creating a CatalogueItem with a necessity 
 
 test("collection validation: a Member updating an existing CatalogueItem into a necessity outside the enum is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 1);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).set({
       categoryId: "cleaning",
