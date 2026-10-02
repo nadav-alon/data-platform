@@ -1,5 +1,8 @@
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
+import type { KeyOutPath } from "./key-out-path.ts";
+import type { RoleId } from "./role-id.ts";
+import { memberOf, type ServiceAccountEmail } from "./service-account-email.ts";
 import type { WebAppId } from "./web-app-id.ts";
 
 /** A process to spawn: the file and its arguments, never a shell string. */
@@ -58,4 +61,53 @@ export function createWebAppCommand(project: FirebaseProjectId): Command {
 
 export function sdkConfigCommand(project: FirebaseProjectId, appId: WebAppId): Command {
   return firebase("apps:sdkconfig", "WEB", appId, "--project", project);
+}
+
+/** Runs the Google Cloud CLI, which is not a dev dependency: the Household installs it themself. */
+function gcloud(...args: readonly string[]): Command {
+  return { file: "gcloud", args };
+}
+
+export function gcloudVersionCommand(): Command {
+  return gcloud("--version");
+}
+
+/** Lists the active account; empty output means `gcloud` is logged out. */
+export function gcloudActiveAccountCommand(): Command {
+  return gcloud("auth", "list", "--filter=status:ACTIVE", "--format=value(account)");
+}
+
+export function listServiceAccountsCommand(project: FirebaseProjectId): Command {
+  return gcloud("iam", "service-accounts", "list", "--project", project, "--format=json");
+}
+
+export function getIamPolicyCommand(project: FirebaseProjectId): Command {
+  return gcloud("projects", "get-iam-policy", project, "--format=json");
+}
+
+/** Adds one project-level role binding for the service account, with no condition. */
+export function addRoleCommand(
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+  role: RoleId,
+): Command {
+  return gcloud(
+    "projects",
+    "add-iam-policy-binding",
+    project,
+    "--member",
+    memberOf(account),
+    "--role",
+    role,
+    "--condition=None",
+  );
+}
+
+/** Writes a new private key for the service account to `path`. */
+export function createKeyCommand(
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+  path: KeyOutPath,
+): Command {
+  return gcloud("iam", "service-accounts", "keys", "create", path, "--iam-account", account, "--project", project);
 }

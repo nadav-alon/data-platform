@@ -18,3 +18,15 @@ test("says what the snippet is for", () => {
 test("names the login command", () => {
   assert.match(HELP, /npx firebase login/);
 });
+
+test("explains --key-out: what the key is for, and to keep it out of the repo", () => {
+  assert.match(HELP, /--key-out <path>/);
+  assert.match(HELP, /FIREBASE_SERVICE_ACCOUNT/);
+  assert.match(HELP, /deploy/);
+  assert.match(HELP, /out of the repo/);
+});
+
+test("names where to install gcloud and how to log it in", () => {
+  assert.match(HELP, /https:\/\/cloud\.google\.com\/sdk\/docs\/install/);
+  assert.match(HELP, /gcloud auth login/);
+});

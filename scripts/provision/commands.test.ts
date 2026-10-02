@@ -2,12 +2,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
+import { keyOutPath as keyOut } from "./key-out-path.ts";
+import { serviceAccountEmail } from "./service-account-email.ts";
 import { webAppId } from "./web-app-id.ts";
 import {
   addFirebaseCommand,
+  addRoleCommand,
+  getIamPolicyCommand,
+  listServiceAccountsCommand,
   createFirestoreCommand,
+  createKeyCommand,
   createProjectCommand,
   createWebAppCommand,
+  gcloudActiveAccountCommand,
+  gcloudVersionCommand,
   listFirestoreDatabasesCommand,
   listProjectsCommand,
   listWebAppsCommand,
@@ -16,6 +24,7 @@ import {
 } from "./commands.ts";
 
 const project = firebaseProjectId("my-household-42");
+const account = serviceAccountEmail("firebase-adminsdk-abc12@my-household-42.iam.gserviceaccount.com");
 
 function line(command: { file: string; args: readonly string[] }): string {
   return [command.file, ...command.args].join(" ");
@@ -75,5 +84,44 @@ test("adding Firebase to an existing Cloud project names the project", () => {
   assert.equal(
     line(addFirebaseCommand(project)),
     "npx firebase projects:addfirebase my-household-42",
+  );
+});
+
+test("the gcloud install check asks for its version", () => {
+  assert.equal(line(gcloudVersionCommand()), "gcloud --version");
+});
+
+test("the gcloud login check lists the active account", () => {
+  assert.equal(
+    line(gcloudActiveAccountCommand()),
+    "gcloud auth list --filter=status:ACTIVE --format=value(account)",
+  );
+});
+
+test("service accounts are listed for the project as JSON", () => {
+  assert.equal(
+    line(listServiceAccountsCommand(project)),
+    "gcloud iam service-accounts list --project my-household-42 --format=json",
+  );
+});
+
+test("the IAM policy is read for the project as JSON", () => {
+  assert.equal(
+    line(getIamPolicyCommand(project)),
+    "gcloud projects get-iam-policy my-household-42 --format=json",
+  );
+});
+
+test("a role is bound to the service account with no condition", () => {
+  assert.equal(
+    line(addRoleCommand(project, account, "roles/firebaserules.admin")),
+    "gcloud projects add-iam-policy-binding my-household-42 --member serviceAccount:firebase-adminsdk-abc12@my-household-42.iam.gserviceaccount.com --role roles/firebaserules.admin --condition=None",
+  );
+});
+
+test("a key is created for the service account at the path", () => {
+  assert.equal(
+    line(createKeyCommand(project, account, keyOut("/home/me/key.json", "/repo"))),
+    "gcloud iam service-accounts keys create /home/me/key.json --iam-account firebase-adminsdk-abc12@my-household-42.iam.gserviceaccount.com --project my-household-42",
   );
 });

@@ -15,13 +15,15 @@ argument or a repo variable, never writing it into the repo itself.
 2. **Enable the Google sign-in provider**, under Authentication → Sign-in method.
 3. **Add the upstream app's host to Authorized domains**, under Authentication → Settings →
    Authorized domains — otherwise Google sign-in rejects it.
-4. **Generate a deploy key, and grant its service account two IAM roles.** Firebase project →
-   Project settings → Service accounts → Generate new private key. That key belongs to a
-   `firebase-adminsdk-…` service account, which by default can't run a rules deploy — grant it
-   these two roles before the first deploy, unless the rules deploy authenticates with a
-   `FIREBASE_TOKEN` secret instead (step 5), at
-   [`https://console.cloud.google.com/iam-admin/iam?project=<id>`](https://console.cloud.google.com/iam-admin/iam?project=<id>)
-   → find the `firebase-adminsdk-…` principal → Add another role:
+4. **Generate a deploy key, and grant its service account two IAM roles.** Install the
+   [gcloud CLI](https://cloud.google.com/sdk/docs/install), run `gcloud auth login`, then re-run
+   `npm run provision -- --project <id> --location <location> --key-out <path>`, with a path
+   outside the clone — the script refuses one inside it, and never overwrites a key file already
+   there. It writes the key of the project's `firebase-adminsdk-…` service account to `<path>` and
+   grants that service account these two roles, which it can't deploy rules without; a role already
+   granted is skipped. Do both before the first deploy, unless the rules deploy authenticates with a
+   `FIREBASE_TOKEN` secret instead (step 5). If `gcloud` is missing or logged out the script stops
+   before changing anything.
 
    - **Service Usage Consumer** — without it, deploy fails with `403 Permission denied to get
      service [firestore.googleapis.com]` from `serviceusage.googleapis.com`.
