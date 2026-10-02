@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
 import type { Command } from "./commands.ts";
-import type { KeyOutPath } from "./key-out-path.ts";
+import { keyOutPath } from "./key-out-path.ts";
 import { provision } from "./provision-order.ts";
+import { serviceAccountEmail } from "./service-account-email.ts";
 
 const project = firebaseProjectId("my-household-42");
 const location = firestoreLocation("eur3");
-const account = `firebase-adminsdk-abc12@${project}.iam.gserviceaccount.com`;
-const keyOut = "/home/me/key.json" as KeyOutPath;
+const account = serviceAccountEmail(`firebase-adminsdk-abc12@${project}.iam.gserviceaccount.com`);
+const keyOut = keyOutPath("/home/me/key.json", "/repo");
 
 type World = {
   loggedIn: boolean;
