@@ -2,7 +2,7 @@ import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
 import type { KeyOutPath } from "./key-out-path.ts";
 import type { RoleId } from "./role-id.ts";
-import type { ServiceAccountEmail } from "./service-account-email.ts";
+import { memberOf, type ServiceAccountEmail } from "./service-account-email.ts";
 import type { WebAppId } from "./web-app-id.ts";
 
 /** A process to spawn: the file and its arguments, never a shell string. */
@@ -96,7 +96,7 @@ export function addRoleCommand(
     "add-iam-policy-binding",
     project,
     "--member",
-    `serviceAccount:${account}`,
+    memberOf(account),
     "--role",
     role,
     "--condition=None",

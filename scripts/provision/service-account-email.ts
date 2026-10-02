@@ -15,3 +15,8 @@ export function serviceAccountEmail(value: string): ServiceAccountEmail {
   }
   return value;
 }
+
+/** The IAM member string for the account, as policy bindings list it and `--member` takes it. */
+export function memberOf(account: ServiceAccountEmail): string {
+  return `serviceAccount:${account}`;
+}

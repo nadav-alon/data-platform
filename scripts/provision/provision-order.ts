@@ -21,7 +21,7 @@ import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { KeyOutPath } from "./key-out-path.ts";
 import type { ProvisionRunArgs } from "./parse-args.ts";
 import { DEPLOY_ROLES } from "./role-id.ts";
-import { serviceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
+import { memberOf, serviceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
 import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
@@ -97,7 +97,7 @@ function grantRoles(
   for (const { name, id } of DEPLOY_ROLES) {
     const granted = policy.bindings.some(
       (binding) =>
-        binding.role === id && binding.condition === undefined && binding.members.includes(`serviceAccount:${account}`),
+        binding.role === id && binding.condition === undefined && binding.members.includes(memberOf(account)),
     );
     if (granted) {
       print(`role ${name}: already there`);
