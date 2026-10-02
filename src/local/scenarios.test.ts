@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SCENARIO_NAMES, SCENARIOS, scenarioName, seedScenario, type Scenario } from "./scenarios.ts";
+import { SCENARIO_NAMES, SCENARIOS, scenarioName, seedScenario, type Scenario, type ScenarioName } from "./scenarios.ts";
 import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import type { Fixture, FixtureWriter } from "./seed.ts";
-import { computeReferenceCounts } from "../catalogue/reference-count-backfill.ts";
-import { categoryId, type CategoryId } from "../catalogue/category.ts";
-import { shopId, type ShopId } from "../catalogue/shop.ts";
+import { computeReferenceCounts, parseExistingCatalogue } from "../catalogue/reference-count-backfill.ts";
+import { CATALOGUE_ITEMS_COLLECTION } from "../catalogue/catalogue-item.ts";
+import { CATEGORIES_COLLECTION, categoryId } from "../catalogue/category.ts";
+import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -62,36 +63,28 @@ for (const name of SCENARIO_NAMES) {
  * One message per seeded Shop or Category whose `referenceCount` differs from what
  * `computeReferenceCounts` derives from the same fixtures; empty when every count is true.
  */
-function referenceCountMismatches(name: string, fixtures: readonly Fixture[]): string[] {
+function referenceCountMismatches(name: ScenarioName, fixtures: readonly Fixture[]): string[] {
   const docsIn = (collection: string) => fixtures.filter((f) => f.collection === collection);
-  const counts = computeReferenceCounts({
-    shopIds: docsIn("shops").map((f) => shopId(f.id)),
-    categories: new Map<CategoryId, { defaultShopId: ShopId }>(
-      docsIn("categories").map((f) => [
-        categoryId(f.id),
-        { defaultShopId: shopId(String(f.data.defaultShopId)) },
-      ]),
-    ),
-    catalogueItems: docsIn("catalogueItems").map((f) => ({
-      categoryId: categoryId(String(f.data.categoryId)),
-      shopId: f.data.shopId == null ? undefined : shopId(String(f.data.shopId)),
-    })),
-  });
+  const { existing, skipped } = parseExistingCatalogue(
+    docsIn(SHOPS_COLLECTION),
+    docsIn(CATEGORIES_COLLECTION),
+    docsIn(CATALOGUE_ITEMS_COLLECTION),
+  );
+  assert.deepEqual(skipped, [], `${name}: fixtures the backfill could not read`);
+  const counts = computeReferenceCounts(existing);
 
-  const mismatches: string[] = [];
-  for (const f of docsIn("shops")) {
-    const expected = counts.shops.get(shopId(f.id));
-    if (f.data.referenceCount !== expected) {
-      mismatches.push(`${name}: shops/${f.id} seeds referenceCount ${f.data.referenceCount}, but ${expected} reference it`);
-    }
-  }
-  for (const f of docsIn("categories")) {
-    const expected = counts.categories.get(categoryId(f.id));
-    if (f.data.referenceCount !== expected) {
-      mismatches.push(`${name}: categories/${f.id} seeds referenceCount ${f.data.referenceCount}, but ${expected} reference it`);
-    }
-  }
-  return mismatches;
+  const mismatchesIn = <Id>(collection: string, toId: (id: string) => Id, expectedCounts: ReadonlyMap<Id, number>) =>
+    docsIn(collection).flatMap((f) => {
+      const expected = expectedCounts.get(toId(f.id));
+      return f.data.referenceCount === expected
+        ? []
+        : [`${name}: ${collection}/${f.id} seeds referenceCount ${f.data.referenceCount}, but ${expected} reference it`];
+    });
+
+  return [
+    ...mismatchesIn(SHOPS_COLLECTION, shopId, counts.shops),
+    ...mismatchesIn(CATEGORIES_COLLECTION, categoryId, counts.categories),
+  ];
 }
 
 for (const name of SCENARIO_NAMES) {
@@ -100,13 +93,26 @@ for (const name of SCENARIO_NAMES) {
   });
 }
 
-test("a referenceCount off by one fails naming the scenario, the doc and both counts", () => {
-  const fixtures = SCENARIOS["owner-with-items"].fixtures.map((f) =>
-    f.collection === "categories" && f.id === "cleaning"
-      ? { ...f, data: { ...f.data, referenceCount: 2 } }
-      : f,
-  );
-  assert.deepEqual(referenceCountMismatches("owner-with-items", fixtures), [
-    "owner-with-items: categories/cleaning seeds referenceCount 2, but 1 reference it",
-  ]);
+test("owner-with-items has Shops and Categories whose referenceCount the guard checks", () => {
+  const { fixtures } = SCENARIOS["owner-with-items"];
+  for (const collection of [SHOPS_COLLECTION, CATEGORIES_COLLECTION]) {
+    assert.ok(fixtures.some((f) => f.collection === collection), collection);
+  }
 });
+
+for (const collection of [SHOPS_COLLECTION, CATEGORIES_COLLECTION]) {
+  for (const delta of [1, -1]) {
+    test(`a ${collection} referenceCount off by ${delta > 0 ? "+1" : "-1"} fails naming the scenario, the doc and both counts`, () => {
+      const name: ScenarioName = "owner-with-items";
+      const target = SCENARIOS[name].fixtures.find((f) => f.collection === collection);
+      assert.ok(target);
+      const seeded = (target.data as { referenceCount: number }).referenceCount;
+      const fixtures = SCENARIOS[name].fixtures.map((f) =>
+        f === target ? { ...f, data: { ...f.data, referenceCount: seeded + delta } } : f,
+      );
+      assert.deepEqual(referenceCountMismatches(name, fixtures), [
+        `${name}: ${collection}/${target.id} seeds referenceCount ${seeded + delta}, but ${seeded} reference it`,
+      ]);
+    });
+  }
+}
