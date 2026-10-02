@@ -1,5 +1,6 @@
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
+import type { KeyOutPath } from "./key-out-path.ts";
 import type { RoleId } from "./role-id.ts";
 import type { ServiceAccountEmail } from "./service-account-email.ts";
 import type { WebAppId } from "./web-app-id.ts";
@@ -100,4 +101,13 @@ export function addRoleCommand(
     role,
     "--condition=None",
   );
+}
+
+/** Writes a new private key for the service account to `path`. */
+export function createKeyCommand(
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+  path: KeyOutPath,
+): Command {
+  return gcloud("iam", "service-accounts", "keys", "create", path, "--iam-account", account, "--project", project);
 }

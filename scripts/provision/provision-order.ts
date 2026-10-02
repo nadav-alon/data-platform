@@ -2,6 +2,7 @@ import {
   addFirebaseCommand,
   addRoleCommand,
   createFirestoreCommand,
+  createKeyCommand,
   createProjectCommand,
   createWebAppCommand,
   gcloudActiveAccountCommand,
@@ -17,6 +18,7 @@ import {
 } from "./commands.ts";
 import { z } from "zod";
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
+import type { KeyOutPath } from "./key-out-path.ts";
 import type { ProvisionRunArgs } from "./parse-args.ts";
 import { DEPLOY_ROLES } from "./role-id.ts";
 import { isServiceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
@@ -31,6 +33,7 @@ export type RunCommand = (command: Command) => string;
 
 export type ProvisionDeps = {
   readonly run: RunCommand;
+  readonly exists: (path: string) => boolean;
   readonly print: (line: string) => void;
 };
 
@@ -95,6 +98,21 @@ function grantRoles(
       run(addRoleCommand(project, account, id));
       print(`role ${name}: granted`);
     }
+  }
+}
+
+/** Writes the deploy key to `path` unless a file is already there, which is never overwritten. */
+function createKey(
+  { run, print, exists }: ProvisionDeps,
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+  path: KeyOutPath,
+): void {
+  if (exists(path)) {
+    print(`key ${path}: already there`);
+  } else {
+    run(createKeyCommand(project, account, path));
+    print(`key ${path}: created`);
   }
 }
 
@@ -164,7 +182,9 @@ export function provision(
   }
 
   if (keyOut !== undefined) {
-    grantRoles(deps, project, findDeployAccount(run, project));
+    const account = findDeployAccount(run, project);
+    grantRoles(deps, project, account);
+    createKey(deps, project, account, keyOut);
   }
 
   print(run(sdkConfigCommand(project, app.appId)));

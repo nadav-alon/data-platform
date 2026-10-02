@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
+import { keyOutPath as keyOut } from "./key-out-path.ts";
 import { serviceAccountEmail } from "./service-account-email.ts";
 import { webAppId } from "./web-app-id.ts";
 import {
@@ -10,6 +11,7 @@ import {
   getIamPolicyCommand,
   listServiceAccountsCommand,
   createFirestoreCommand,
+  createKeyCommand,
   createProjectCommand,
   createWebAppCommand,
   gcloudActiveAccountCommand,
@@ -114,5 +116,12 @@ test("a role is bound to the service account with no condition", () => {
   assert.equal(
     line(addRoleCommand(project, account, "roles/firebaserules.admin")),
     "gcloud projects add-iam-policy-binding my-household-42 --member serviceAccount:firebase-adminsdk-abc12@my-household-42.iam.gserviceaccount.com --role roles/firebaserules.admin --condition=None",
+  );
+});
+
+test("a key is created for the service account at the path", () => {
+  assert.equal(
+    line(createKeyCommand(project, account, keyOut("/home/me/key.json", "/repo"))),
+    "gcloud iam service-accounts keys create /home/me/key.json --iam-account firebase-adminsdk-abc12@my-household-42.iam.gserviceaccount.com --project my-household-42",
   );
 });

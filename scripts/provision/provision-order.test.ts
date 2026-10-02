@@ -22,12 +22,15 @@ type World = {
   gcloud?: "missing" | "logged-out" | "ready";
   /** Role ids bound to the deploy service account. */
   roles?: string[];
+  /** Whether a file already sits at the key path. */
+  keyFile?: boolean;
 };
 
 /** A fake Firebase CLI over `world`, recording every call and mutating on creates. */
 function harness(world: World) {
   const calls: string[] = [];
   const printed: string[] = [];
+  const keys: string[] = [];
   const run = (command: Command): string => {
     if (command.file === "gcloud") {
       calls.push(`gcloud ${command.args[0]}`);
@@ -38,6 +41,10 @@ function harness(world: World) {
         case "auth":
           return world.gcloud === "logged-out" ? "" : "user@example.com\n";
         case "iam":
+          if (command.args[2] === "keys") {
+            keys.push(command.args[4]);
+            return "";
+          }
           return JSON.stringify([
             { email: `app-engine@${project}.iam.gserviceaccount.com` },
             { email: account },
@@ -95,7 +102,8 @@ function harness(world: World) {
         throw new Error(`unexpected ${verb}`);
     }
   };
-  return { calls, printed, deps: { run, print: (line: string) => printed.push(line) } };
+  const exists = () => world.keyFile === true;
+  return { calls, printed, keys, deps: { run, exists, print: (line: string) => printed.push(line) } };
 }
 
 test("creates every step on a fresh account and prints the snippet last", () => {
@@ -264,4 +272,31 @@ test("a role already granted is skipped", () => {
     "roles/serviceusage.serviceUsageConsumer",
     "roles/firebaserules.admin",
   ]);
+});
+
+test("writes the key to the path and prints one line", () => {
+  const { printed, keys, deps } = harness({
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "ready",
+  });
+  provision({ project, location, keyOut }, deps);
+  assert.equal(printed[5], "key /home/me/key.json: created");
+  assert.deepEqual(keys, [keyOut]);
+});
+
+test("an existing key file is not overwritten", () => {
+  const { printed, keys, deps } = harness({
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "ready",
+    keyFile: true,
+  });
+  provision({ project, location, keyOut }, deps);
+  assert.equal(printed[5], "key /home/me/key.json: already there");
+  assert.deepEqual(keys, []);
 });

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { HELP } from "./help.ts";
 import { parseProvisionArgs } from "./parse-args.ts";
@@ -11,6 +12,7 @@ if (args.kind === "help") {
   provision(args, {
     run: ({ file, args: commandArgs }) =>
       execFileSync(file, [...commandArgs], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }),
+    exists: existsSync,
     print: console.log,
   });
 }
