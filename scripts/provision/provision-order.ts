@@ -3,6 +3,8 @@ import {
   createFirestoreCommand,
   createProjectCommand,
   createWebAppCommand,
+  gcloudActiveAccountCommand,
+  gcloudVersionCommand,
   listFirestoreDatabasesCommand,
   listProjectsCommand,
   listWebAppsCommand,
@@ -15,6 +17,8 @@ import type { ProvisionRunArgs } from "./parse-args.ts";
 import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
+export const GCLOUD_INSTALL_URL = "https://cloud.google.com/sdk/docs/install";
+export const GCLOUD_LOGIN_COMMAND = "gcloud auth login";
 
 /** Runs a command and returns its stdout; throws if it exits non-zero. */
 export type RunCommand = (command: Command) => string;
@@ -41,6 +45,18 @@ function isLoggedIn(loginList: string): boolean {
   return !/no authorized accounts/i.test(loginList);
 }
 
+/** Stops, naming the fix, unless `gcloud` is installed and has an active account. */
+function requireGcloud(run: RunCommand): void {
+  try {
+    run(gcloudVersionCommand());
+  } catch {
+    throw new Error(`The gcloud CLI is not installed. Install it: ${GCLOUD_INSTALL_URL}`);
+  }
+  if (run(gcloudActiveAccountCommand()).trim() === "") {
+    throw new Error(`The gcloud CLI is not logged in. Run: ${GCLOUD_LOGIN_COMMAND}`);
+  }
+}
+
 /**
  * Provisions a Household's project, Firestore database and web app, skipping any step already
  * done and printing one line per step. The login check runs first, so a logged-out CLI stops the
@@ -48,11 +64,14 @@ function isLoggedIn(loginList: string): boolean {
  * app was just created.
  */
 export function provision(
-  { project, location }: Omit<ProvisionRunArgs, "kind">,
+  { project, location, keyOut }: Omit<ProvisionRunArgs, "kind">,
   { run, print }: ProvisionDeps,
 ): void {
   if (!isLoggedIn(run(loginListCommand()))) {
     throw new Error(`The Firebase CLI is not logged in. Run: ${LOGIN_COMMAND}`);
+  }
+  if (keyOut !== undefined) {
+    requireGcloud(run);
   }
 
   const hasProject = jsonResult(run(listProjectsCommand()), projectSchema).some(

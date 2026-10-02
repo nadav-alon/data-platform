@@ -8,6 +8,8 @@ import {
   createFirestoreCommand,
   createProjectCommand,
   createWebAppCommand,
+  gcloudActiveAccountCommand,
+  gcloudVersionCommand,
   listFirestoreDatabasesCommand,
   listProjectsCommand,
   listWebAppsCommand,
@@ -75,5 +77,16 @@ test("adding Firebase to an existing Cloud project names the project", () => {
   assert.equal(
     line(addFirebaseCommand(project)),
     "npx firebase projects:addfirebase my-household-42",
+  );
+});
+
+test("the gcloud install check asks for its version", () => {
+  assert.equal(line(gcloudVersionCommand()), "gcloud --version");
+});
+
+test("the gcloud login check lists the active account", () => {
+  assert.equal(
+    line(gcloudActiveAccountCommand()),
+    "gcloud auth list --filter=status:ACTIVE --format=value(account)",
   );
 });

@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
 import type { Command } from "./commands.ts";
+import type { KeyOutPath } from "./key-out-path.ts";
 import { provision } from "./provision-order.ts";
 
 const project = firebaseProjectId("my-household-42");
 const location = firestoreLocation("eur3");
+const keyOut = "/home/me/key.json" as KeyOutPath;
 
 type World = {
   loggedIn: boolean;
@@ -15,6 +17,8 @@ type World = {
   app: boolean;
   /** A Cloud project without Firebase: `projects:create` fails on it, `projects:addfirebase` fixes it. */
   cloudOnly?: boolean;
+  /** The Google Cloud CLI: absent from the machine, installed but logged out, or ready. */
+  gcloud?: "missing" | "logged-out" | "ready";
 };
 
 /** A fake Firebase CLI over `world`, recording every call and mutating on creates. */
@@ -22,6 +26,18 @@ function harness(world: World) {
   const calls: string[] = [];
   const printed: string[] = [];
   const run = (command: Command): string => {
+    if (command.file === "gcloud") {
+      calls.push(`gcloud ${command.args[0]}`);
+      if (world.gcloud === "missing") throw new Error("spawn gcloud ENOENT");
+      switch (command.args[0]) {
+        case "--version":
+          return "Google Cloud SDK";
+        case "auth":
+          return world.gcloud === "logged-out" ? "" : "user@example.com\n";
+        default:
+          throw new Error(`unexpected gcloud ${command.args.join(" ")}`);
+      }
+    }
     const verb = command.args[1];
     calls.push(verb);
     switch (verb) {
@@ -145,4 +161,45 @@ test("a failed create that addfirebase cannot fix rethrows the create error", ()
     return deps.run(command);
   };
   assert.throws(() => provision({ project, location }, { ...deps, run }), /quota exceeded/);
+});
+
+test("a missing gcloud stops before changing anything and prints the install link", () => {
+  const { calls, printed, deps } = harness({
+    loggedIn: true,
+    project: false,
+    database: false,
+    app: false,
+    gcloud: "missing",
+  });
+  assert.throws(
+    () => provision({ project, location, keyOut }, deps),
+    /https:\/\/cloud\.google\.com\/sdk\/docs\/install/,
+  );
+  assert.deepEqual(calls, ["login:list", "gcloud --version"]);
+  assert.deepEqual(printed, []);
+});
+
+test("a logged-out gcloud stops before changing anything and prints the login command", () => {
+  const { calls, printed, deps } = harness({
+    loggedIn: true,
+    project: false,
+    database: false,
+    app: false,
+    gcloud: "logged-out",
+  });
+  assert.throws(() => provision({ project, location, keyOut }, deps), /Run: gcloud auth login/);
+  assert.deepEqual(calls, ["login:list", "gcloud --version", "gcloud auth"]);
+  assert.deepEqual(printed, []);
+});
+
+test("without --key-out gcloud is never touched", () => {
+  const { calls, deps } = harness({
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "missing",
+  });
+  provision({ project, location }, deps);
+  assert.ok(!calls.some((call) => call.startsWith("gcloud")));
 });

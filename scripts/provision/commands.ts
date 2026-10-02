@@ -59,3 +59,17 @@ export function createWebAppCommand(project: FirebaseProjectId): Command {
 export function sdkConfigCommand(project: FirebaseProjectId, appId: WebAppId): Command {
   return firebase("apps:sdkconfig", "WEB", appId, "--project", project);
 }
+
+/** Runs the Google Cloud CLI, which is not a dev dependency: the Household installs it themself. */
+function gcloud(...args: readonly string[]): Command {
+  return { file: "gcloud", args };
+}
+
+export function gcloudVersionCommand(): Command {
+  return gcloud("--version");
+}
+
+/** Lists the active account; empty output means `gcloud` is logged out. */
+export function gcloudActiveAccountCommand(): Command {
+  return gcloud("auth", "list", "--filter=status:ACTIVE", "--format=value(account)");
+}
