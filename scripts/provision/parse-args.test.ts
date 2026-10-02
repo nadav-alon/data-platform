@@ -44,3 +44,29 @@ test("rejects a location that isn't valid", () => {
 test("--help wins over missing flags", () => {
   assert.deepEqual(parseProvisionArgs(["--help"]), { kind: "help" });
 });
+
+test("reads --key-out as an absolute path outside the repo", () => {
+  const parsed = parseProvisionArgs(
+    ["--project", "my-household-42", "--location", "eur3", "--key-out", "/home/me/key.json"],
+    "/home/me/data-platform",
+  );
+  assert.equal(parsed.kind === "run" && parsed.keyOut, "/home/me/key.json");
+});
+
+test("refuses a --key-out inside the repo", () => {
+  assert.throws(
+    () =>
+      parseProvisionArgs(
+        ["--project", "my-household-42", "--location", "eur3", "--key-out", "/home/me/data-platform/key.json"],
+        "/home/me/data-platform",
+      ),
+    /outside the repo/,
+  );
+});
+
+test("rejects --key-out with no value after it", () => {
+  assert.throws(
+    () => parseProvisionArgs(["--project", "my-household-42", "--location", "eur3", "--key-out"]),
+    /Usage/,
+  );
+});
