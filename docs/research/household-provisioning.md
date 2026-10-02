@@ -10,7 +10,7 @@ finding says so rather than filling the gap from memory.
 Not Terraform: the Terraform route to Google sign-in needs a billing-enabled project, which rules
 out Spark, and it still needs an OAuth client the provider cannot create.
 
-| `docs/household-setup.md` step | Terraform on Spark | CLI script on Spark |
+| `docs/household-setup.md` step | Terraform on Spark (billing requirement per source; otherwise unverified) | CLI script on Spark (unverified) |
 | --- | --- | --- |
 | 1 Project + Firebase | Possible | `firebase projects:create` |
 | 2 Firestore | Possible | `gcloud firestore databases create --location=…` |
@@ -109,17 +109,22 @@ Firebase-managed `firebase-adminsdk-…` account.
 - Nothing in the CLIs configures the Google provider or authorized domains. Those two console steps
   stay, and they are the only ones that need Authentication at all.
 
-None of the CLI commands above is documented as requiring billing, but I did not find a source that
-states Spark compatibility for each command. A script should be tried against a fresh Spark project
+None of the CLI commands above is documented as requiring billing, but no source states Spark
+compatibility for each command; the same holds for project creation, where the Firebase guide states
+no billing requirement for the resource without addressing Spark. A script should be tried against a fresh Spark project
 before it is trusted.
 
 ## Closing the web-app gap
 
 `docs/household-setup.md` never registers a web app, yet step 7 needs that app's config snippet.
 Under the recommended option this becomes a scripted step after Firestore:
-`firebase apps:create WEB <name> --project <id>` then `firebase apps:sdkconfig WEB <app-id>`. In the
-manual doc it is Project settings → General → Your apps → Add app (Web), then the SDK setup and
-configuration snippet.
+`firebase apps:create` then `firebase apps:sdkconfig`, which the Firebase CLI reference describes as
+"Create a new Firebase app in a project" and "Print the configuration of a Firebase app". The
+platform argument (`WEB`), app name and app ID forms are not shown in the sources read, so confirm
+them with `firebase apps:create --help`.
+<https://github.com/firebase/firebase-tools> (`README.md`)
+In the manual doc the equivalent is the web-app registration in the Firebase console's project
+settings, which no source read here documents.
 
 ## Follow-up if the developer takes the recommendation
 
