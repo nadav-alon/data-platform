@@ -13,7 +13,7 @@ out Spark, and it still needs an OAuth client the provider cannot create.
 | `docs/household-setup.md` step | Terraform on Spark (billing requirement per source; otherwise unverified) | CLI script on Spark (unverified) |
 | --- | --- | --- |
 | 1 Project + Firebase | Possible | `firebase projects:create` |
-| 2 Firestore | Possible | `gcloud firestore databases create --location=…` |
+| 2 Firestore | Possible | `firebase firestore:databases:create` (or `gcloud firestore databases create --location=…`) |
 | 3 Google sign-in provider | **No** (needs billing) | Stays manual |
 | 4 Authorized domains | **No** (same resource as 3) | Stays manual |
 | 5 Deploy key and its two roles | Partial: roles only; the key is not produced (`google_service_account_key` would put it in state) | `gcloud iam service-accounts keys create` and `gcloud projects add-iam-policy-binding`; flags per the reference pages, not run against a `firebase-adminsdk-…` account |
@@ -89,10 +89,13 @@ Firebase-managed `firebase-adminsdk-…` account.
 - `firebase projects:create`, `projects:addfirebase`, `apps:create` and `apps:sdkconfig` are in the
   Firebase CLI command table ("Create a new Firebase app in a project", "Print the configuration of
   a Firebase app"). <https://github.com/firebase/firebase-tools> (`README.md`)
-- That same table has no command for Firestore database creation and none for authentication
-  providers or sign-in methods. Firestore is covered by
+- The research found no Firebase CLI command for Firestore database creation in that table, and
+  none for authentication providers or sign-in methods. Firestore is covered by
   `gcloud firestore databases create --location=<region>` (default type `firestore-native`).
   <https://docs.cloud.google.com/sdk/gcloud/reference/firestore/databases/create>
+  `npm run provision` uses `firebase firestore:databases:create` and `firestore:databases:list`
+  instead, which recent firebase-tools releases ship, so the script needs no gcloud install. Like
+  the other flags here, it has not been run against a live project.
 - Granting the two roles in step 5 is an IAM binding on the project:
   `gcloud projects add-iam-policy-binding <project> --member=serviceAccount:<email> --role=<role>`,
   where `--role` takes the complete path of a predefined role.
