@@ -62,7 +62,7 @@ export const SCENARIOS = {
       {
         collection: "categories",
         id: "cleaning",
-        data: { name: "Cleaning", defaultShopId: "grocery", referenceCount: 1 },
+        data: { name: "Cleaning", defaultShopId: "grocery", referenceCount: 2 },
       },
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "enough" } },
       { collection: "items", id: "sponges", data: { name: "Sponges", state: "running low" } },
