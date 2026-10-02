@@ -4,8 +4,9 @@ import type { ReferenceCount } from "./reference-count.ts";
 import { shopId, shopIdSchema, type ShopId } from "./shop.ts";
 
 /** `softDeleted` is set only for a doc carrying a `deletedAt`; such a doc holds no reference. */
-type ExistingCategory = Pick<Category, "defaultShopId"> & { readonly softDeleted?: true };
-type ExistingCatalogueItem = Pick<CatalogueItem, "categoryId" | "shopId"> & { readonly softDeleted?: true };
+type SoftDeleteMarker = { readonly softDeleted?: true };
+type ExistingCategory = Pick<Category, "defaultShopId"> & SoftDeleteMarker;
+type ExistingCatalogueItem = Pick<CatalogueItem, "categoryId" | "shopId"> & SoftDeleteMarker;
 
 /** Enough of a Household's existing Shops, Categories and CatalogueItems to recompute referenceCount. */
 export type ExistingCatalogue = {
@@ -69,7 +70,7 @@ export type SkippedDoc = {
 };
 
 /** A `null` `deletedAt` counts as live, matching `deletedAtOf` in `firestore.rules`. */
-function softDeletedFlag(doc: FirestoreDoc): { softDeleted?: true } {
+function softDeletedFlag(doc: FirestoreDoc): SoftDeleteMarker {
   return doc.data.deletedAt == null ? {} : { softDeleted: true };
 }
 
