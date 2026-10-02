@@ -1,5 +1,7 @@
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
+import type { RoleId } from "./role-id.ts";
+import type { ServiceAccountEmail } from "./service-account-email.ts";
 import type { WebAppId } from "./web-app-id.ts";
 
 /** A process to spawn: the file and its arguments, never a shell string. */
@@ -72,4 +74,30 @@ export function gcloudVersionCommand(): Command {
 /** Lists the active account; empty output means `gcloud` is logged out. */
 export function gcloudActiveAccountCommand(): Command {
   return gcloud("auth", "list", "--filter=status:ACTIVE", "--format=value(account)");
+}
+
+export function listServiceAccountsCommand(project: FirebaseProjectId): Command {
+  return gcloud("iam", "service-accounts", "list", "--project", project, "--format=json");
+}
+
+export function getIamPolicyCommand(project: FirebaseProjectId): Command {
+  return gcloud("projects", "get-iam-policy", project, "--format=json");
+}
+
+/** Adds one project-level role binding for the service account, with no condition. */
+export function addRoleCommand(
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+  role: RoleId,
+): Command {
+  return gcloud(
+    "projects",
+    "add-iam-policy-binding",
+    project,
+    "--member",
+    `serviceAccount:${account}`,
+    "--role",
+    role,
+    "--condition=None",
+  );
 }

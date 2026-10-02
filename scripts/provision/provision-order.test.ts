@@ -8,6 +8,7 @@ import { provision } from "./provision-order.ts";
 
 const project = firebaseProjectId("my-household-42");
 const location = firestoreLocation("eur3");
+const account = `firebase-adminsdk-abc12@${project}.iam.gserviceaccount.com`;
 const keyOut = "/home/me/key.json" as KeyOutPath;
 
 type World = {
@@ -19,6 +20,8 @@ type World = {
   cloudOnly?: boolean;
   /** The Google Cloud CLI: absent from the machine, installed but logged out, or ready. */
   gcloud?: "missing" | "logged-out" | "ready";
+  /** Role ids bound to the deploy service account. */
+  roles?: string[];
 };
 
 /** A fake Firebase CLI over `world`, recording every call and mutating on creates. */
@@ -34,6 +37,24 @@ function harness(world: World) {
           return "Google Cloud SDK";
         case "auth":
           return world.gcloud === "logged-out" ? "" : "user@example.com\n";
+        case "iam":
+          return JSON.stringify([
+            { email: `app-engine@${project}.iam.gserviceaccount.com` },
+            { email: account },
+          ]);
+        case "projects": {
+          const roles = (world.roles ??= []);
+          if (command.args[1] === "get-iam-policy") {
+            return JSON.stringify({
+              bindings: [
+                { role: "roles/owner", members: ["user:me@example.com"] },
+                ...roles.map((role) => ({ role, members: [`serviceAccount:${account}`] })),
+              ],
+            });
+          }
+          roles.push(command.args[command.args.indexOf("--role") + 1]);
+          return "";
+        }
         default:
           throw new Error(`unexpected gcloud ${command.args.join(" ")}`);
       }
@@ -202,4 +223,45 @@ test("without --key-out gcloud is never touched", () => {
   });
   provision({ project, location }, deps);
   assert.ok(!calls.some((call) => call.startsWith("gcloud")));
+});
+
+test("grants both roles to the deploy service account and prints one line each", () => {
+  const world: World = {
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "ready",
+  };
+  const { printed, deps } = harness(world);
+  provision({ project, location, keyOut }, deps);
+  assert.deepEqual(printed.slice(3, 5), [
+    "role Service Usage Consumer: granted",
+    "role Firebase Rules Admin: granted",
+  ]);
+  assert.deepEqual(world.roles, [
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/firebaserules.admin",
+  ]);
+});
+
+test("a role already granted is skipped", () => {
+  const world: World = {
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "ready",
+    roles: ["roles/serviceusage.serviceUsageConsumer"],
+  };
+  const { printed, deps } = harness(world);
+  provision({ project, location, keyOut }, deps);
+  assert.deepEqual(printed.slice(3, 5), [
+    "role Service Usage Consumer: already there",
+    "role Firebase Rules Admin: granted",
+  ]);
+  assert.deepEqual(world.roles, [
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/firebaserules.admin",
+  ]);
 });

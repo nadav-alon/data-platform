@@ -1,19 +1,25 @@
 import {
   addFirebaseCommand,
+  addRoleCommand,
   createFirestoreCommand,
   createProjectCommand,
   createWebAppCommand,
   gcloudActiveAccountCommand,
   gcloudVersionCommand,
+  getIamPolicyCommand,
   listFirestoreDatabasesCommand,
   listProjectsCommand,
+  listServiceAccountsCommand,
   listWebAppsCommand,
   loginListCommand,
   sdkConfigCommand,
   type Command,
 } from "./commands.ts";
 import { z } from "zod";
+import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { ProvisionRunArgs } from "./parse-args.ts";
+import { DEPLOY_ROLES } from "./role-id.ts";
+import { isServiceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
 import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
@@ -30,6 +36,10 @@ export type ProvisionDeps = {
 
 const projectSchema = z.object({ projectId: z.string() });
 const databaseSchema = z.object({ name: z.string() });
+const serviceAccountSchema = z.object({ email: z.string().refine(isServiceAccountEmail) });
+const iamPolicySchema = z.object({
+  bindings: z.array(z.object({ role: z.string(), members: z.array(z.string()) })).default([]),
+});
 const webAppSchema = z.object({
   appId: z.string().refine(isWebAppId),
   displayName: z.string().optional(),
@@ -57,6 +67,37 @@ function requireGcloud(run: RunCommand): void {
   }
 }
 
+/** The `firebase-adminsdk-…` service account Firebase created with the project. */
+function findDeployAccount(run: RunCommand, project: FirebaseProjectId): ServiceAccountEmail {
+  const account = z.array(serviceAccountSchema).parse(JSON.parse(run(listServiceAccountsCommand(project)))).find(
+    ({ email }) => email.startsWith("firebase-adminsdk-"),
+  );
+  if (account === undefined) {
+    throw new Error(`Could not find the firebase-adminsdk service account of ${project}`);
+  }
+  return account.email;
+}
+
+/** Binds each deploy role to the account unless the project's IAM policy already has it. */
+function grantRoles(
+  { run, print }: ProvisionDeps,
+  project: FirebaseProjectId,
+  account: ServiceAccountEmail,
+): void {
+  const policy = iamPolicySchema.parse(JSON.parse(run(getIamPolicyCommand(project))));
+  for (const { name, id } of DEPLOY_ROLES) {
+    const granted = policy.bindings.some(
+      (binding) => binding.role === id && binding.members.includes(`serviceAccount:${account}`),
+    );
+    if (granted) {
+      print(`role ${name}: already there`);
+    } else {
+      run(addRoleCommand(project, account, id));
+      print(`role ${name}: granted`);
+    }
+  }
+}
+
 /**
  * Provisions a Household's project, Firestore database and web app, skipping any step already
  * done and printing one line per step. The login check runs first, so a logged-out CLI stops the
@@ -65,8 +106,9 @@ function requireGcloud(run: RunCommand): void {
  */
 export function provision(
   { project, location, keyOut }: Omit<ProvisionRunArgs, "kind">,
-  { run, print }: ProvisionDeps,
+  deps: ProvisionDeps,
 ): void {
+  const { run, print } = deps;
   if (!isLoggedIn(run(loginListCommand()))) {
     throw new Error(`The Firebase CLI is not logged in. Run: ${LOGIN_COMMAND}`);
   }
@@ -119,6 +161,10 @@ export function provision(
   }
   if (app === undefined) {
     throw new Error(`Could not find the web app ${project} after registering it`);
+  }
+
+  if (keyOut !== undefined) {
+    grantRoles(deps, project, findDeployAccount(run, project));
   }
 
   print(run(sdkConfigCommand(project, app.appId)));
