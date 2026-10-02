@@ -1,9 +1,11 @@
+import { LOGIN_COMMAND } from "./provision-order.ts";
+
 /** What `--help` prints: where a newcomer gets each input, and what the output is for. */
 export const HELP = `Provision a Household's Firebase project, Firestore database and web app.
 
 Usage: npm run provision -- --project <id> --location <location>
 
-Run \`npx firebase login\` first; the script stops before changing anything if the CLI is logged out.
+Run \`${LOGIN_COMMAND}\` first; the script stops before changing anything if the CLI is logged out.
 A step that is already done is skipped, so re-running is safe.
 
 Inputs (both required, no defaults):
