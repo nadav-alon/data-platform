@@ -27,6 +27,10 @@ test("rejects an empty name", () => {
   assert.throws(() => tagSchema.parse({ name: "" }));
 });
 
+test("rejects a blank name", () => {
+  assert.throws(() => tagSchema.parse({ name: "   " }));
+});
+
 test("rejects a missing name", () => {
   assert.throws(() => tagSchema.parse({}));
 });
@@ -65,10 +69,6 @@ test("accepts a Tag name reservation naming its Tag", () => {
 
 test("rejects a Tag name reservation without a Tag", () => {
   assert.throws(() => tagNameReservationSchema.parse({}));
-});
-
-test("rejects a blank name", () => {
-  assert.throws(() => tagSchema.parse({ name: "   " }));
 });
 
 test("guards a TagNameKey", () => {
