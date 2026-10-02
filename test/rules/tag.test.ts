@@ -1,10 +1,12 @@
 import { test } from "node:test";
-import { serverTimestamp } from "firebase/firestore";
+import { deleteField, serverTimestamp } from "firebase/firestore";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
+import { categoryId } from "../../src/catalogue/category.ts";
+import { itemId } from "../../src/core/item.ts";
 import { TAG_NAMES_COLLECTION, TAGS_COLLECTION, tagId, tagNameKey } from "../../src/catalogue/tag.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertBatchFixture, type RulesBatchFixture } from "./fixture.ts";
-import { seedHousehold, seedTag } from "./seed.ts";
+import { seedCatalogueItem, seedHousehold, seedTag, seededDeletedAt } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -181,4 +183,78 @@ test("rename: a non-member is denied", async () => {
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(mallory).firestore();
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: " VEGAN " }));
+});
+
+test("soft delete: a Member soft-deletes a Tag and releases its name's claim", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: serverTimestamp() });
+  batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`));
+  await assertSucceeds(batch.commit());
+});
+
+test("soft delete: a Tag that CatalogueItems still carry can be soft-deleted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  await seedCatalogueItem(rulesTestEnv.env, itemId("oatMilk"), categoryId("dairy"), {
+    tagIds: [tagId("vegan")],
+  });
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: serverTimestamp() });
+  batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`));
+  await assertSucceeds(batch.commit());
+});
+
+test("soft delete: leaving the claim behind is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ deletedAt: serverTimestamp() }));
+});
+
+test("soft delete: a deletedAt other than the server's time is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: seededDeletedAt });
+  batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`));
+  await assertFails(batch.commit());
+});
+
+test("soft delete: frees the name for a new Tag", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+  await assertBatchFixture(createTagFixture("reused name", "vegan", "vegan2", "accept"), rulesTestEnv.env);
+});
+
+test("restore: a Member restores a soft-deleted Tag, taking its name's claim", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: deleteField() });
+  batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`), { tagId: "vegan" });
+  await assertSucceeds(batch.commit());
+});
+
+test("restore: a Tag whose name a live Tag has taken meanwhile is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+  await seedTag(rulesTestEnv.env, tagId("vegan2"), "vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: deleteField() });
+  batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`), { tagId: "vegan" });
+  await assertFails(batch.commit());
+});
+
+test("restore: without taking the claim is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ deletedAt: deleteField() }));
 });

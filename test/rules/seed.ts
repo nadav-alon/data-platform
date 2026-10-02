@@ -111,7 +111,11 @@ export async function seedCatalogueItem(
   testEnv: RulesTestEnvironment,
   id: ItemId,
   categoryId: CategoryId,
-  { shopId, deleted = false }: { shopId?: ShopId; deleted?: boolean } = {},
+  {
+    shopId,
+    tagIds,
+    deleted = false,
+  }: { shopId?: ShopId; tagIds?: readonly TagId[]; deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
@@ -121,6 +125,7 @@ export async function seedCatalogueItem(
         categoryId,
         necessity: "essential",
         ...(shopId === undefined ? {} : { shopId }),
+        ...(tagIds === undefined ? {} : { tagIds }),
         ...deletedFields(deleted),
       });
   });

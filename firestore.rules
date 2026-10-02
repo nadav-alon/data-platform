@@ -431,6 +431,11 @@ service cloud.firestore {
           && (tagNameKey(oldData.name) == tagNameKey(newData.name)
             ? tagNameClaimedBy(tagId, newData)
             : (tagNameReleased(oldData) && tagNameClaimTaken(tagId, newData))))
+        || (isSoftDeleting(oldData, newData)
+          && oldData.name == newData.name
+          && tagNameReleased(oldData))
+        || (isRestoring(oldData, newData)
+          && tagNameClaimTaken(tagId, newData))
         || (isDeleted(oldData) && isDeleted(newData));
     }
 
