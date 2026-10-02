@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isTagId, tagId, tagSchema, TAGS_COLLECTION } from "./tag.ts";
+import {
+  isTagId,
+  tagId,
+  tagNameClaimSchema,
+  tagNameKey,
+  tagSchema,
+  TAGS_COLLECTION,
+} from "./tag.ts";
 
 test("accepts a Tag with a name", () => {
   assert.equal(tagSchema.parse({ name: "Gluten free" }).name, "Gluten free");
@@ -36,4 +43,29 @@ test("guards and constructs a TagId", () => {
   assert.equal(isTagId(""), false);
   assert.equal(tagId("glutenFree"), "glutenFree");
   assert.throws(() => tagId(""), /TagId must not be empty/);
+});
+
+test("tagNameKey ignores case and surrounding spaces", () => {
+  assert.equal(tagNameKey("  Gluten Free "), tagNameKey("gluten free"));
+});
+
+test("tagNameKey keeps inner spaces", () => {
+  assert.notEqual(tagNameKey("gluten free"), tagNameKey("glutenfree"));
+});
+
+test("tagNameKey escapes a slash so the key is one doc id", () => {
+  assert.equal(tagNameKey("Fruit/Veg"), "fruit%2Fveg");
+  assert.notEqual(tagNameKey("a/b"), tagNameKey("a%2Fb"));
+});
+
+test("accepts a Tag name claim naming its Tag", () => {
+  assert.equal(tagNameClaimSchema.parse({ tagId: "vegan" }).tagId, "vegan");
+});
+
+test("rejects a Tag name claim without a Tag", () => {
+  assert.throws(() => tagNameClaimSchema.parse({}));
+});
+
+test("rejects a blank name", () => {
+  assert.throws(() => tagSchema.parse({ name: "   " }));
 });

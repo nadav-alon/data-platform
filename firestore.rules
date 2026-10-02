@@ -375,6 +375,42 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    function tagPath(id) {
+      return /databases/$(database)/documents/tags/$(id);
+    }
+
+    function tagNamePath(key) {
+      return /databases/$(database)/documents/tagNames/$(key);
+    }
+
+    /** Matches `tagNameKey`: the name trimmed and lowercased, with `%` and `/` escaped. */
+    function tagNameKey(name) {
+      return name.trim().lower().replace('%', '%25').replace('/', '%2F');
+    }
+
+    /** Matches `tagSchema`: a name that isn't blank. */
+    function isValidTag(data) {
+      return data.name is string
+        && data.name.trim().size() > 0
+        && isValidDeletedAt(data);
+    }
+
+    /**
+     * Whether the claim on `data`'s name is held by `tagId` after the batch. Rules can't search
+     * for another live Tag with the same name, so a Tag's name is unique because only one
+     * `tagNames/{tagNameKey(name)}` doc can exist: a Tag takes it on create and on restore, moves
+     * it on rename, and releases it on soft delete, always in the same batch.
+     */
+    function tagNameClaimedBy(tagId, data) {
+      return existsAfter(tagNamePath(tagNameKey(data.name)))
+        && getAfter(tagNamePath(tagNameKey(data.name))).data.tagId == tagId;
+    }
+
+    /** Whether the claim on `data`'s name is taken by this batch, not by an earlier write. */
+    function tagNameClaimTaken(tagId, data) {
+      return !exists(tagNamePath(tagNameKey(data.name))) && tagNameClaimedBy(tagId, data);
+    }
+
     /** A Shop is soft-deleted only while nothing references it. */
     function shopSoftDeleteAllowed(oldData, newData) {
       return !isSoftDeleting(oldData, newData)
@@ -565,6 +601,28 @@ service cloud.firestore {
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && shopSoftDeleteAllowed(resource.data, request.resource.data);
       allow delete: if false;
+    }
+
+    match /tags/{tagId} {
+      allow read: if isMember();
+      /** A new Tag takes its name's claim in the same batch, so no live Tag already holds it. */
+      allow create: if isMember()
+        && isValidTag(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && tagNameClaimTaken(tagId, request.resource.data);
+    }
+
+    match /tagNames/{key} {
+      allow read: if isMember();
+      /**
+       * A claim is created only for a live Tag that has this name after the batch; creating
+       * over an existing doc is an update, which is denied, so a taken name stays taken.
+       */
+      allow create: if isMember()
+        && request.resource.data.tagId is string
+        && existsAfter(tagPath(request.resource.data.tagId))
+        && isCreatedLive(getAfter(tagPath(request.resource.data.tagId)).data)
+        && tagNameKey(getAfter(tagPath(request.resource.data.tagId)).data.name) == key;
     }
 
     match /{document=**} {

@@ -3,6 +3,12 @@ import { Timestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import {
+  TAG_NAMES_COLLECTION,
+  TAGS_COLLECTION,
+  tagNameKey,
+  type TagId,
+} from "../../src/catalogue/tag.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
@@ -117,5 +123,24 @@ export async function seedCatalogueItem(
         ...(shopId === undefined ? {} : { shopId }),
         ...deletedFields(deleted),
       });
+  });
+}
+
+/**
+ * Seeds a Tag and the claim on its name directly, bypassing rules; soft-deleted when `deleted`
+ * is set, in which case it holds no claim.
+ */
+export async function seedTag(
+  testEnv: RulesTestEnvironment,
+  id: TagId,
+  name: string,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const firestore = context.firestore();
+    await firestore.doc(`${TAGS_COLLECTION}/${id}`).set({ name, ...deletedFields(deleted) });
+    if (!deleted) {
+      await firestore.doc(`${TAG_NAMES_COLLECTION}/${tagNameKey(name)}`).set({ tagId: id });
+    }
   });
 }
