@@ -71,6 +71,11 @@ export const SCENARIOS = {
         id: "dishSoap",
         data: { categoryId: "cleaning", necessity: "essential" },
       },
+      {
+        collection: "catalogueItems",
+        id: "sponges",
+        data: { categoryId: "cleaning", necessity: "important" },
+      },
     ],
   },
   "invited-member": {
@@ -80,7 +85,18 @@ export const SCENARIOS = {
       householdMeta(owner.uid),
       memberDoc(owner),
       memberDoc(member),
+      { collection: "shops", id: "grocery", data: { name: "Grocery", referenceCount: 1 } },
+      {
+        collection: "categories",
+        id: "cleaning",
+        data: { name: "Cleaning", defaultShopId: "grocery", referenceCount: 1 },
+      },
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "out" } },
+      {
+        collection: "catalogueItems",
+        id: "dishSoap",
+        data: { categoryId: "cleaning", necessity: "essential" },
+      },
     ],
   },
 } as const satisfies Record<string, Scenario>;
