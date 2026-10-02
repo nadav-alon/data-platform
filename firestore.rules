@@ -402,46 +402,46 @@ service cloud.firestore {
     }
 
     /**
-     * Whether the claim on `data`'s name is held by `tagId` after the batch. Rules can't search
+     * Whether the reservation on `data`'s name is held by `tagId` after the batch. Rules can't search
      * for another live Tag with the same name, so a Tag's name is unique because only one
      * `tagNames/{tagNameKey(name)}` doc can exist: a Tag takes it on create and on restore, moves
      * it on rename, and releases it on soft delete, always in the same batch.
      */
-    function tagNameClaimedBy(tagId, data) {
+    function tagNameReservedBy(tagId, data) {
       return existsAfter(tagNamePath(tagNameKey(data.name)))
         && getAfter(tagNamePath(tagNameKey(data.name))).data.tagId == tagId;
     }
 
-    /** Whether the claim on `data`'s name is taken by this batch, not by an earlier write. */
-    function tagNameClaimTaken(tagId, data) {
-      return !exists(tagNamePath(tagNameKey(data.name))) && tagNameClaimedBy(tagId, data);
+    /** Whether the reservation on `data`'s name is taken by this batch, not by an earlier write. */
+    function tagNameReservationTaken(tagId, data) {
+      return !exists(tagNamePath(tagNameKey(data.name))) && tagNameReservedBy(tagId, data);
     }
 
-    /** Whether the claim on `data`'s name is gone after the batch. */
+    /** Whether the reservation on `data`'s name is gone after the batch. */
     function tagNameReleased(data) {
       return !existsAfter(tagNamePath(tagNameKey(data.name)));
     }
 
     /**
-     * Whether a Tag update keeps its name claimed exactly while it is live (`tagNameClaimedBy`):
+     * Whether a Tag update keeps its name reserved exactly while it is live (`tagNameReservedBy`):
      *
-     * - live to live, same key: the claim stays; a different key moves it, releasing the old and
+     * - live to live, same key: the reservation stays; a different key moves it, releasing the old and
      *   taking the new;
-     * - soft delete: the name is unchanged and its claim released;
+     * - soft delete: the name is unchanged and its reservation released;
      * - restore: the name it has afterwards is taken, so a live Tag that took it meanwhile
      *   blocks the restore;
-     * - soft-deleted to soft-deleted: holds no claim, so nothing to adjust.
+     * - soft-deleted to soft-deleted: holds no reservation, so nothing to adjust.
      */
-    function tagNameClaimsValid(tagId, oldData, newData) {
+    function tagNameReservationsValid(tagId, oldData, newData) {
       return (!isDeleted(oldData) && !isDeleted(newData)
           && (tagNameKey(oldData.name) == tagNameKey(newData.name)
-            ? tagNameClaimedBy(tagId, newData)
-            : (tagNameReleased(oldData) && tagNameClaimTaken(tagId, newData))))
+            ? tagNameReservedBy(tagId, newData)
+            : (tagNameReleased(oldData) && tagNameReservationTaken(tagId, newData))))
         || (isSoftDeleting(oldData, newData)
           && oldData.name == newData.name
           && tagNameReleased(oldData))
         || (isRestoring(oldData, newData)
-          && tagNameClaimTaken(tagId, newData))
+          && tagNameReservationTaken(tagId, newData))
         || (isDeleted(oldData) && isDeleted(newData));
     }
 
@@ -639,22 +639,22 @@ service cloud.firestore {
 
     match /tags/{tagId} {
       allow read: if isMember();
-      /** A new Tag takes its name's claim in the same batch, so no live Tag already holds it. */
+      /** A new Tag takes its name's reservation in the same batch, so no live Tag already holds it. */
       allow create: if isMember()
         && isValidTag(request.resource.data)
         && isCreatedLive(request.resource.data)
-        && tagNameClaimTaken(tagId, request.resource.data);
+        && tagNameReservationTaken(tagId, request.resource.data);
       allow update: if isMember()
         && isValidTag(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
-        && tagNameClaimsValid(tagId, resource.data, request.resource.data);
+        && tagNameReservationsValid(tagId, resource.data, request.resource.data);
       allow delete: if false;
     }
 
     match /tagNames/{key} {
       allow read: if isMember();
       /**
-       * A claim is created only for a live Tag that has this name after the batch; creating
+       * A reservation is created only for a live Tag that has this name after the batch; creating
        * over an existing doc is an update, which is denied, so a taken name stays taken.
        */
       allow create: if isMember()
@@ -662,7 +662,7 @@ service cloud.firestore {
         && existsAfter(tagPath(request.resource.data.tagId))
         && isCreatedLive(getAfter(tagPath(request.resource.data.tagId)).data)
         && tagNameKey(getAfter(tagPath(request.resource.data.tagId)).data.name) == key;
-      /** A claim is released only once its Tag no longer holds the name: renamed or soft-deleted. */
+      /** A reservation is released only once its Tag no longer holds the name: renamed or soft-deleted. */
       allow delete: if isMember()
         && existsAfter(tagPath(resource.data.tagId))
         && (isDeleted(getAfter(tagPath(resource.data.tagId)).data)

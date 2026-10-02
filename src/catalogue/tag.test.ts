@@ -4,7 +4,7 @@ import {
   isTagId,
   isTagNameKey,
   tagId,
-  tagNameClaimSchema,
+  tagNameReservationSchema,
   tagNameKey,
   tagSchema,
   TAGS_COLLECTION,
@@ -59,12 +59,12 @@ test("tagNameKey escapes a slash so the key is one doc id", () => {
   assert.notEqual(tagNameKey("a/b"), tagNameKey("a%2Fb"));
 });
 
-test("accepts a Tag name claim naming its Tag", () => {
-  assert.equal(tagNameClaimSchema.parse({ tagId: "vegan" }).tagId, "vegan");
+test("accepts a Tag name reservation naming its Tag", () => {
+  assert.equal(tagNameReservationSchema.parse({ tagId: "vegan" }).tagId, "vegan");
 });
 
-test("rejects a Tag name claim without a Tag", () => {
-  assert.throws(() => tagNameClaimSchema.parse({}));
+test("rejects a Tag name reservation without a Tag", () => {
+  assert.throws(() => tagNameReservationSchema.parse({}));
 });
 
 test("rejects a blank name", () => {

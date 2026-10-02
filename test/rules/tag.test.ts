@@ -14,7 +14,7 @@ const mallory = uid("mallory");
 
 const rulesTestEnv = setupRulesTestEnv();
 
-/** A Tag and the claim on its name, as one batch fixture. */
+/** A Tag and the reservation on its name, as one batch fixture. */
 function createTagFixture(
   name: string,
   tagName: string,
@@ -32,12 +32,12 @@ function createTagFixture(
   };
 }
 
-test("create: a Member creating a Tag batched with its name's claim is accepted", async () => {
+test("create: a Member creating a Tag batched with its name's reservation is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await assertBatchFixture(createTagFixture("new Tag", "Vegan", "vegan", "accept"), rulesTestEnv.env);
 });
 
-test("create: a Tag with no claim on its name is denied", async () => {
+test("create: a Tag with no reservation on its name is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).set({ name: "Vegan" }));
@@ -71,7 +71,7 @@ test("create: a blank name is denied", async () => {
   await assertFails(batch.commit());
 });
 
-test("create: a name with a slash claims an escaped key and is accepted", async () => {
+test("create: a name with a slash reserves an escaped key and is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await assertBatchFixture(
     createTagFixture("slash name", "Fruit/Veg", "fruitVeg", "accept"),
@@ -79,7 +79,7 @@ test("create: a name with a slash claims an escaped key and is accepted", async 
   );
 });
 
-test("create: a claim naming a Tag whose name has another key is denied", async () => {
+test("create: a reservation naming a Tag whose name has another key is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   const batch = firestore.batch();
@@ -134,7 +134,7 @@ test("a Tag can't be hard-deleted", async () => {
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).delete());
 });
 
-test("rename: a Member renaming a Tag to a free name, moving the claim, is accepted", async () => {
+test("rename: a Member renaming a Tag to a free name, moving the reservation, is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -145,7 +145,7 @@ test("rename: a Member renaming a Tag to a free name, moving the claim, is accep
   await assertSucceeds(batch.commit());
 });
 
-test("rename: changing only the case or spaces of the name keeps the claim and is accepted", async () => {
+test("rename: changing only the case or spaces of the name keeps the reservation and is accepted", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -164,14 +164,14 @@ test("rename: a name equal to another live Tag's name, ignoring case and spaces,
   await assertFails(batch.commit());
 });
 
-test("rename: without moving the claim is denied", async () => {
+test("rename: without moving the reservation is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: "Plant based" }));
 });
 
-test("rename: a claim can't be dropped while its Tag still holds the name", async () => {
+test("rename: a reservation can't be dropped while its Tag still holds the name", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -185,7 +185,7 @@ test("rename: a non-member is denied", async () => {
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: " VEGAN " }));
 });
 
-test("soft delete: a Member soft-deletes a Tag and releases its name's claim", async () => {
+test("soft delete: a Member soft-deletes a Tag and releases its name's reservation", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -208,7 +208,7 @@ test("soft delete: a Tag that CatalogueItems still carry can be soft-deleted", a
   await assertSucceeds(batch.commit());
 });
 
-test("soft delete: leaving the claim behind is denied", async () => {
+test("soft delete: leaving the reservation behind is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -231,7 +231,7 @@ test("soft delete: frees the name for a new Tag", async () => {
   await assertBatchFixture(createTagFixture("reused name", "vegan", "vegan2", "accept"), rulesTestEnv.env);
 });
 
-test("restore: a Member restores a soft-deleted Tag, taking its name's claim", async () => {
+test("restore: a Member restores a soft-deleted Tag, taking its name's reservation", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
@@ -252,7 +252,7 @@ test("restore: a Tag whose name a live Tag has taken meanwhile is denied", async
   await assertFails(batch.commit());
 });
 
-test("restore: without taking the claim is denied", async () => {
+test("restore: without taking the reservation is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();

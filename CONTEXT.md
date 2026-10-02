@@ -65,6 +65,11 @@ A household-defined label for finding CatalogueItems across Categories: many per
 no Shop. Its name is unique among live Tags, ignoring case and surrounding spaces. A Tag can be
 soft-deleted while CatalogueItems still carry it, so it has no reference count.
 
+**Tag name reservation**:
+The `tagNames` doc a live Tag holds on its name, so no other live Tag can take it. Created, moved
+and released in the same batch as the Tag it belongs to. Unrelated to _claiming_ the Household.
+_Avoid_: claim
+
 **CatalogueItem**:
 Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, any number of
 Tags (`tagIds`, empty by default), and an optional Shop override that takes precedence over the

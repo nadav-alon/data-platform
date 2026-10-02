@@ -132,8 +132,8 @@ export async function seedCatalogueItem(
 }
 
 /**
- * Seeds a Tag and the claim on its name directly, bypassing rules; soft-deleted when `deleted`
- * is set, in which case it holds no claim.
+ * Seeds a Tag and the reservation on its name directly, bypassing rules; soft-deleted when `deleted`
+ * is set, in which case it holds no reservation.
  */
 export async function seedTag(
   testEnv: RulesTestEnvironment,

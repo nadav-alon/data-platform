@@ -53,7 +53,7 @@ export function isTagNameKey(value: string): value is TagNameKey {
 }
 
 /**
- * The key a Tag's name claims, so two live Tags can't share a name that differs only in case or
+ * The key a Tag's name reserves, so two live Tags can't share a name that differs only in case or
  * surrounding spaces. `/` and `%` are escaped so the key is a valid doc id and two names map to
  * one key only when they are equal after trimming and lowercasing. `firestore.rules` computes
  * the same key. Throws on a blank name, which has no key.
@@ -69,10 +69,10 @@ export function tagNameKey(name: string): TagNameKey {
 /**
  * `tagNames/{tagNameKey(name)}`: held by the one live Tag with that name, and absent otherwise.
  * Firestore rules can't query for a duplicate name, so a Tag is created, renamed, restored and
- * soft-deleted in one batch with the claim it takes or releases.
+ * soft-deleted in one batch with the reservation it takes or releases.
  */
-export const tagNameClaimSchema = z.looseObject({
+export const tagNameReservationSchema = z.looseObject({
   tagId: tagIdSchema,
 });
 
-export type TagNameClaim = z.infer<typeof tagNameClaimSchema>;
+export type TagNameReservation = z.infer<typeof tagNameReservationSchema>;
