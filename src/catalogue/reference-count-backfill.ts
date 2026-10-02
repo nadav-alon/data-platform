@@ -5,12 +5,13 @@ import { shopId, shopIdSchema, type ShopId } from "./shop.ts";
 
 /** `softDeleted` is set only for a doc carrying a `deletedAt`; such a doc holds no reference. */
 type ExistingCategory = Pick<Category, "defaultShopId"> & { readonly softDeleted?: true };
+type ExistingCatalogueItem = Pick<CatalogueItem, "categoryId" | "shopId"> & { readonly softDeleted?: true };
 
 /** Enough of a Household's existing Shops, Categories and CatalogueItems to recompute referenceCount. */
 export type ExistingCatalogue = {
   readonly shopIds: readonly ShopId[];
   readonly categories: ReadonlyMap<CategoryId, ExistingCategory>;
-  readonly catalogueItems: readonly Pick<CatalogueItem, "categoryId" | "shopId">[];
+  readonly catalogueItems: readonly ExistingCatalogueItem[];
 };
 
 export type ReferenceCounts = {
@@ -22,8 +23,9 @@ export type ReferenceCounts = {
  * Every existing Shop and Category's referenceCount, recomputed from what currently references
  * it rather than trusted from the document itself — safe to run more than once. A `defaultShopId`
  * or `categoryId`/`shopId` naming a doc outside `existing` is not counted: that reference is
- * already broken, and backfilling can't repair it. A soft-deleted Category holds no reference, so it
- * adds to no Shop's count (it still gets a count of its own).
+ * already broken, and backfilling can't repair it. A soft-deleted Category or CatalogueItem holds
+ * no reference, so it
+ * adds to no count (a Category still gets a count of its own).
  */
 export function computeReferenceCounts(existing: ExistingCatalogue): ReferenceCounts {
   const shops = new Map<ShopId, ReferenceCount>(existing.shopIds.map((id) => [id, 0]));
@@ -44,6 +46,7 @@ export function computeReferenceCounts(existing: ExistingCatalogue): ReferenceCo
   }
 
   for (const catalogueItem of existing.catalogueItems) {
+    if (catalogueItem.softDeleted) continue;
     increment(categories, catalogueItem.categoryId);
     if (catalogueItem.shopId !== undefined) {
       increment(shops, catalogueItem.shopId);
@@ -101,7 +104,7 @@ export function parseExistingCatalogue(
     categories.set(categoryId(doc.id), { defaultShopId: defaultShopId.data, ...softDeletedFlag(doc) });
   }
 
-  const catalogueItems: Pick<CatalogueItem, "categoryId" | "shopId">[] = [];
+  const catalogueItems: ExistingCatalogueItem[] = [];
   for (const doc of catalogueItemDocs) {
     const parsedCategoryId = categoryIdSchema.safeParse(doc.data.categoryId);
     if (!parsedCategoryId.success) {
@@ -128,7 +131,7 @@ export function parseExistingCatalogue(
       parsedShopId = result.data;
     }
 
-    catalogueItems.push({ categoryId: parsedCategoryId.data, shopId: parsedShopId });
+    catalogueItems.push({ categoryId: parsedCategoryId.data, shopId: parsedShopId, ...softDeletedFlag(doc) });
   }
 
   return { existing: { shopIds, categories, catalogueItems }, skipped };

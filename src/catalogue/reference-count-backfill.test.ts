@@ -173,3 +173,32 @@ test("parseExistingCatalogue marks a Category with a deletedAt as soft-deleted, 
   });
   assert.deepEqual(existing.categories.get(categoryId("vitamins")), { defaultShopId: shopId("pharmacy") });
 });
+
+test("a soft-deleted CatalogueItem adds nothing to its Category or its Shop override", () => {
+  const result = computeReferenceCounts({
+    shopIds: [shopId("pharmacy"), shopId("grocery")],
+    categories: new Map([[categoryId("medicine"), { defaultShopId: shopId("pharmacy") }]]),
+    catalogueItems: [
+      { categoryId: categoryId("medicine"), shopId: shopId("grocery"), softDeleted: true },
+      { categoryId: categoryId("medicine") },
+    ],
+  });
+  assert.equal(result.categories.get(categoryId("medicine")), 1);
+  assert.equal(result.shops.get(shopId("grocery")), 0);
+});
+
+test("parseExistingCatalogue marks a CatalogueItem with a deletedAt as soft-deleted", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [{ id: "medicine", data: { defaultShopId: "pharmacy" } }],
+    [
+      { id: "item-1", data: { categoryId: "medicine", deletedAt: new Date(0) } },
+      { id: "item-2", data: { categoryId: "medicine", deletedAt: null } },
+    ],
+  );
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(existing.catalogueItems, [
+    { categoryId: categoryId("medicine"), shopId: undefined, softDeleted: true },
+    { categoryId: categoryId("medicine"), shopId: undefined },
+  ]);
+});
