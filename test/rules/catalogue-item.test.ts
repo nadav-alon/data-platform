@@ -5,6 +5,7 @@ import { serverTimestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
+import { tagId } from "../../src/catalogue/tag.ts";
 import { ITEMS_COLLECTION, itemId } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
@@ -14,6 +15,7 @@ import {
   seedHousehold,
   seedItem,
   seedMember,
+  seedTag,
   seedShop,
 } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
@@ -844,4 +846,62 @@ test("reference count: moving a CatalogueItem to a Category with the same defaul
   addOverride.update(catalogueItem, { shopId: "some-shop" });
   addOverride.update(shop, { referenceCount: 3 });
   await assertSucceeds(addOverride.commit());
+});
+
+async function seedLiveCategory(): Promise<void> {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedShop(rulesTestEnv.env, shopId("some-shop"), 1);
+  await seedCategory(rulesTestEnv.env, categoryId("cleaning"), shopId("some-shop"), 0);
+}
+
+async function createCatalogueItemWith(
+  extra: Record<string, unknown>,
+): Promise<ReturnType<typeof assertSucceeds>> {
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`), {
+    categoryId: "cleaning",
+    necessity: "essential",
+    ...extra,
+  });
+  batch.update(firestore.doc(`${CATEGORIES_COLLECTION}/cleaning`), { referenceCount: 1 });
+  return batch.commit();
+}
+
+test("tagIds: a CatalogueItem without tagIds stays valid", async () => {
+  await seedLiveCategory();
+  await assertSucceeds(createCatalogueItemWith({}));
+});
+
+test("tagIds: an empty list is accepted", async () => {
+  await seedLiveCategory();
+  await assertSucceeds(createCatalogueItemWith({ tagIds: [] }));
+});
+
+test("tagIds: any number of Tag ids, soft-deleted Tags included, is accepted", async () => {
+  await seedLiveCategory();
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  await seedTag(rulesTestEnv.env, tagId("old"), "Old", { deleted: true });
+  await assertSucceeds(createCatalogueItemWith({ tagIds: ["vegan", "old", "bulk", "organic"] }));
+});
+
+test("tagIds: a value that is not a list is denied", async () => {
+  await seedLiveCategory();
+  await assertFails(createCatalogueItemWith({ tagIds: "vegan" }));
+});
+
+test("tagIds: an empty or non-string Tag id is denied", async () => {
+  await seedLiveCategory();
+  await assertFails(createCatalogueItemWith({ tagIds: [""] }));
+});
+
+test("tagIds: a CatalogueItem's Tags can be changed without touching reference counts", async () => {
+  await seedLiveCategory();
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"), {
+    tagIds: [tagId("vegan")],
+  });
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(
+    firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).update({ tagIds: ["vegan", "bulk"] }),
+  );
 });

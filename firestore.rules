@@ -81,8 +81,8 @@ service cloud.firestore {
     }
 
     /**
-     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories
-     * and shops all `allow delete: if false`; the console's admin access can still hard delete.
+     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
+     * shops and tags all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -359,12 +359,18 @@ service cloud.firestore {
       return deletedAtMatchesAt(catalogueItemPath(itemId), itemData);
     }
 
+    /** Matches `z.array(tagIdSchema)`. Only the first element is checked: rules can't loop over a list. */
+    function isValidTagIds(value) {
+      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
         && isNecessity(data.necessity)
         && isValidDeletedAt(data)
-        && (!('shopId' in data) || isNonEmptyString(data.shopId));
+        && (!('shopId' in data) || isNonEmptyString(data.shopId))
+        && (!('tagIds' in data) || isValidTagIds(data.tagIds));
     }
 
     /** Matches `categorySchema`. */
