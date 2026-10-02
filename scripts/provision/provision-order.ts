@@ -33,6 +33,7 @@ export type RunCommand = (command: Command) => string;
 
 export type ProvisionDeps = {
   readonly run: RunCommand;
+  /** Whether a regular file sits at `path`. */
   readonly exists: (path: string) => boolean;
   readonly print: (line: string) => void;
 };
