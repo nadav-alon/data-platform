@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 declare const keyOutPathBrand: unique symbol;
 
@@ -7,7 +7,7 @@ export type KeyOutPath = string & { readonly [keyOutPathBrand]: true };
 
 function isInside(root: string, path: string): boolean {
   const from = relative(root, path);
-  return from === "" || (!from.startsWith("..") && !isAbsolute(from));
+  return from === "" || (from !== ".." && !from.startsWith(".." + sep) && !isAbsolute(from));
 }
 
 /** Whether `value` is absolute and outside `repoRoot`. */

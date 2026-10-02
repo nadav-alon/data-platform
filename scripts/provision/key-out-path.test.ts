@@ -19,3 +19,8 @@ test("refuses the repo root and anything under it", () => {
 test("resolves a relative path before checking it", () => {
   assert.throws(() => keyOutPath("key.json", process.cwd()), /outside the repo/);
 });
+
+test("refuses a repo directory whose name starts with two dots", () => {
+  assert.throws(() => keyOutPath("/home/me/data-platform/..keys/key.json", "/home/me/data-platform"), /outside the repo/);
+  assert.equal(isKeyOutPath("/home/me/..keys/key.json", "/home/me/data-platform"), true);
+});
