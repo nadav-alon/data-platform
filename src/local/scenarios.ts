@@ -44,6 +44,26 @@ const memberDoc = ({ uid, email }: ScenarioUser): Fixture => ({
   data: { email, addedAt },
 });
 
+/** The Shop every scenario's Category defaults to; one Category references it. */
+const groceryShop: Fixture = {
+  collection: "shops",
+  id: "grocery",
+  data: { name: "Grocery", referenceCount: 1 },
+};
+
+/** The `cleaning` Category; its `referenceCount` is the number of catalogue Items in the scenario that name it. */
+const cleaningCategory = (referenceCount: number): Fixture => ({
+  collection: "categories",
+  id: "cleaning",
+  data: { name: "Cleaning", defaultShopId: "grocery", referenceCount },
+});
+
+const dishSoapCatalogueItem: Fixture = {
+  collection: "catalogueItems",
+  id: "dishSoap",
+  data: { categoryId: "cleaning", necessity: "essential" },
+};
+
 /**
  * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
  * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users`
@@ -58,18 +78,15 @@ export const SCENARIOS = {
       platformMetaFixture,
       householdMeta(owner.uid),
       memberDoc(owner),
-      { collection: "shops", id: "grocery", data: { name: "Grocery", referenceCount: 1 } },
-      {
-        collection: "categories",
-        id: "cleaning",
-        data: { name: "Cleaning", defaultShopId: "grocery", referenceCount: 1 },
-      },
+      groceryShop,
+      cleaningCategory(2),
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "enough" } },
       { collection: "items", id: "sponges", data: { name: "Sponges", state: "running low" } },
+      dishSoapCatalogueItem,
       {
         collection: "catalogueItems",
-        id: "dishSoap",
-        data: { categoryId: "cleaning", necessity: "essential" },
+        id: "sponges",
+        data: { categoryId: "cleaning", necessity: "important" },
       },
     ],
   },
@@ -80,7 +97,10 @@ export const SCENARIOS = {
       householdMeta(owner.uid),
       memberDoc(owner),
       memberDoc(member),
+      groceryShop,
+      cleaningCategory(1),
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "out" } },
+      dishSoapCatalogueItem,
     ],
   },
 } as const satisfies Record<string, Scenario>;

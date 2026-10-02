@@ -47,6 +47,18 @@ test("a scenario's users are each a Member doc, and the Owner is the household's
   }
 });
 
+test("every Item a scenario seeds has its catalogueItems doc", () => {
+  for (const name of SCENARIO_NAMES) {
+    const { fixtures }: Scenario = SCENARIOS[name];
+    for (const item of fixtures.filter((f) => f.collection === "items")) {
+      assert.ok(
+        fixtures.some((f) => f.collection === "catalogueItems" && f.id === item.id),
+        `${name}: item ${item.id} has a catalogueItems doc`,
+      );
+    }
+  }
+});
+
 for (const name of SCENARIO_NAMES) {
   test(`${name} seeds meta/platform with this release's PLATFORM_VERSION`, async () => {
     const { writer, written } = recordingWriter();
