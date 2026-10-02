@@ -1,4 +1,5 @@
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 declare const keyOutPathBrand: unique symbol;
 
@@ -10,9 +11,16 @@ function isInside(root: string, path: string): boolean {
   return from === "" || (from !== ".." && !from.startsWith(".." + sep) && !isAbsolute(from));
 }
 
-/** Whether `value` is absolute and outside `repoRoot`. */
+/** `path` with symlinks followed as far as it exists; the part that doesn't exist yet is kept as is. */
+function realPathOf(path: string): string {
+  if (existsSync(path)) return realpathSync(path);
+  const parent = dirname(path);
+  return parent === path ? path : join(realPathOf(parent), basename(path));
+}
+
+/** Whether `value` is absolute and, once symlinks are followed, outside `repoRoot`. */
 export function isKeyOutPath(value: string, repoRoot: string): value is KeyOutPath {
-  return isAbsolute(value) && !isInside(resolve(repoRoot), resolve(value));
+  return isAbsolute(value) && !isInside(realPathOf(resolve(repoRoot)), realPathOf(resolve(value)));
 }
 
 /** Resolves `value` against the working directory, or throws if it lands inside `repoRoot`. */
