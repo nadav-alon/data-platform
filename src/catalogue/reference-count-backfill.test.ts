@@ -181,10 +181,11 @@ test("a soft-deleted CatalogueItem adds nothing to its Category or its Shop over
     catalogueItems: [
       { categoryId: categoryId("medicine"), shopId: shopId("grocery"), softDeleted: true },
       { categoryId: categoryId("medicine") },
+      { categoryId: categoryId("medicine"), shopId: shopId("grocery") },
     ],
   });
-  assert.equal(result.categories.get(categoryId("medicine")), 1);
-  assert.equal(result.shops.get(shopId("grocery")), 0);
+  assert.equal(result.categories.get(categoryId("medicine")), 2);
+  assert.equal(result.shops.get(shopId("grocery")), 1);
 });
 
 test("parseExistingCatalogue marks a CatalogueItem with a deletedAt as soft-deleted", () => {
