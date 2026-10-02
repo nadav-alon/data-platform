@@ -24,8 +24,7 @@ export type ReferenceCounts = {
  * it rather than trusted from the document itself — safe to run more than once. A `defaultShopId`
  * or `categoryId`/`shopId` naming a doc outside `existing` is not counted: that reference is
  * already broken, and backfilling can't repair it. A soft-deleted Category or CatalogueItem holds
- * no reference, so it
- * adds to no count (a Category still gets a count of its own).
+ * no reference, so it adds to no count (a Category still gets a count of its own).
  */
 export function computeReferenceCounts(existing: ExistingCatalogue): ReferenceCounts {
   const shops = new Map<ShopId, ReferenceCount>(existing.shopIds.map((id) => [id, 0]));
