@@ -4,17 +4,22 @@ How a Household gets this platform into its own Firebase project, from a clone o
 Action. No step below names a specific Household's project id — pass yours as an argument or a
 repo variable, never writing it into the repo itself.
 
-1. **Create a Firebase project.** The [Spark (free) plan](https://firebase.google.com/pricing) is
-   enough for one Household.
-2. **Enable Firestore** for that project, in production mode.
-3. **Enable the Google sign-in provider**, under Authentication → Sign-in method.
-4. **Add the upstream app's host to Authorized domains**, under Authentication → Settings →
+1. **Provision the project, Firestore and a web app.** Run `npx firebase login`, then
+   `npm run provision -- --project <id> --location <location>` from a clone (after `npm ci`).
+   It creates the Firebase project on the [Spark (free) plan](https://firebase.google.com/pricing),
+   the Firestore database at that location in production mode, and a web app named after the
+   project id, then prints the web app's SDK config snippet (`apiKey`, `authDomain`, `projectId`,
+   …) — the way the upstream app's Firebase SDK finds this project. This repo doesn't read the
+   snippet; keep it for step 6. A step already done is skipped, so re-running is safe, and
+   `npm run provision -- --help` says where each input comes from.
+2. **Enable the Google sign-in provider**, under Authentication → Sign-in method.
+3. **Add the upstream app's host to Authorized domains**, under Authentication → Settings →
    Authorized domains — otherwise Google sign-in rejects it.
-5. **Generate a deploy key, and grant its service account two IAM roles.** Firebase project →
+4. **Generate a deploy key, and grant its service account two IAM roles.** Firebase project →
    Project settings → Service accounts → Generate new private key. That key belongs to a
    `firebase-adminsdk-…` service account, which by default can't run a rules deploy — grant it
    these two roles before the first deploy, unless the rules deploy authenticates with a
-   `FIREBASE_TOKEN` secret instead (step 6), at
+   `FIREBASE_TOKEN` secret instead (step 5), at
    [`https://console.cloud.google.com/iam-admin/iam?project=<id>`](https://console.cloud.google.com/iam-admin/iam?project=<id>)
    → find the `firebase-adminsdk-…` principal → Add another role:
 
@@ -29,7 +34,7 @@ repo variable, never writing it into the repo itself.
    the `meta/platform` write itself failing, or this being the very first deploy — leaves
    `meta/platform` a version behind rules that are already live; redeploy to catch it up. The same
    key secures deploy-on-release, so it needs both roles too.
-6. **Deploy.** This checks that the service account key from step 5 has the roles above, backfills
+5. **Deploy.** This checks that the service account key from step 4 has the roles above, backfills
    `referenceCount` onto every existing Shop and Category, deploys `firestore.rules`, then writes
    `meta/platform` with this repo's version, so apps can tell what's live — in that order, so the
    backfill always finishes before the rules that require `referenceCount` go live, and a failure
@@ -54,10 +59,5 @@ repo variable, never writing it into the repo itself.
      additionally authenticate the `firestore.rules` deploy, but `FIREBASE_SERVICE_ACCOUNT` is
      required either way — the deploy script checks that key's roles before `firestore.rules`
      deploys, whichever credential (the key or `FIREBASE_TOKEN`) actually runs that deploy.
-7. **Register a Firebase web app, and copy its config snippet.** Firebase project → Project
-   settings → General → Your apps → Add app → Web. Registering gives the project a Firebase web
-   app, and the SDK config snippet it shows (`apiKey`, `authDomain`, `projectId`, …) is how the
-   upstream app's Firebase SDK finds this project. This repo doesn't read the snippet; keep it for
-   step 8, where you paste it into the upstream app's setup screen.
-8. **Open the upstream app's setup screen, and paste the config snippet from step 7 into it.** The
+6. **Open the upstream app's setup screen, and paste the config snippet from step 1 into it.** The
    first person to sign in there claims the Household as its Owner.
