@@ -3,10 +3,13 @@ import { CATEGORIES_COLLECTION, categoryId, categoryIdSchema, type Category, typ
 import type { ReferenceCount } from "./reference-count.ts";
 import { shopId, shopIdSchema, type ShopId } from "./shop.ts";
 
+/** `softDeleted` is set only for a doc carrying a `deletedAt`; such a doc holds no reference. */
+type ExistingCategory = Pick<Category, "defaultShopId"> & { readonly softDeleted?: true };
+
 /** Enough of a Household's existing Shops, Categories and CatalogueItems to recompute referenceCount. */
 export type ExistingCatalogue = {
   readonly shopIds: readonly ShopId[];
-  readonly categories: ReadonlyMap<CategoryId, Pick<Category, "defaultShopId">>;
+  readonly categories: ReadonlyMap<CategoryId, ExistingCategory>;
   readonly catalogueItems: readonly Pick<CatalogueItem, "categoryId" | "shopId">[];
 };
 
@@ -19,7 +22,8 @@ export type ReferenceCounts = {
  * Every existing Shop and Category's referenceCount, recomputed from what currently references
  * it rather than trusted from the document itself — safe to run more than once. A `defaultShopId`
  * or `categoryId`/`shopId` naming a doc outside `existing` is not counted: that reference is
- * already broken, and backfilling can't repair it.
+ * already broken, and backfilling can't repair it. A soft-deleted Category holds no reference, so it
+ * adds to no Shop's count (it still gets a count of its own).
  */
 export function computeReferenceCounts(existing: ExistingCatalogue): ReferenceCounts {
   const shops = new Map<ShopId, ReferenceCount>(existing.shopIds.map((id) => [id, 0]));
@@ -35,6 +39,7 @@ export function computeReferenceCounts(existing: ExistingCatalogue): ReferenceCo
   };
 
   for (const category of existing.categories.values()) {
+    if (category.softDeleted) continue;
     increment(shops, category.defaultShopId);
   }
 
@@ -61,6 +66,11 @@ export type SkippedDoc = {
   readonly reason: string;
 };
 
+/** A `null` `deletedAt` counts as live, matching `deletedAtOf` in `firestore.rules`. */
+function softDeletedFlag(doc: FirestoreDoc): { softDeleted?: true } {
+  return doc.data.deletedAt == null ? {} : { softDeleted: true };
+}
+
 /**
  * Reads Shop, Category and CatalogueItem docs the way an upgrading Household's pre-0.3.0 data
  * actually looks: a `defaultShopId`, `categoryId` or `shopId` field can be missing, `null`, or not
@@ -77,7 +87,7 @@ export function parseExistingCatalogue(
 
   const shopIds = shopDocs.map((doc) => shopId(doc.id));
 
-  const categories = new Map<CategoryId, Pick<Category, "defaultShopId">>();
+  const categories = new Map<CategoryId, ExistingCategory>();
   for (const doc of categoryDocs) {
     const defaultShopId = shopIdSchema.safeParse(doc.data.defaultShopId);
     if (!defaultShopId.success) {
@@ -88,7 +98,7 @@ export function parseExistingCatalogue(
       });
       continue;
     }
-    categories.set(categoryId(doc.id), { defaultShopId: defaultShopId.data });
+    categories.set(categoryId(doc.id), { defaultShopId: defaultShopId.data, ...softDeletedFlag(doc) });
   }
 
   const catalogueItems: Pick<CatalogueItem, "categoryId" | "shopId">[] = [];

@@ -143,3 +143,33 @@ test("parseExistingCatalogue skips and reports a CatalogueItem with an invalid s
   assert.equal(skipped.length, 1);
   assert.equal(skipped[0]?.id, "item-1");
 });
+
+test("a soft-deleted Category does not count toward its default Shop, but still gets its own count", () => {
+  const result = computeReferenceCounts({
+    shopIds: [shopId("pharmacy")],
+    categories: new Map([
+      [categoryId("medicine"), { defaultShopId: shopId("pharmacy"), softDeleted: true }],
+      [categoryId("vitamins"), { defaultShopId: shopId("pharmacy") }],
+    ]),
+    catalogueItems: [],
+  });
+  assert.equal(result.shops.get(shopId("pharmacy")), 1);
+  assert.equal(result.categories.get(categoryId("medicine")), 0);
+});
+
+test("parseExistingCatalogue marks a Category with a deletedAt as soft-deleted, and one with a null deletedAt as live", () => {
+  const { existing, skipped } = parseExistingCatalogue(
+    [],
+    [
+      { id: "medicine", data: { defaultShopId: "pharmacy", deletedAt: new Date(0) } },
+      { id: "vitamins", data: { defaultShopId: "pharmacy", deletedAt: null } },
+    ],
+    [],
+  );
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(existing.categories.get(categoryId("medicine")), {
+    defaultShopId: shopId("pharmacy"),
+    softDeleted: true,
+  });
+  assert.deepEqual(existing.categories.get(categoryId("vitamins")), { defaultShopId: shopId("pharmacy") });
+});
