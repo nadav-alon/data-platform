@@ -1,6 +1,6 @@
 declare const firebaseProjectIdBrand: unique symbol;
 
-/** A Firebase project id, as passed to `firebase deploy --project`. */
+/** A Firebase project id, as passed to the Firebase CLI's `--project`, by deploy and provision. */
 export type FirebaseProjectId = string & { readonly [firebaseProjectIdBrand]: true };
 
 /** Google Cloud project id rules: 6-30 chars, lowercase letters, digits and hyphens, no trailing hyphen. */
