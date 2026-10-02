@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   isTagId,
+  isTagNameKey,
   tagId,
   tagNameClaimSchema,
   tagNameKey,
@@ -68,4 +69,19 @@ test("rejects a Tag name claim without a Tag", () => {
 
 test("rejects a blank name", () => {
   assert.throws(() => tagSchema.parse({ name: "   " }));
+});
+
+test("guards a TagNameKey", () => {
+  assert.equal(isTagNameKey("gluten free"), true);
+  assert.equal(isTagNameKey("fruit%2Fveg"), true);
+  assert.equal(isTagNameKey("100%25"), true);
+  assert.equal(isTagNameKey(""), false);
+  assert.equal(isTagNameKey("Vegan"), false);
+  assert.equal(isTagNameKey(" vegan"), false);
+  assert.equal(isTagNameKey("fruit/veg"), false);
+  assert.equal(isTagNameKey("100%"), false);
+});
+
+test("tagNameKey throws on a blank name", () => {
+  assert.throws(() => tagNameKey("  "), /Tag name has no key/);
 });
