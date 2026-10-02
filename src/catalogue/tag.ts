@@ -26,7 +26,9 @@ export const tagIdSchema = z.string().refine(isTagId, "TagId must not be empty")
  * reference count.
  */
 export const tagSchema = z.looseObject({
-  name: z.string().refine((name) => name.trim().length > 0, "Tag name must not be blank"),
+  name: z
+    .string()
+    .refine((name) => normalizeTagName(name).length > 0, "Tag name must not be blank"),
   deletedAt: deletedAtSchema,
 });
 
@@ -41,8 +43,16 @@ export type TagNameKey = string & { readonly [tagNameKeyBrand]: true };
 
 const ESCAPED = /%(?:25|2F)/g;
 
+/**
+ * Trims space, tab, newline and carriage return and lowercases A-Z only. Beyond ASCII,
+ * `firestore.rules` trims and lowercases a different set of characters than JS does, so a wider
+ * key would disagree with the rules; names differing only by non-ASCII case or whitespace stay
+ * distinct.
+ */
 function normalizeTagName(name: string): string {
-  return name.trim().toLowerCase();
+  return name
+    .replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, "")
+    .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 }
 
 /** The guard: a non-empty, trimmed, lowercased name with `%` and `/` escaped as `%25` and `%2F`. */

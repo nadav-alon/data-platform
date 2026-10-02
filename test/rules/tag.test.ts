@@ -258,3 +258,28 @@ test("restore: without taking the reservation is denied", async () => {
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ deletedAt: deleteField() }));
 });
+
+for (const [label, name] of [
+  ["a tab and newline", "\tVegan\n"],
+  ["a carriage return", "\rVegan\r"],
+  ["a non-breaking space", "Vegan "],
+  ["an ideographic space", "　Vegan　"],
+  ["a capital umlaut", "ÄRGER"],
+  ["a dotted capital I", "İstanbul"],
+  ["a final sigma", "ΟΔΟΣ"],
+  ["only a non-breaking space", " "],
+] as const) {
+  test(`create: the rules and tagNameKey agree on a name with ${label}`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await assertBatchFixture(createTagFixture(label, name, "agree", "accept"), rulesTestEnv.env);
+  });
+}
+
+test("create: a Tag name of only ASCII whitespace is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.set(firestore.doc(`${TAGS_COLLECTION}/blank`), { name: " \t\n" });
+  batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/blank`), { tagId: "blank" });
+  await assertFails(batch.commit());
+});

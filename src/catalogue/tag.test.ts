@@ -85,3 +85,14 @@ test("guards a TagNameKey", () => {
 test("tagNameKey throws on a blank name", () => {
   assert.throws(() => tagNameKey("  "), /Tag name has no key/);
 });
+
+test("tagNameKey trims only ASCII whitespace and lowercases only ASCII", () => {
+  assert.equal(tagNameKey("\t Vegan\r\n"), "vegan");
+  assert.equal(tagNameKey(" Vegan"), " vegan");
+  assert.notEqual(tagNameKey("Ärger"), tagNameKey("ärger"));
+});
+
+test("tagSchema treats only ASCII whitespace as blank", () => {
+  assert.throws(() => tagSchema.parse({ name: " \t\r\n" }));
+  assert.equal(tagSchema.parse({ name: " " }).name, " ");
+});
