@@ -1,8 +1,8 @@
 # Household setup
 
-How a Household gets this platform into its own Firebase project, from a clone or from a fork's
-Action. No step below names a specific Household's project id — pass yours as an argument or a
-repo variable, never writing it into the repo itself.
+How a Household gets this platform into its own Firebase project, from a clone; deploy can also run
+from a fork's Action. No step below names a specific Household's project id — pass yours as an
+argument or a repo variable, never writing it into the repo itself.
 
 1. **Provision the project, Firestore and a web app.** Run `npx firebase login`, then
    `npm run provision -- --project <id> --location <location>` from a clone (after `npm ci`).
