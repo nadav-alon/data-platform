@@ -16,7 +16,7 @@ out Spark, and it still needs an OAuth client the provider cannot create.
 | 2 Firestore | Possible | `gcloud firestore databases create --location=…` |
 | 3 Google sign-in provider | **No** (needs billing) | Stays manual |
 | 4 Authorized domains | **No** (same resource as 3) | Stays manual |
-| 5 Deploy service account roles | Possible | `gcloud projects add-iam-policy-binding` |
+| 5 Deploy key and its two roles | Partial: roles only; the key is not produced (`google_service_account_key` would put it in state) | `gcloud iam service-accounts keys create` and `gcloud projects add-iam-policy-binding`; flags per the reference pages, not run against a `firebase-adminsdk-…` account |
 | Web app + config snippet (missing from the doc) | Possible | `firebase apps:create WEB`, `firebase apps:sdkconfig` |
 | Rules ruleset + release | Possible, but duplicates `npm run deploy` | Already `npm run deploy` |
 
@@ -78,10 +78,12 @@ All from `hashicorp/terraform-provider-google` docs unless noted.
 | Config snippet | `google_firebase_web_app_config` data source | Returns `api_key`, `auth_domain`, `storage_bucket`, `messaging_sender_id`, `measurement_id` |
 | Rules ruleset/release | `google_firebaserules_ruleset`, `google_firebaserules_release` (`name = "cloud.firestore"`) | Covered, but a second owner of the rules next to `npm run deploy` |
 
-Two gaps beyond billing: the Firebase quickstart URL I tried (`/docs/terraform/terraform-quickstart`)
-returned 404, so I relied on the get-started guide above; and the deploy key in step 5 is a
-private key generated in the console, which none of these resources produce for the
-`firebase-adminsdk-…` account.
+Two gaps beyond billing: the Firebase quickstart URL (`/docs/terraform/terraform-quickstart`) returns
+404, so the get-started guide above is the Firebase-side source; and none of the resources in the
+table produce the deploy key in step 5. `google_service_account_key` is the Terraform resource that
+creates a service account key, but the key it creates would be stored in Terraform state in plain
+text, the same hazard as the OAuth secret in point 2, and no source states whether it works on the
+Firebase-managed `firebase-adminsdk-…` account.
 
 ## 4. Alternative: CLIs, no Terraform state, still on Spark
 
@@ -92,8 +94,18 @@ private key generated in the console, which none of these resources produce for 
   providers or sign-in methods. Firestore is covered by
   `gcloud firestore databases create --location=<region>` (default type `firestore-native`).
   <https://docs.cloud.google.com/sdk/gcloud/reference/firestore/databases/create>
-- Granting the two roles in step 5 is an IAM binding on the project; I did not fetch the `gcloud`
-  reference for it, so the exact flags are not confirmed here.
+- Granting the two roles in step 5 is an IAM binding on the project:
+  `gcloud projects add-iam-policy-binding <project> --member=serviceAccount:<email> --role=<role>`,
+  where `--role` takes the complete path of a predefined role.
+  <https://docs.cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding>
+  `roles/firebaserules.admin` is listed in the predefined-roles reference
+  (<https://docs.cloud.google.com/iam/docs/roles-permissions/firebaserules>). No source read here
+  confirms `roles/serviceusage.serviceUsageConsumer`, so check that ID against the Service Usage
+  entry in the predefined-roles reference before scripting it.
+- The key itself is `gcloud iam service-accounts keys create <output-file> --iam-account=<email>`
+  (JSON by default). The reference states no limit and no exception for Firebase-managed accounts,
+  and does not say the command works on one.
+  <https://docs.cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/create>
 - Nothing in the CLIs configures the Google provider or authorized domains. Those two console steps
   stay, and they are the only ones that need Authentication at all.
 
