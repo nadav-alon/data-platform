@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
+import { webAppId } from "./web-app-id.ts";
 import {
   addFirebaseCommand,
   createFirestoreCommand,
@@ -65,7 +66,7 @@ test("web app lookup lists WEB apps as JSON", () => {
 
 test("the snippet is read for one app id", () => {
   assert.equal(
-    line(sdkConfigCommand(project, "1:123:web:abc")),
+    line(sdkConfigCommand(project, webAppId("1:123:web:abc"))),
     "npx firebase apps:sdkconfig WEB 1:123:web:abc --project my-household-42",
   );
 });

@@ -1,5 +1,6 @@
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
+import type { WebAppId } from "./web-app-id.ts";
 
 /** A process to spawn: the file and its arguments, never a shell string. */
 export type Command = { readonly file: string; readonly args: readonly string[] };
@@ -55,6 +56,6 @@ export function createWebAppCommand(project: FirebaseProjectId): Command {
   return firebase("apps:create", "WEB", project, "--project", project);
 }
 
-export function sdkConfigCommand(project: FirebaseProjectId, appId: string): Command {
+export function sdkConfigCommand(project: FirebaseProjectId, appId: WebAppId): Command {
   return firebase("apps:sdkconfig", "WEB", appId, "--project", project);
 }

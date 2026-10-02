@@ -10,8 +10,10 @@ import {
   sdkConfigCommand,
   type Command,
 } from "./commands.ts";
+import { z } from "zod";
 import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { FirestoreLocation } from "./firestore-location.ts";
+import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
 
@@ -23,11 +25,17 @@ export type ProvisionDeps = {
   readonly print: (line: string) => void;
 };
 
-/** The `result` array of a Firebase CLI `--json` reply. */
-function jsonResult(output: string): readonly Record<string, unknown>[] {
-  const parsed: unknown = JSON.parse(output);
-  const result = (parsed as { result?: unknown } | null)?.result;
-  return Array.isArray(result) ? result : [];
+const projectSchema = z.object({ projectId: z.string() });
+const databaseSchema = z.object({ name: z.string() });
+const webAppSchema = z.object({
+  appId: z.string().refine(isWebAppId),
+  displayName: z.string().optional(),
+});
+
+/** The `result` array of a Firebase CLI `--json` reply, each element checked against `element`. */
+function jsonResult<T extends z.ZodType>(output: string, element: T): z.output<T>[] {
+  const reply = z.object({ result: z.array(element).default([]) }).parse(JSON.parse(output));
+  return reply.result;
 }
 
 function isLoggedIn(loginList: string): boolean {
@@ -48,7 +56,9 @@ export function provision(
     throw new Error(`The Firebase CLI is not logged in. Run: ${LOGIN_COMMAND}`);
   }
 
-  const hasProject = jsonResult(run(listProjectsCommand())).some((p) => p.projectId === project);
+  const hasProject = jsonResult(run(listProjectsCommand()), projectSchema).some(
+    (p) => p.projectId === project,
+  );
   if (hasProject) {
     print(`project ${project}: already there`);
   } else {
@@ -67,8 +77,8 @@ export function provision(
     }
   }
 
-  const hasDatabase = jsonResult(run(listFirestoreDatabasesCommand(project))).some(
-    (db) => typeof db.name === "string" && db.name.endsWith("/databases/(default)"),
+  const hasDatabase = jsonResult(run(listFirestoreDatabasesCommand(project)), databaseSchema).some(
+    (db) => db.name.endsWith("/databases/(default)"),
   );
   if (hasDatabase) {
     print("firestore: already there");
@@ -78,7 +88,9 @@ export function provision(
   }
 
   const findApp = () =>
-    jsonResult(run(listWebAppsCommand(project))).find((app) => app.displayName === project);
+    jsonResult(run(listWebAppsCommand(project)), webAppSchema).find(
+      (app) => app.displayName === project,
+    );
   let app = findApp();
   if (app) {
     print(`web app ${project}: already there`);
@@ -87,7 +99,7 @@ export function provision(
     print(`web app ${project}: created`);
     app = findApp();
   }
-  if (typeof app?.appId !== "string") {
+  if (app === undefined) {
     throw new Error(`Could not find the web app ${project} after registering it`);
   }
 
