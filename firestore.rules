@@ -394,6 +394,16 @@ service cloud.firestore {
       return name.trim().lower().replace('%', '%25').replace('/', '%2F');
     }
 
+    /** The reservation doc for `data`'s name. */
+    function tagNameReservationPath(data) {
+      return tagNamePath(tagNameKey(data.name));
+    }
+
+    /** The Tag `id` as it stands after the batch; callers check `existsAfter(tagPath(id))` first. */
+    function tagAfter(id) {
+      return getAfter(tagPath(id)).data;
+    }
+
     /** Matches `isTagNameKey`: a key Firestore accepts as a doc id. */
     function isStorableTagNameKey(key) {
       return key.size() > 0
@@ -417,18 +427,18 @@ service cloud.firestore {
      * it on rename, and releases it on soft delete, always in the same batch.
      */
     function tagNameReservedBy(tagId, data) {
-      return existsAfter(tagNamePath(tagNameKey(data.name)))
-        && getAfter(tagNamePath(tagNameKey(data.name))).data.tagId == tagId;
+      return existsAfter(tagNameReservationPath(data))
+        && getAfter(tagNameReservationPath(data)).data.tagId == tagId;
     }
 
     /** Whether the reservation on `data`'s name is taken by this batch, not by an earlier write. */
     function tagNameReservationTaken(tagId, data) {
-      return !exists(tagNamePath(tagNameKey(data.name))) && tagNameReservedBy(tagId, data);
+      return !exists(tagNameReservationPath(data)) && tagNameReservedBy(tagId, data);
     }
 
     /** Whether the reservation on `data`'s name is gone after the batch. */
     function tagNameReleased(data) {
-      return !existsAfter(tagNamePath(tagNameKey(data.name)));
+      return !existsAfter(tagNameReservationPath(data));
     }
 
     /**
@@ -669,13 +679,13 @@ service cloud.firestore {
       allow create: if isMember()
         && request.resource.data.tagId is string
         && existsAfter(tagPath(request.resource.data.tagId))
-        && isCreatedLive(getAfter(tagPath(request.resource.data.tagId)).data)
-        && tagNameKey(getAfter(tagPath(request.resource.data.tagId)).data.name) == key;
+        && isCreatedLive(tagAfter(request.resource.data.tagId))
+        && tagNameKey(tagAfter(request.resource.data.tagId).name) == key;
       /** A reservation is released only once its Tag no longer holds the name: renamed or soft-deleted. */
       allow delete: if isMember()
         && existsAfter(tagPath(resource.data.tagId))
-        && (isDeleted(getAfter(tagPath(resource.data.tagId)).data)
-          || tagNameKey(getAfter(tagPath(resource.data.tagId)).data.name) != key);
+        && (isDeleted(tagAfter(resource.data.tagId))
+          || tagNameKey(tagAfter(resource.data.tagId).name) != key);
     }
 
     match /{document=**} {
