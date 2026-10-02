@@ -1,13 +1,14 @@
 import { firebaseProjectId, type FirebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation, type FirestoreLocation } from "./firestore-location.ts";
 
-export type ProvisionArgs =
-  | { readonly kind: "help" }
-  | {
-      readonly kind: "run";
-      readonly project: FirebaseProjectId;
-      readonly location: FirestoreLocation;
-    };
+/** What a provisioning run needs: both inputs are required, with no defaults. */
+export type ProvisionRunArgs = {
+  readonly kind: "run";
+  readonly project: FirebaseProjectId;
+  readonly location: FirestoreLocation;
+};
+
+export type ProvisionArgs = { readonly kind: "help" } | ProvisionRunArgs;
 
 const USAGE = "Usage: --project <id> --location <location>  (see --help)";
 

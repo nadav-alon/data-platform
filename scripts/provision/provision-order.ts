@@ -11,8 +11,7 @@ import {
   type Command,
 } from "./commands.ts";
 import { z } from "zod";
-import type { FirebaseProjectId } from "../deploy/project-id.ts";
-import type { FirestoreLocation } from "./firestore-location.ts";
+import type { ProvisionRunArgs } from "./parse-args.ts";
 import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
@@ -49,7 +48,7 @@ function isLoggedIn(loginList: string): boolean {
  * app was just created.
  */
 export function provision(
-  { project, location }: { project: FirebaseProjectId; location: FirestoreLocation },
+  { project, location }: Omit<ProvisionRunArgs, "kind">,
   { run, print }: ProvisionDeps,
 ): void {
   if (!isLoggedIn(run(loginListCommand()))) {
