@@ -8,7 +8,14 @@ import { provision } from "./provision-order.ts";
 const project = firebaseProjectId("my-household-42");
 const location = firestoreLocation("eur3");
 
-type World = { loggedIn: boolean; project: boolean; database: boolean; app: boolean };
+type World = {
+  loggedIn: boolean;
+  project: boolean;
+  database: boolean;
+  app: boolean;
+  /** A Cloud project without Firebase: `projects:create` fails on it, `projects:addfirebase` fixes it. */
+  cloudOnly?: boolean;
+};
 
 /** A fake Firebase CLI over `world`, recording every call and mutating on creates. */
 function harness(world: World) {
@@ -23,7 +30,13 @@ function harness(world: World) {
       case "projects:list":
         return JSON.stringify({ result: world.project ? [{ projectId: project }] : [] });
       case "projects:create":
+        if (world.cloudOnly) throw new Error("already exists");
         world.project = true;
+        return "";
+      case "projects:addfirebase":
+        if (!world.cloudOnly) throw new Error("no such project");
+        world.project = true;
+        world.cloudOnly = false;
         return "";
       case "firestore:databases:list":
         return JSON.stringify({
@@ -107,4 +120,29 @@ test("a logged-out CLI stops before changing anything and names the login comman
   assert.throws(() => provision({ project, location }, deps), /Run: npx firebase login/);
   assert.deepEqual(calls, ["login:list"]);
   assert.deepEqual(printed, []);
+});
+
+test("a Cloud project that never got Firebase has Firebase added instead of being created again", () => {
+  const { calls, printed, deps } = harness({
+    loggedIn: true,
+    project: false,
+    database: false,
+    app: false,
+    cloudOnly: true,
+  });
+  provision({ project, location }, deps);
+  assert.deepEqual(printed.slice(0, 2), [
+    "project my-household-42: Firebase added",
+    "firestore: created in eur3",
+  ]);
+  assert.ok(calls.includes("projects:addfirebase"));
+});
+
+test("a failed create that addfirebase cannot fix rethrows the create error", () => {
+  const { deps } = harness({ loggedIn: true, project: false, database: false, app: false });
+  const run = (command: Command): string => {
+    if (command.args[1] === "projects:create") throw new Error("quota exceeded");
+    return deps.run(command);
+  };
+  assert.throws(() => provision({ project, location }, { ...deps, run }), /quota exceeded/);
 });

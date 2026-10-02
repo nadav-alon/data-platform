@@ -22,6 +22,11 @@ export function createProjectCommand(project: FirebaseProjectId): Command {
   return firebase("projects:create", project, "--display-name", project);
 }
 
+/** Adds Firebase to a Google Cloud project that already exists. */
+export function addFirebaseCommand(project: FirebaseProjectId): Command {
+  return firebase("projects:addfirebase", project);
+}
+
 export function listFirestoreDatabasesCommand(project: FirebaseProjectId): Command {
   return firebase("firestore:databases:list", "--project", project, "--json");
 }

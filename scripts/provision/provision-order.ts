@@ -1,4 +1,5 @@
 import {
+  addFirebaseCommand,
   createFirestoreCommand,
   createProjectCommand,
   createWebAppCommand,
@@ -51,8 +52,19 @@ export function provision(
   if (hasProject) {
     print(`project ${project}: already there`);
   } else {
-    run(createProjectCommand(project));
-    print(`project ${project}: created`);
+    try {
+      run(createProjectCommand(project));
+      print(`project ${project}: created`);
+    } catch (createError) {
+      // `projects:create` makes the Cloud project, then adds Firebase to it. When the second part
+      // failed on an earlier run, the Cloud project exists but `projects:list` doesn't show it.
+      try {
+        run(addFirebaseCommand(project));
+      } catch {
+        throw createError;
+      }
+      print(`project ${project}: Firebase added`);
+    }
   }
 
   const hasDatabase = jsonResult(run(listFirestoreDatabasesCommand(project))).some(

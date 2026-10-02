@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { firebaseProjectId } from "../deploy/project-id.ts";
 import { firestoreLocation } from "./firestore-location.ts";
 import {
+  addFirebaseCommand,
   createFirestoreCommand,
   createProjectCommand,
   createWebAppCommand,
@@ -66,5 +67,12 @@ test("the snippet is read for one app id", () => {
   assert.equal(
     line(sdkConfigCommand(project, "1:123:web:abc")),
     "npx firebase apps:sdkconfig WEB 1:123:web:abc --project my-household-42",
+  );
+});
+
+test("adding Firebase to an existing Cloud project names the project", () => {
+  assert.equal(
+    line(addFirebaseCommand(project)),
+    "npx firebase projects:addfirebase my-household-42",
   );
 });
