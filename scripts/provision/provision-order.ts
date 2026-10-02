@@ -125,9 +125,11 @@ function createKey(
 
 /**
  * Provisions a Household's project, Firestore database and web app, skipping any step already
- * done and printing one line per step. The login check runs first, so a logged-out CLI stops the
- * run before anything changes. Prints the web app's SDK config snippet last, whether or not the
- * app was just created.
+ * done and printing one line per step. The Firebase login check runs first, and with `keyOut` so
+ * does the gcloud check (installed, logged in), so a logged-out CLI stops the run before anything
+ * changes. With `keyOut`, after the web app it also grants the deploy service account its roles
+ * unless already granted, and writes the deploy key to `keyOut` unless a file is already there.
+ * Prints the web app's SDK config snippet last, whether or not the app was just created.
  */
 export function provision(
   { project, location, keyOut }: Omit<ProvisionRunArgs, "kind">,
