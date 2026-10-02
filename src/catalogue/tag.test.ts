@@ -96,3 +96,16 @@ test("tagSchema treats only ASCII whitespace as blank", () => {
   assert.throws(() => tagSchema.parse({ name: " \t\r\n" }));
   assert.equal(tagSchema.parse({ name: " " }).name, " ");
 });
+
+test("tagSchema rejects a name Firestore refuses as a document id", () => {
+  for (const name of [".", " .. ", "__x__", "__a\nb__", "x".repeat(101)]) {
+    assert.throws(() => tagSchema.parse({ name }), /document id/, JSON.stringify(name));
+    assert.throws(() => tagNameKey(name), /no key/, JSON.stringify(name));
+  }
+});
+
+test("tagSchema accepts names next to the document id limits", () => {
+  for (const name of ["...", "_x_", "___", "__", "x".repeat(100)]) {
+    assert.equal(tagSchema.parse({ name }).name, name);
+  }
+});

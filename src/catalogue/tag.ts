@@ -28,7 +28,8 @@ export const tagIdSchema = z.string().refine(isTagId, "TagId must not be empty")
 export const tagSchema = z.looseObject({
   name: z
     .string()
-    .refine((name) => normalizeTagName(name).length > 0, "Tag name must not be blank"),
+    .refine((name) => normalizeTagName(name).length > 0, "Tag name must not be blank")
+    .refine((name) => isTagNameKey(escapedTagName(name)), "Tag name can't be stored as a document id"),
   deletedAt: deletedAtSchema,
 });
 
@@ -55,8 +56,17 @@ function normalizeTagName(name: string): string {
     .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 }
 
-/** The guard: a non-empty, trimmed, lowercased name with `%` and `/` escaped as `%25` and `%2F`. */
+/** Longest key, well inside Firestore's 1500-byte doc id limit at four bytes a character. */
+const MAX_TAG_NAME_KEY_LENGTH = 100;
+
+/**
+ * The guard: a non-empty, trimmed, lowercased name with `%` and `/` escaped as `%25` and `%2F`,
+ * that Firestore accepts as a doc id: not `.` or `..`, not `__.*__`, at most
+ * `MAX_TAG_NAME_KEY_LENGTH` characters.
+ */
 export function isTagNameKey(value: string): value is TagNameKey {
+  if (value.length > MAX_TAG_NAME_KEY_LENGTH || value === "." || value === "..") return false;
+  if (/^__[\s\S]*__$/.test(value)) return false;
   if (!/^(?:[^%/]|%25|%2F)+$/.test(value)) return false;
   const name = value.replace(ESCAPED, (escape) => (escape === "%25" ? "%" : "/"));
   return name === normalizeTagName(name);
@@ -66,14 +76,18 @@ export function isTagNameKey(value: string): value is TagNameKey {
  * The key a Tag's name reserves, so two live Tags can't share a name that differs only in case or
  * surrounding spaces. `/` and `%` are escaped so the key is a valid doc id and two names map to
  * one key only when they are equal after trimming and lowercasing. `firestore.rules` computes
- * the same key. Throws on a blank name, which has no key.
+ * the same key. Throws on a name with no storable key: blank, or one Firestore refuses as a doc id.
  */
 export function tagNameKey(name: string): TagNameKey {
-  const key = normalizeTagName(name).replaceAll("%", "%25").replaceAll("/", "%2F");
+  const key = escapedTagName(name);
   if (!isTagNameKey(key)) {
     throw new Error(`Tag name has no key: ${JSON.stringify(name)}`);
   }
   return key;
+}
+
+function escapedTagName(name: string): string {
+  return normalizeTagName(name).replaceAll("%", "%25").replaceAll("/", "%2F");
 }
 
 /**

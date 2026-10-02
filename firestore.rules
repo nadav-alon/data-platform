@@ -394,10 +394,19 @@ service cloud.firestore {
       return name.trim().lower().replace('%', '%25').replace('/', '%2F');
     }
 
-    /** Matches `tagSchema`: a name that isn't blank. */
+    /** Matches `isTagNameKey`: a key Firestore accepts as a doc id. */
+    function isStorableTagNameKey(key) {
+      return key.size() > 0
+        && key.size() <= 100
+        && key != '.'
+        && key != '..'
+        && !key.matches('(?s)__.*__');
+    }
+
+    /** Matches `tagSchema`: a name that isn't blank and whose key is storable. */
     function isValidTag(data) {
       return data.name is string
-        && data.name.trim().size() > 0
+        && isStorableTagNameKey(tagNameKey(data.name))
         && isValidDeletedAt(data);
     }
 

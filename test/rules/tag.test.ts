@@ -283,3 +283,39 @@ test("create: a Tag name of only ASCII whitespace is denied", async () => {
   batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/blank`), { tagId: "blank" });
   await assertFails(batch.commit());
 });
+
+for (const [label, name, key] of [
+  ["a single dot", ".", "."],
+  ["two dots", "..", ".."],
+  ["a name wrapped in double underscores", "__x__", "__x__"],
+  ["a multi-line name wrapped in double underscores", "__a\nb__", "__a\nb__"],
+  ["a name over the key length limit", "x".repeat(101), "x".repeat(101)],
+] as const) {
+  test(`create: a Tag named with ${label} is denied, as in tagSchema`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await assertBatchFixture(
+      {
+        name: label,
+        docs: [
+          { collection: TAGS_COLLECTION, id: "unstorable", data: { name } },
+          { collection: TAG_NAMES_COLLECTION, id: key, data: { tagId: "unstorable" } },
+        ],
+        auth: { uid: alice },
+        expected: "reject",
+      },
+      rulesTestEnv.env,
+    );
+  });
+}
+
+for (const [label, name] of [
+  ["dots", "..."],
+  ["a single underscore on each side", "_x_"],
+  ["three underscores", "___"],
+  ["a name at the key length limit", "x".repeat(100)],
+] as const) {
+  test(`create: a Tag named with ${label} is accepted`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await assertBatchFixture(createTagFixture(label, name, "edge", "accept"), rulesTestEnv.env);
+  });
+}
