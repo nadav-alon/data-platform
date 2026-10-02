@@ -319,3 +319,42 @@ for (const [label, name] of [
     await assertBatchFixture(createTagFixture(label, name, "edge", "accept"), rulesTestEnv.env);
   });
 }
+
+for (const [label, context] of [
+  ["a signed-in non-member", () => rulesTestEnv.env.authenticatedContext(mallory)],
+  ["an unauthenticated caller", () => rulesTestEnv.env.unauthenticatedContext()],
+] as const) {
+  test(`isMember() gate: ${label} can't soft-delete a Tag`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+    const firestore = context().firestore();
+    const batch = firestore.batch();
+    batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: serverTimestamp() });
+    batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`));
+    await assertFails(batch.commit());
+  });
+
+  test(`isMember() gate: ${label} can't restore a Tag`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+    const firestore = context().firestore();
+    const batch = firestore.batch();
+    batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { deletedAt: deleteField() });
+    batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`), { tagId: "vegan" });
+    await assertFails(batch.commit());
+  });
+
+  test(`isMember() gate: ${label} can't delete a Tag's name reservation`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+    const firestore = context().firestore();
+    await assertFails(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).delete());
+  });
+
+  test(`isMember() gate: ${label} can't create a name reservation on its own`, async () => {
+    await seedHousehold(rulesTestEnv.env, alice);
+    await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan", { deleted: true });
+    const firestore = context().firestore();
+    await assertFails(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).set({ tagId: "vegan" }));
+  });
+}
