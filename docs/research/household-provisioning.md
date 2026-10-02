@@ -1,7 +1,7 @@
 # Can Terraform provision a Household's Firebase project on the free plan?
 
-Research for [#219](https://github.com/nadav-alon/data-platform/issues/219). Findings only; nothing
-here is implemented. Sources were read on 2026-10-02. Where a source did not state something, the
+Research for [#219](https://github.com/nadav-alon/data-platform/issues/219). Sources were read on
+2026-10-02. Where a source did not state something, the
 finding says so rather than filling the gap from memory.
 
 ## Recommendation
@@ -39,9 +39,8 @@ out Spark, and it still needs an OAuth client the provider cannot create.
   console path in step 3 stays free. It is the Terraform path that adds the billing requirement.
   <https://firebase.google.com/pricing>
 
-Not settled: I could not retrieve the Identity Platform pricing page (the fetch returned no
-content), so I have no primary-source statement on whether merely calling the Identity Toolkit
-Admin API directly, without Terraform, is refused on a project with no billing account.
+Not settled: no primary source read states whether calling the Identity Toolkit Admin API directly,
+without Terraform, is refused on a project with no billing account.
 
 ## 2. OAuth client: can it be created by API or Terraform?
 
@@ -59,7 +58,7 @@ Admin API directly, without Terraform, is refused on a project with no billing a
   method, and points at the Credentials page for the Google Client ID.
   <https://firebase.google.com/docs/auth/web/google-signin>
 
-So a Terraform-managed Google provider would still need the client created by hand in the console and
+So a Terraform-managed Google sign-in provider would still need the client created by hand in the console and
 its secret pasted into Terraform variables, and that secret lands in state in plain text (the
 provider docs warn that sensitive values are stored in raw state). That is more manual work than the
 console's one-click enable, not less.
@@ -76,7 +75,7 @@ All from `hashicorp/terraform-provider-google` docs unless noted.
 | Deploy service account roles | `google_project_iam_member` | Takes any `serviceAccount:{email}`, but the docs say nothing about `firebase-adminsdk-…`; its email is only known after Firebase creates it |
 | Web app | `google_firebase_web_app` | Covered |
 | Config snippet | `google_firebase_web_app_config` data source | Returns `api_key`, `auth_domain`, `storage_bucket`, `messaging_sender_id`, `measurement_id` |
-| Rules ruleset/release | `google_firebaserules_ruleset`, `google_firebaserules_release` (`name = "cloud.firestore"`) | Covered, but a second owner of the rules next to `npm run deploy` |
+| Rules ruleset/release | `google_firebaserules_ruleset`, `google_firebaserules_release` (`name = "cloud.firestore"`) | Covered, but a second deployer of the rules next to `npm run deploy` |
 
 Two gaps beyond billing: the Firebase quickstart URL (`/docs/terraform/terraform-quickstart`) returns
 404, so the get-started guide above is the Firebase-side source; and none of the resources in the
@@ -106,7 +105,7 @@ Firebase-managed `firebase-adminsdk-…` account.
   (JSON by default). The reference states no limit and no exception for Firebase-managed accounts,
   and does not say the command works on one.
   <https://docs.cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/create>
-- Nothing in the CLIs configures the Google provider or authorized domains. Those two console steps
+- Nothing in the CLIs configures the Google sign-in provider or authorized domains. Those two console steps
   stay, and they are the only ones that need Authentication at all.
 
 None of the CLI commands above is documented as requiring billing, but no source states Spark
@@ -125,8 +124,3 @@ them with `firebase apps:create --help`.
 <https://github.com/firebase/firebase-tools> (`README.md`)
 In the manual doc the equivalent is the web-app registration in the Firebase console's project
 settings, which no source read here documents.
-
-## Follow-up if the developer takes the recommendation
-
-A ticket for the script itself (one seam: a provisioning script covering steps 1, 2, 5 and web-app
-registration) and a separate doc ticket adding the web-app step to `docs/household-setup.md`.
