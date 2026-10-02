@@ -3,6 +3,7 @@ import { deletedAtSchema, type ItemId } from "../core/index.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
 import { shopIdSchema } from "./shop.ts";
+import { tagIdSchema } from "./tag.ts";
 
 export const CATALOGUE_ITEMS_COLLECTION = "catalogueItems";
 
@@ -18,6 +19,8 @@ export const catalogueItemSchema = z.looseObject({
   categoryId: categoryIdSchema,
   necessity: necessitySchema,
   shopId: shopIdSchema.optional(),
+  /** The Tags on this CatalogueItem, soft-deleted ones included; empty when it has none. */
+  tagIds: z.array(tagIdSchema).default([]),
   deletedAt: deletedAtSchema,
 });
 

@@ -81,8 +81,8 @@ service cloud.firestore {
     }
 
     /**
-     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories
-     * and shops all `allow delete: if false`; the console's admin access can still hard delete.
+     * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
+     * shops and tags all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -359,12 +359,18 @@ service cloud.firestore {
       return deletedAtMatchesAt(catalogueItemPath(itemId), itemData);
     }
 
+    /** Matches `z.array(tagIdSchema)`. Only the first element is checked: rules can't loop over a list. */
+    function isValidTagIds(value) {
+      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
     /** Matches `catalogueItemSchema`. */
     function isValidCatalogueItem(data) {
       return isNonEmptyString(data.categoryId)
         && isNecessity(data.necessity)
         && isValidDeletedAt(data)
-        && (!('shopId' in data) || isNonEmptyString(data.shopId));
+        && (!('shopId' in data) || isNonEmptyString(data.shopId))
+        && (!('tagIds' in data) || isValidTagIds(data.tagIds));
     }
 
     /** Matches `categorySchema`. */
@@ -373,6 +379,89 @@ service cloud.firestore {
         && isNonEmptyString(data.defaultShopId)
         && isReferenceCount(data.referenceCount)
         && isValidDeletedAt(data);
+    }
+
+    function tagPath(id) {
+      return /databases/$(database)/documents/tags/$(id);
+    }
+
+    function tagNamePath(key) {
+      return /databases/$(database)/documents/tagNames/$(key);
+    }
+
+    /** Matches `tagNameKey`: the name trimmed and lowercased, with `%` and `/` escaped. */
+    function tagNameKey(name) {
+      return name.trim().lower().replace('%', '%25').replace('/', '%2F');
+    }
+
+    /** The reservation doc for `data`'s name. */
+    function tagNameReservationPath(data) {
+      return tagNamePath(tagNameKey(data.name));
+    }
+
+    /** The Tag `id` as it stands after the batch; callers check `existsAfter(tagPath(id))` first. */
+    function tagAfter(id) {
+      return getAfter(tagPath(id)).data;
+    }
+
+    /** Matches `isTagNameKey`: a key Firestore accepts as a doc id. */
+    function isStorableTagNameKey(key) {
+      return key.size() > 0
+        && key.size() <= 100
+        && key != '.'
+        && key != '..'
+        && !key.matches('(?s)__.*__');
+    }
+
+    /** Matches `tagSchema`: a name that isn't blank and whose key is storable. */
+    function isValidTag(data) {
+      return data.name is string
+        && isStorableTagNameKey(tagNameKey(data.name))
+        && isValidDeletedAt(data);
+    }
+
+    /**
+     * Whether the reservation on `data`'s name is held by `tagId` after the batch. Rules can't search
+     * for another live Tag with the same name, so a Tag's name is unique because only one
+     * `tagNames/{tagNameKey(name)}` doc can exist: a Tag takes it on create and on restore, moves
+     * it on rename, and releases it on soft delete, always in the same batch.
+     */
+    function tagNameReservedBy(tagId, data) {
+      return existsAfter(tagNameReservationPath(data))
+        && getAfter(tagNameReservationPath(data)).data.tagId == tagId;
+    }
+
+    /** Whether the reservation on `data`'s name is taken by this batch, not by an earlier write. */
+    function tagNameReservationTaken(tagId, data) {
+      return !exists(tagNameReservationPath(data)) && tagNameReservedBy(tagId, data);
+    }
+
+    /** Whether the reservation on `data`'s name is gone after the batch. */
+    function tagNameReleased(data) {
+      return !existsAfter(tagNameReservationPath(data));
+    }
+
+    /**
+     * Whether a Tag update keeps its name reserved exactly while it is live (`tagNameReservedBy`):
+     *
+     * - live to live, same key: the reservation stays; a different key moves it, releasing the old and
+     *   taking the new;
+     * - soft delete: the name is unchanged and its reservation released;
+     * - restore: the name it has afterwards is taken, so a live Tag that took it meanwhile
+     *   blocks the restore;
+     * - soft-deleted to soft-deleted: holds no reservation, so nothing to adjust.
+     */
+    function tagNameReservationsValid(tagId, oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && (tagNameKey(oldData.name) == tagNameKey(newData.name)
+            ? tagNameReservedBy(tagId, newData)
+            : (tagNameReleased(oldData) && tagNameReservationTaken(tagId, newData))))
+        || (isSoftDeleting(oldData, newData)
+          && oldData.name == newData.name
+          && tagNameReleased(oldData))
+        || (isRestoring(oldData, newData)
+          && tagNameReservationTaken(tagId, newData))
+        || (isDeleted(oldData) && isDeleted(newData));
     }
 
     /** A Shop is soft-deleted only while nothing references it. */
@@ -565,6 +654,41 @@ service cloud.firestore {
         && deletedAtUpdateValid(resource.data, request.resource.data)
         && shopSoftDeleteAllowed(resource.data, request.resource.data);
       allow delete: if false;
+    }
+
+    match /tags/{tagId} {
+      allow read: if isMember();
+      /** A new Tag takes its name's reservation in the same batch, so no live Tag already holds it. */
+      allow create: if isMember()
+        && isValidTag(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && tagNameReservationTaken(tagId, request.resource.data);
+      allow update: if isMember()
+        && isValidTag(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && tagNameReservationsValid(tagId, resource.data, request.resource.data);
+      allow delete: if false;
+    }
+
+    match /tagNames/{key} {
+      allow read: if isMember();
+      /**
+       * A reservation is created only for a live Tag that has this name after the batch; creating
+       * over an existing doc is an update, which is denied, so a taken name stays taken.
+       */
+      allow create: if isMember()
+        && request.resource.data.tagId is string
+        && existsAfter(tagPath(request.resource.data.tagId))
+        && isCreatedLive(tagAfter(request.resource.data.tagId))
+        && tagNameKey(tagAfter(request.resource.data.tagId).name) == key;
+      /**
+       * A reservation is released only once its Tag no longer holds the name: renamed,
+       * soft-deleted, or removed outright from the console, which would otherwise strand the name.
+       */
+      allow delete: if isMember()
+        && (!existsAfter(tagPath(resource.data.tagId))
+          || isDeleted(tagAfter(resource.data.tagId))
+          || tagNameKey(tagAfter(resource.data.tagId).name) != key);
     }
 
     match /{document=**} {

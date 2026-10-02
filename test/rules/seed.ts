@@ -3,6 +3,12 @@ import { Timestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import {
+  TAG_NAMES_COLLECTION,
+  TAGS_COLLECTION,
+  tagNameKey,
+  type TagId,
+} from "../../src/catalogue/tag.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
@@ -105,7 +111,11 @@ export async function seedCatalogueItem(
   testEnv: RulesTestEnvironment,
   id: ItemId,
   categoryId: CategoryId,
-  { shopId, deleted = false }: { shopId?: ShopId; deleted?: boolean } = {},
+  {
+    shopId,
+    tagIds,
+    deleted = false,
+  }: { shopId?: ShopId; tagIds?: readonly TagId[]; deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
@@ -115,7 +125,27 @@ export async function seedCatalogueItem(
         categoryId,
         necessity: "essential",
         ...(shopId === undefined ? {} : { shopId }),
+        ...(tagIds === undefined ? {} : { tagIds }),
         ...deletedFields(deleted),
       });
+  });
+}
+
+/**
+ * Seeds a Tag and the reservation on its name directly, bypassing rules; soft-deleted when `deleted`
+ * is set, in which case it holds no reservation.
+ */
+export async function seedTag(
+  testEnv: RulesTestEnvironment,
+  id: TagId,
+  name: string,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const firestore = context.firestore();
+    await firestore.doc(`${TAGS_COLLECTION}/${id}`).set({ name, ...deletedFields(deleted) });
+    if (!deleted) {
+      await firestore.doc(`${TAG_NAMES_COLLECTION}/${tagNameKey(name)}`).set({ tagId: id });
+    }
   });
 }

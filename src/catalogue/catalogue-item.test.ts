@@ -94,3 +94,33 @@ test("rejects a non-timestamp deletedAt", () => {
     catalogueItemSchema.parse({ categoryId: "cleaning", necessity: "essential", deletedAt: "now" }),
   );
 });
+
+test("defaults tagIds to empty when a CatalogueItem has none", () => {
+  const catalogueItem = catalogueItemSchema.parse({
+    categoryId: "medicine",
+    necessity: "essential",
+  });
+  assert.deepEqual(catalogueItem.tagIds, []);
+});
+
+test("accepts any number of tagIds", () => {
+  const tagIds = ["glutenFree", "vegan", "bulk"];
+  const catalogueItem = catalogueItemSchema.parse({
+    categoryId: "medicine",
+    necessity: "essential",
+    tagIds,
+  });
+  assert.deepEqual(catalogueItem.tagIds, tagIds);
+});
+
+test("rejects an empty tag id", () => {
+  assert.throws(() =>
+    catalogueItemSchema.parse({ categoryId: "medicine", necessity: "essential", tagIds: [""] }),
+  );
+});
+
+test("rejects tagIds that is not a list", () => {
+  assert.throws(() =>
+    catalogueItemSchema.parse({ categoryId: "medicine", necessity: "essential", tagIds: "vegan" }),
+  );
+});

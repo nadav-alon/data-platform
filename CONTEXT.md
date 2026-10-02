@@ -60,15 +60,26 @@ _Avoid_: store
 **Category**:
 A grouping of CatalogueItems, carrying the default Shop they're bought at.
 
+**Tag**:
+A household-defined label for finding CatalogueItems across Categories: many per CatalogueItem,
+no Shop. Its name is unique among live Tags, ignoring case and surrounding spaces. A Tag can be
+soft-deleted while CatalogueItems still carry it, so it has no reference count.
+
+**Tag name reservation**:
+The `tagNames` doc a live Tag holds on its name, so no other live Tag can take it. Created, moved
+and released in the same batch as the Tag it belongs to. Unrelated to _claiming_ the Household.
+_Avoid_: claim
+
 **CatalogueItem**:
-Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, and an
-optional Shop override that takes precedence over the Category's default.
+Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, any number of
+Tags (`tagIds`, empty by default), and an optional Shop override that takes precedence over the
+Category's default.
 
 **Soft delete**:
-Marking an Item, CatalogueItem, Category or Shop deleted with `deletedAt` rather than removing it,
+Marking an Item, CatalogueItem, Category, Shop or Tag deleted with `deletedAt` rather than removing it,
 so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
 reference counts and can't be referenced. It is the only way an app deletes: the rules deny hard
-delete on all four, and only the Firebase console, as admin, can still remove one.
+delete on all five, and only the Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
 **Necessity**:
