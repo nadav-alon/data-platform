@@ -46,7 +46,8 @@ function harness(world: World) {
             return "";
           }
           return JSON.stringify([
-            { email: `app-engine@${project}.iam.gserviceaccount.com` },
+            { email: `${project}@appspot.gserviceaccount.com` },
+            { email: "123456-compute@developer.gserviceaccount.com" },
             { email: account },
           ]);
         case "projects": {

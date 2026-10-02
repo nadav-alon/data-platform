@@ -21,7 +21,7 @@ import type { FirebaseProjectId } from "../deploy/project-id.ts";
 import type { KeyOutPath } from "./key-out-path.ts";
 import type { ProvisionRunArgs } from "./parse-args.ts";
 import { DEPLOY_ROLES } from "./role-id.ts";
-import { isServiceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
+import { serviceAccountEmail, type ServiceAccountEmail } from "./service-account-email.ts";
 import { isWebAppId } from "./web-app-id.ts";
 
 export const LOGIN_COMMAND = "npx firebase login";
@@ -39,7 +39,7 @@ export type ProvisionDeps = {
 
 const projectSchema = z.object({ projectId: z.string() });
 const databaseSchema = z.object({ name: z.string() });
-const serviceAccountSchema = z.object({ email: z.string().refine(isServiceAccountEmail) });
+const serviceAccountSchema = z.object({ email: z.string() });
 const iamPolicySchema = z.object({
   bindings: z.array(z.object({ role: z.string(), members: z.array(z.string()) })).default([]),
 });
@@ -70,7 +70,10 @@ function requireGcloud(run: RunCommand): void {
   }
 }
 
-/** The `firebase-adminsdk-…` service account Firebase created with the project. */
+/**
+ * The `firebase-adminsdk-…` service account Firebase created with the project. Other accounts the
+ * project lists, such as the App Engine or Compute defaults, are ignored whatever their domain.
+ */
 function findDeployAccount(run: RunCommand, project: FirebaseProjectId): ServiceAccountEmail {
   const account = z.array(serviceAccountSchema).parse(JSON.parse(run(listServiceAccountsCommand(project)))).find(
     ({ email }) => email.startsWith("firebase-adminsdk-"),
@@ -78,7 +81,7 @@ function findDeployAccount(run: RunCommand, project: FirebaseProjectId): Service
   if (account === undefined) {
     throw new Error(`Could not find the firebase-adminsdk service account of ${project}`);
   }
-  return account.email;
+  return serviceAccountEmail(account.email);
 }
 
 /** Binds each deploy role to the account unless the project's IAM policy already has it. */
