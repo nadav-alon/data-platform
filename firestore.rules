@@ -411,6 +411,29 @@ service cloud.firestore {
       return !exists(tagNamePath(tagNameKey(data.name))) && tagNameClaimedBy(tagId, data);
     }
 
+    /** Whether the claim on `data`'s name is gone after the batch. */
+    function tagNameReleased(data) {
+      return !existsAfter(tagNamePath(tagNameKey(data.name)));
+    }
+
+    /**
+     * Whether a Tag update keeps its name claimed exactly while it is live (`tagNameClaimedBy`):
+     *
+     * - live to live, same key: the claim stays; a different key moves it, releasing the old and
+     *   taking the new;
+     * - soft delete: the name is unchanged and its claim released;
+     * - restore: the name it has afterwards is taken, so a live Tag that took it meanwhile
+     *   blocks the restore;
+     * - soft-deleted to soft-deleted: holds no claim, so nothing to adjust.
+     */
+    function tagNameClaimsValid(tagId, oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && (tagNameKey(oldData.name) == tagNameKey(newData.name)
+            ? tagNameClaimedBy(tagId, newData)
+            : (tagNameReleased(oldData) && tagNameClaimTaken(tagId, newData))))
+        || (isDeleted(oldData) && isDeleted(newData));
+    }
+
     /** A Shop is soft-deleted only while nothing references it. */
     function shopSoftDeleteAllowed(oldData, newData) {
       return !isSoftDeleting(oldData, newData)
@@ -610,6 +633,11 @@ service cloud.firestore {
         && isValidTag(request.resource.data)
         && isCreatedLive(request.resource.data)
         && tagNameClaimTaken(tagId, request.resource.data);
+      allow update: if isMember()
+        && isValidTag(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && tagNameClaimsValid(tagId, resource.data, request.resource.data);
+      allow delete: if false;
     }
 
     match /tagNames/{key} {
@@ -623,6 +651,11 @@ service cloud.firestore {
         && existsAfter(tagPath(request.resource.data.tagId))
         && isCreatedLive(getAfter(tagPath(request.resource.data.tagId)).data)
         && tagNameKey(getAfter(tagPath(request.resource.data.tagId)).data.name) == key;
+      /** A claim is released only once its Tag no longer holds the name: renamed or soft-deleted. */
+      allow delete: if isMember()
+        && existsAfter(tagPath(resource.data.tagId))
+        && (isDeleted(getAfter(tagPath(resource.data.tagId)).data)
+          || tagNameKey(getAfter(tagPath(resource.data.tagId)).data.name) != key);
     }
 
     match /{document=**} {

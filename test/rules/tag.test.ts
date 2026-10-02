@@ -131,3 +131,54 @@ test("a Tag can't be hard-deleted", async () => {
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).delete());
 });
+
+test("rename: a Member renaming a Tag to a free name, moving the claim, is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/vegan`), { name: "Plant based" });
+  batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/${tagNameKey("Vegan")}`));
+  batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/${tagNameKey("Plant based")}`), { tagId: "vegan" });
+  await assertSucceeds(batch.commit());
+});
+
+test("rename: changing only the case or spaces of the name keeps the claim and is accepted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: " VEGAN " }));
+});
+
+test("rename: a name equal to another live Tag's name, ignoring case and spaces, is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  await seedTag(rulesTestEnv.env, tagId("bulk"), "Bulk");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const batch = firestore.batch();
+  batch.update(firestore.doc(`${TAGS_COLLECTION}/bulk`), { name: " vegan" });
+  batch.delete(firestore.doc(`${TAG_NAMES_COLLECTION}/bulk`));
+  batch.set(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`), { tagId: "bulk" });
+  await assertFails(batch.commit());
+});
+
+test("rename: without moving the claim is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: "Plant based" }));
+});
+
+test("rename: a claim can't be dropped while its Tag still holds the name", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).delete());
+});
+
+test("rename: a non-member is denied", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  const firestore = rulesTestEnv.env.authenticatedContext(mallory).firestore();
+  await assertFails(firestore.doc(`${TAGS_COLLECTION}/vegan`).update({ name: " VEGAN " }));
+});
