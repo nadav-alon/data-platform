@@ -358,3 +358,23 @@ for (const [label, context] of [
     await assertFails(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).set({ tagId: "vegan" }));
   });
 }
+
+test("release: a Member deletes the reservation of a Tag the console hard-deleted", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${TAGS_COLLECTION}/vegan`).delete();
+  });
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).delete());
+});
+
+test("release: a non-member can't delete the reservation of a hard-deleted Tag", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedTag(rulesTestEnv.env, tagId("vegan"), "Vegan");
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${TAGS_COLLECTION}/vegan`).delete();
+  });
+  const firestore = rulesTestEnv.env.authenticatedContext(mallory).firestore();
+  await assertFails(firestore.doc(`${TAG_NAMES_COLLECTION}/vegan`).delete());
+});

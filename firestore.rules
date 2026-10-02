@@ -681,10 +681,13 @@ service cloud.firestore {
         && existsAfter(tagPath(request.resource.data.tagId))
         && isCreatedLive(tagAfter(request.resource.data.tagId))
         && tagNameKey(tagAfter(request.resource.data.tagId).name) == key;
-      /** A reservation is released only once its Tag no longer holds the name: renamed or soft-deleted. */
+      /**
+       * A reservation is released only once its Tag no longer holds the name: renamed,
+       * soft-deleted, or removed outright from the console, which would otherwise strand the name.
+       */
       allow delete: if isMember()
-        && existsAfter(tagPath(resource.data.tagId))
-        && (isDeleted(tagAfter(resource.data.tagId))
+        && (!existsAfter(tagPath(resource.data.tagId))
+          || isDeleted(tagAfter(resource.data.tagId))
           || tagNameKey(tagAfter(resource.data.tagId).name) != key);
     }
 
