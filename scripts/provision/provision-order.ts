@@ -42,7 +42,9 @@ const projectSchema = z.object({ projectId: z.string() });
 const databaseSchema = z.object({ name: z.string() });
 const serviceAccountSchema = z.object({ email: z.string() });
 const iamPolicySchema = z.object({
-  bindings: z.array(z.object({ role: z.string(), members: z.array(z.string()) })).default([]),
+  bindings: z
+    .array(z.object({ role: z.string(), members: z.array(z.string()), condition: z.unknown().optional() }))
+    .default([]),
 });
 const webAppSchema = z.object({
   appId: z.string().refine(isWebAppId),
@@ -85,7 +87,7 @@ function findDeployAccount(run: RunCommand, project: FirebaseProjectId): Service
   return serviceAccountEmail(account.email);
 }
 
-/** Binds each deploy role to the account unless the project's IAM policy already has it. */
+/** Binds each deploy role to the account unless the project's IAM policy already has it unconditionally. */
 function grantRoles(
   { run, print }: ProvisionDeps,
   project: FirebaseProjectId,
@@ -94,7 +96,8 @@ function grantRoles(
   const policy = iamPolicySchema.parse(JSON.parse(run(getIamPolicyCommand(project))));
   for (const { name, id } of DEPLOY_ROLES) {
     const granted = policy.bindings.some(
-      (binding) => binding.role === id && binding.members.includes(`serviceAccount:${account}`),
+      (binding) =>
+        binding.role === id && binding.condition === undefined && binding.members.includes(`serviceAccount:${account}`),
     );
     if (granted) {
       print(`role ${name}: already there`);

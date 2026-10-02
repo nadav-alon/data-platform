@@ -23,6 +23,8 @@ type World = {
   gcloud?: "missing" | "logged-out" | "ready";
   /** Role ids bound to the deploy service account. */
   roles?: string[];
+  /** Role ids bound to the deploy service account only under a condition. */
+  conditionalRoles?: string[];
   /** Whether a file already sits at the key path. */
   keyFile?: boolean;
 };
@@ -58,6 +60,11 @@ function harness(world: World) {
               bindings: [
                 { role: "roles/owner", members: ["user:me@example.com"] },
                 ...roles.map((role) => ({ role, members: [`serviceAccount:${account}`] })),
+                ...(world.conditionalRoles ?? []).map((role) => ({
+                  role,
+                  members: [`serviceAccount:${account}`],
+                  condition: { title: "expires", expression: "request.time < timestamp(\"2020-01-01T00:00:00Z\")" },
+                })),
               ],
             });
           }
@@ -301,4 +308,22 @@ test("an existing key file is not overwritten", () => {
   provision({ project, location, keyOut }, deps);
   assert.equal(printed[5], "key /home/me/key.json: already there");
   assert.deepEqual(keys, []);
+});
+
+test("a role bound only under a condition is granted again", () => {
+  const world: World = {
+    loggedIn: true,
+    project: true,
+    database: true,
+    app: true,
+    gcloud: "ready",
+    conditionalRoles: ["roles/firebaserules.admin"],
+  };
+  const { printed, deps } = harness(world);
+  provision({ project, location, keyOut }, deps);
+  assert.equal(printed[4], "role Firebase Rules Admin: granted");
+  assert.deepEqual(world.roles, [
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/firebaserules.admin",
+  ]);
 });
