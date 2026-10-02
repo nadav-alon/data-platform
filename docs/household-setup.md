@@ -54,10 +54,10 @@ repo variable, never writing it into the repo itself.
      additionally authenticate the `firestore.rules` deploy, but `FIREBASE_SERVICE_ACCOUNT` is
      required either way — the deploy script checks that key's roles before `firestore.rules`
      deploys, whichever credential (the key or `FIREBASE_TOKEN`) actually runs that deploy.
-7. **Register a web app, and copy its config snippet.** Firebase project → Project settings →
-   General → Your apps → Add app → Web. Registering gives the project a web app, and the SDK
-   config snippet it shows (`apiKey`, `authDomain`, `projectId`, …) is how the consuming app's
-   Firebase SDK finds this project. This repo doesn't read the snippet; keep it for the next step,
-   where the app asks for it.
-8. **Open the app's setup screen.** The first person to sign in there claims the Household as its
-   Owner.
+7. **Register a Firebase web app, and copy its config snippet.** Firebase project → Project
+   settings → General → Your apps → Add app → Web. Registering gives the project a Firebase web
+   app, and the SDK config snippet it shows (`apiKey`, `authDomain`, `projectId`, …) is how the
+   upstream app's Firebase SDK finds this project. This repo doesn't read the snippet; keep it for
+   step 8, where you paste it into the upstream app's setup screen.
+8. **Open the upstream app's setup screen, and paste the config snippet from step 7 into it.** The
+   first person to sign in there claims the Household as its Owner.
