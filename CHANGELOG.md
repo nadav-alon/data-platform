@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0
+
+Redeploy (`npm run deploy`) to get the new rules, which also moves `meta/platform` to `0.11.0`;
+until then `checkPlatform` reads `outdated`. Nothing needs migrating: the schema is additive.
+
+- **Schemas** (`src/catalogue/`): a soft-deletable `Tag` collection in `COLLECTION_SCHEMAS`, and
+  an optional `tagIds` list of Tag ids on a CatalogueItem, empty by default.
+- **Rules** (`firestore.rules`): a Member creates, renames, soft-deletes and restores a Tag. A live
+  Tag's name is held by a `tagNames` doc, so no other live Tag can take it.
+
 ## v0.10.2
 
 No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move and `checkPlatform` stays
