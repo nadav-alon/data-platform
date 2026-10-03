@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.11.0
+
+Redeploy (`npm run deploy`) to get the new rules, which also moves `meta/platform` to `0.11.0`;
+until then `checkPlatform` reads `outdated`. The minor moves because Tag writes need the new rules;
+nothing needs migrating, since the schema is additive.
+
+- **Schemas** (`src/catalogue/`): `COLLECTION_SCHEMAS` gains `tags` (`tagSchema`, soft-deletable) and
+  `tagNames` (`tagNameReservationSchema`). `tag.ts` also exports `TagId`/`tagIdSchema`, `TagNameKey`
+  and `tagNameKey(name)`, which an app needs to write a reservation. A CatalogueItem gains an optional
+  `tagIds` list of Tag ids, empty by default.
+- **Rules** (`firestore.rules`): a Member creates, renames, soft-deletes and restores a Tag; hard
+  delete is denied on `tags`. A live Tag's name is held by a `tagNames` doc, so no other live Tag can
+  take it. A Member may release a `tagNames` reservation whose Tag was removed outright from the
+  console, so a stranded name can be freed.
+- **Writing a Tag**: write the Tag and its `tagNames` reservation, keyed by `tagNameKey(name)`, in one
+  batch, or the write is denied. Names are unique ignoring case and surrounding spaces, so `" Fruit"`
+  and `"fruit"` collide.
+
 ## v0.10.2
 
 No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move and `checkPlatform` stays
