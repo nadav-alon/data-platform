@@ -1,5 +1,7 @@
 # Project standards
 
+This project's own rules, on top of the shared ones in `docs/agents/coding-standards.md`. The `/code-review` standards axis reads this file.
+
 ## Brand your primitives
 
 **Prefer a branded primitive over a bare `string` or `number` whenever the value has a shape,
