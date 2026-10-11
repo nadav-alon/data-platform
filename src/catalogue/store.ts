@@ -24,7 +24,7 @@ export function storeId(value: string): StoreId {
 export const storeIdSchema = z.string().refine(isStoreId, "StoreId must not be empty");
 
 /**
- * A named store under one Shop ("Osher Ad" under "grocery"). Branches aren't modelled: a second
+ * A named Store under one Shop ("Osher Ad" under "grocery"). Branches aren't modelled: a second
  * differing branch is another Store with a longer name. Nothing references a Store, so it holds
  * no reference count and doesn't count toward its Shop's.
  */
@@ -32,7 +32,7 @@ export const storeSchema = z.looseObject({
   name: z.string().refine((name) => normalizeName(name).length > 0, "Store name must not be blank"),
   shopId: shopIdSchema,
   /**
-   * This store's Aisles in the order one walks them, soft-deleted ones included; empty when no
+   * This Store's Aisles in the order one walks them, soft-deleted ones included; empty when no
    * order is set. An Aisle appears at most once.
    */
   aisleOrder: z
