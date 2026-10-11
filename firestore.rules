@@ -519,6 +519,25 @@ service cloud.firestore {
         || (isDeleted(oldData) && isDeleted(newData));
     }
 
+    /**
+     * Matches `storeSchema`'s `aisleOrder`: a list that repeats no id. Only the first element is
+     * checked as a non-empty string: rules can't loop over a list.
+     */
+    function isValidAisleOrder(value) {
+      return value is list
+        && value.toSet().size() == value.size()
+        && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
+    /** Matches `storeSchema`; whether its `shopId` names a Shop is checked per write. */
+    function isValidStore(data) {
+      return data.name is string
+        && nameKey(data.name).size() > 0
+        && isNonEmptyString(data.shopId)
+        && (!('aisleOrder' in data) || isValidAisleOrder(data.aisleOrder))
+        && isValidDeletedAt(data);
+    }
+
     /** A Shop is soft-deleted only while nothing references it. */
     function shopSoftDeleteAllowed(oldData, newData) {
       return !isSoftDeleting(oldData, newData)
@@ -773,6 +792,22 @@ service cloud.firestore {
         && (!existsAfter(aislePath(resource.data.aisleId))
           || isDeleted(aisleAfter(resource.data.aisleId))
           || nameKey(aisleAfter(resource.data.aisleId).name) != key);
+    }
+
+    match /stores/{storeId} {
+      allow read: if isMember();
+      /** Nothing references a Store, so it carries no count; its Shop must exist and be live. */
+      allow create: if isMember()
+        && isValidStore(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && isLiveAt(shopPath(request.resource.data.shopId));
+      /** A Store may move to another Shop, which must then be live. */
+      allow update: if isMember()
+        && isValidStore(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && (request.resource.data.shopId == resource.data.shopId
+          || isLiveAt(shopPath(request.resource.data.shopId)));
+      allow delete: if false;
     }
 
     match /{document=**} {

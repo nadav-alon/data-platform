@@ -9,6 +9,7 @@ import {
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import { STORES_COLLECTION, type StoreId } from "../../src/catalogue/store.ts";
 import {
   TAG_NAMES_COLLECTION,
   TAGS_COLLECTION,
@@ -174,5 +175,25 @@ export async function seedAisle(
     if (!deleted) {
       await firestore.doc(`${AISLE_NAMES_COLLECTION}/${aisleNameKey(name)}`).set({ aisleId: id });
     }
+  });
+}
+
+/** Seeds a Store directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedStore(
+  testEnv: RulesTestEnvironment,
+  id: StoreId,
+  shopId: ShopId,
+  { aisleOrder, deleted = false }: { aisleOrder?: readonly AisleId[]; deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${STORES_COLLECTION}/${id}`)
+      .set({
+        name: "Osher Ad",
+        shopId,
+        ...(aisleOrder === undefined ? {} : { aisleOrder }),
+        ...deletedFields(deleted),
+      });
   });
 }
