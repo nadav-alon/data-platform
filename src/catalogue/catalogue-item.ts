@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { deletedAtSchema, type ItemId } from "../core/index.ts";
+import { aisleIdSchema } from "./aisle.ts";
 import { categoryIdSchema } from "./category.ts";
 import { necessitySchema } from "./necessity.ts";
 import { shopIdSchema } from "./shop.ts";
@@ -14,11 +15,13 @@ export function catalogueItemDocPath(itemId: ItemId): string {
 
 /**
  * Keyed by the Core Item's {@link ItemId}. `shopId`, when set, overrides the Category's default.
+ * `aisleId`, when set, is the one Aisle the CatalogueItem sits in, soft-deleted or not.
  */
 export const catalogueItemSchema = z.looseObject({
   categoryId: categoryIdSchema,
   necessity: necessitySchema,
   shopId: shopIdSchema.optional(),
+  aisleId: aisleIdSchema.optional(),
   /** The Tags on this CatalogueItem, soft-deleted ones included; empty when it has none. */
   tagIds: z.array(tagIdSchema).default([]),
   deletedAt: deletedAtSchema,

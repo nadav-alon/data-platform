@@ -124,3 +124,25 @@ test("rejects tagIds that is not a list", () => {
     catalogueItemSchema.parse({ categoryId: "medicine", necessity: "essential", tagIds: "vegan" }),
   );
 });
+
+test("accepts a CatalogueItem with no aisleId", () => {
+  const catalogueItem = catalogueItemSchema.parse({ categoryId: "dairy", necessity: "essential" });
+  assert.equal(catalogueItem.aisleId, undefined);
+});
+
+test("accepts a CatalogueItem with an aisleId", () => {
+  const catalogueItem = catalogueItemSchema.parse({
+    categoryId: "dairy",
+    necessity: "essential",
+    aisleId: "chilled",
+  });
+  assert.equal(catalogueItem.aisleId, "chilled");
+});
+
+test("rejects an empty or non-string aisleId", () => {
+  for (const aisleId of ["", 7, ["chilled"]]) {
+    assert.throws(() =>
+      catalogueItemSchema.parse({ categoryId: "dairy", necessity: "essential", aisleId }),
+    );
+  }
+});
