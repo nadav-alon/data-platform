@@ -82,7 +82,7 @@ service cloud.firestore {
 
     /**
      * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
-     * shops and tags all `allow delete: if false`; the console's admin access can still hard delete.
+     * shops, tags, aisles and stores all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -389,14 +389,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/tagNames/$(key);
     }
 
-    /** Matches `tagNameKey`: the name trimmed and lowercased, with `%` and `/` escaped. */
-    function tagNameKey(name) {
+    /** Matches `tagNameKey` and `aisleNameKey`: the name trimmed and lowercased, with `%` and `/` escaped. */
+    function nameKey(name) {
       return name.trim().lower().replace('%', '%25').replace('/', '%2F');
     }
 
     /** The reservation doc for `data`'s name. */
     function tagNameReservationPath(data) {
-      return tagNamePath(tagNameKey(data.name));
+      return tagNamePath(nameKey(data.name));
     }
 
     /** The Tag `id` as it stands after the batch; callers check `existsAfter(tagPath(id))` first. */
@@ -404,8 +404,8 @@ service cloud.firestore {
       return getAfter(tagPath(id)).data;
     }
 
-    /** Matches `isTagNameKey`: a key Firestore accepts as a doc id. */
-    function isStorableTagNameKey(key) {
+    /** Matches `isTagNameKey` and `isAisleNameKey`: a key Firestore accepts as a doc id. */
+    function isStorableNameKey(key) {
       return key.size() > 0
         && key.size() <= 100
         && key != '.'
@@ -416,7 +416,7 @@ service cloud.firestore {
     /** Matches `tagSchema`: a name that isn't blank and whose key is storable. */
     function isValidTag(data) {
       return data.name is string
-        && isStorableTagNameKey(tagNameKey(data.name))
+        && isStorableNameKey(nameKey(data.name))
         && isValidDeletedAt(data);
     }
 
@@ -453,7 +453,7 @@ service cloud.firestore {
      */
     function tagNameReservationsValid(tagId, oldData, newData) {
       return (!isDeleted(oldData) && !isDeleted(newData)
-          && (tagNameKey(oldData.name) == tagNameKey(newData.name)
+          && (nameKey(oldData.name) == nameKey(newData.name)
             ? tagNameReservedBy(tagId, newData)
             : (tagNameReleased(oldData) && tagNameReservationTaken(tagId, newData))))
         || (isSoftDeleting(oldData, newData)
@@ -461,6 +461,61 @@ service cloud.firestore {
           && tagNameReleased(oldData))
         || (isRestoring(oldData, newData)
           && tagNameReservationTaken(tagId, newData))
+        || (isDeleted(oldData) && isDeleted(newData));
+    }
+
+    function aislePath(id) {
+      return /databases/$(database)/documents/aisles/$(id);
+    }
+
+    function aisleNamePath(key) {
+      return /databases/$(database)/documents/aisleNames/$(key);
+    }
+
+    /** The reservation doc for `data`'s name. */
+    function aisleNameReservationPath(data) {
+      return aisleNamePath(nameKey(data.name));
+    }
+
+    /** The Aisle `id` as it stands after the batch; callers check `existsAfter(aislePath(id))` first. */
+    function aisleAfter(id) {
+      return getAfter(aislePath(id)).data;
+    }
+
+    /** Matches `aisleSchema`: a name that isn't blank and whose key is storable. */
+    function isValidAisle(data) {
+      return data.name is string
+        && isStorableNameKey(nameKey(data.name))
+        && isValidDeletedAt(data);
+    }
+
+    /** Whether the reservation on `data`'s name is held by `aisleId` after the batch; see `tagNameReservedBy`. */
+    function aisleNameReservedBy(aisleId, data) {
+      return existsAfter(aisleNameReservationPath(data))
+        && getAfter(aisleNameReservationPath(data)).data.aisleId == aisleId;
+    }
+
+    /** Whether the reservation on `data`'s name is taken by this batch, not by an earlier write. */
+    function aisleNameReservationTaken(aisleId, data) {
+      return !exists(aisleNameReservationPath(data)) && aisleNameReservedBy(aisleId, data);
+    }
+
+    /** Whether the reservation on `data`'s name is gone after the batch. */
+    function aisleNameReleased(data) {
+      return !existsAfter(aisleNameReservationPath(data));
+    }
+
+    /** Whether an Aisle update keeps its name reserved exactly while it is live; see `tagNameReservationsValid`. */
+    function aisleNameReservationsValid(aisleId, oldData, newData) {
+      return (!isDeleted(oldData) && !isDeleted(newData)
+          && (nameKey(oldData.name) == nameKey(newData.name)
+            ? aisleNameReservedBy(aisleId, newData)
+            : (aisleNameReleased(oldData) && aisleNameReservationTaken(aisleId, newData))))
+        || (isSoftDeleting(oldData, newData)
+          && oldData.name == newData.name
+          && aisleNameReleased(oldData))
+        || (isRestoring(oldData, newData)
+          && aisleNameReservationTaken(aisleId, newData))
         || (isDeleted(oldData) && isDeleted(newData));
     }
 
@@ -680,7 +735,7 @@ service cloud.firestore {
         && request.resource.data.tagId is string
         && existsAfter(tagPath(request.resource.data.tagId))
         && isCreatedLive(tagAfter(request.resource.data.tagId))
-        && tagNameKey(tagAfter(request.resource.data.tagId).name) == key;
+        && nameKey(tagAfter(request.resource.data.tagId).name) == key;
       /**
        * A reservation is released only once its Tag no longer holds the name: renamed,
        * soft-deleted, or removed outright from the console, which would otherwise strand the name.
@@ -688,7 +743,36 @@ service cloud.firestore {
       allow delete: if isMember()
         && (!existsAfter(tagPath(resource.data.tagId))
           || isDeleted(tagAfter(resource.data.tagId))
-          || tagNameKey(tagAfter(resource.data.tagId).name) != key);
+          || nameKey(tagAfter(resource.data.tagId).name) != key);
+    }
+
+    match /aisles/{aisleId} {
+      allow read: if isMember();
+      /** A new Aisle takes its name's reservation in the same batch, so no live Aisle already holds it. */
+      allow create: if isMember()
+        && isValidAisle(request.resource.data)
+        && isCreatedLive(request.resource.data)
+        && aisleNameReservationTaken(aisleId, request.resource.data);
+      allow update: if isMember()
+        && isValidAisle(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && aisleNameReservationsValid(aisleId, resource.data, request.resource.data);
+      allow delete: if false;
+    }
+
+    match /aisleNames/{key} {
+      allow read: if isMember();
+      /** Created only for a live Aisle that has this name after the batch, as `tagNames` is. */
+      allow create: if isMember()
+        && request.resource.data.aisleId is string
+        && existsAfter(aislePath(request.resource.data.aisleId))
+        && isCreatedLive(aisleAfter(request.resource.data.aisleId))
+        && nameKey(aisleAfter(request.resource.data.aisleId).name) == key;
+      /** Released only once its Aisle no longer holds the name, as `tagNames` is. */
+      allow delete: if isMember()
+        && (!existsAfter(aislePath(resource.data.aisleId))
+          || isDeleted(aisleAfter(resource.data.aisleId))
+          || nameKey(aisleAfter(resource.data.aisleId).name) != key);
     }
 
     match /{document=**} {
