@@ -370,6 +370,7 @@ service cloud.firestore {
         && isNecessity(data.necessity)
         && isValidDeletedAt(data)
         && (!('shopId' in data) || isNonEmptyString(data.shopId))
+        && (!('aisleId' in data) || isNonEmptyString(data.aisleId))
         && (!('tagIds' in data) || isValidTagIds(data.tagIds));
     }
 
