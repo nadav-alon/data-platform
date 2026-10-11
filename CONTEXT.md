@@ -54,8 +54,7 @@ Every State change, timestamped by the server, append-only.
 ### Catalogue entities
 
 **Shop**:
-A kind of place a CatalogueItem is bought at (pharmacy, grocery), not a specific store.
-_Avoid_: store
+A kind of place a CatalogueItem is bought at (pharmacy, grocery), not a specific store; see **Store**.
 
 **Category**:
 A grouping of CatalogueItems, carrying the default Shop they're bought at.
@@ -70,16 +69,32 @@ The `tagNames` doc a live Tag holds on its name, so no other live Tag can take i
 and released in the same batch as the Tag it belongs to. Unrelated to _claiming_ the Household.
 _Avoid_: claim
 
+**Aisle**:
+A household-wide label for where in a store an Item sits ("dairy", "frozen"). Managed like a Tag:
+created, renamed, soft-deleted and restored, with a name unique among live Aisles, ignoring case and
+surrounding spaces. A CatalogueItem carries at most one. Not tied to any Shop or Store, and it can
+be soft-deleted while CatalogueItems still carry it, so it has no reference count.
+
+**Aisle name reservation**:
+The `aisleNames` doc a live Aisle holds on its name, so no other live Aisle can take it. Created,
+moved and released in the same batch as the Aisle it belongs to, as a Tag name reservation is.
+
+**Store**:
+A named store under one Shop ("Osher Ad" under "grocery"). Carries its **aisle order**: the Aisles
+in the order one walks that store, each at most once. A CatalogueItem never points at a Store.
+Branches are not modelled: a second differing branch is another Store with a longer name. Nothing
+references a Store, so it has no reference count and doesn't count toward its Shop's.
+
 **CatalogueItem**:
 Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessity, any number of
-Tags (`tagIds`, empty by default), and an optional Shop override that takes precedence over the
+Tags (`tagIds`, empty by default), at most one Aisle (`aisleId`), and an optional Shop override that takes precedence over the
 Category's default.
 
 **Soft delete**:
-Marking an Item, CatalogueItem, Category, Shop or Tag deleted with `deletedAt` rather than removing it,
+Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle or Store deleted with `deletedAt` rather than removing it,
 so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
 reference counts and can't be referenced. It is the only way an app deletes: the rules deny hard
-delete on all five, and only the Firebase console, as admin, can still remove one.
+delete on all seven, and only the Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
 **Necessity**:
