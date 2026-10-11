@@ -1,8 +1,15 @@
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { Timestamp } from "firebase/firestore";
+import {
+  AISLE_NAMES_COLLECTION,
+  AISLES_COLLECTION,
+  aisleNameKey,
+  type AisleId,
+} from "../../src/catalogue/aisle.ts";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
+import { STORES_COLLECTION, type StoreId } from "../../src/catalogue/store.ts";
 import {
   TAG_NAMES_COLLECTION,
   TAGS_COLLECTION,
@@ -114,8 +121,9 @@ export async function seedCatalogueItem(
   {
     shopId,
     tagIds,
+    aisleId,
     deleted = false,
-  }: { shopId?: ShopId; tagIds?: readonly TagId[]; deleted?: boolean } = {},
+  }: { shopId?: ShopId; tagIds?: readonly TagId[]; aisleId?: AisleId; deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
@@ -126,6 +134,7 @@ export async function seedCatalogueItem(
         necessity: "essential",
         ...(shopId === undefined ? {} : { shopId }),
         ...(tagIds === undefined ? {} : { tagIds }),
+        ...(aisleId === undefined ? {} : { aisleId }),
         ...deletedFields(deleted),
       });
   });
@@ -147,5 +156,44 @@ export async function seedTag(
     if (!deleted) {
       await firestore.doc(`${TAG_NAMES_COLLECTION}/${tagNameKey(name)}`).set({ tagId: id });
     }
+  });
+}
+
+/**
+ * Seeds an Aisle directly, bypassing rules, with the reservation on its name unless `deleted`
+ * is set, in which case it holds no reservation.
+ */
+export async function seedAisle(
+  testEnv: RulesTestEnvironment,
+  id: AisleId,
+  name: string,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const firestore = context.firestore();
+    await firestore.doc(`${AISLES_COLLECTION}/${id}`).set({ name, ...deletedFields(deleted) });
+    if (!deleted) {
+      await firestore.doc(`${AISLE_NAMES_COLLECTION}/${aisleNameKey(name)}`).set({ aisleId: id });
+    }
+  });
+}
+
+/** Seeds a Store directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedStore(
+  testEnv: RulesTestEnvironment,
+  id: StoreId,
+  shopId: ShopId,
+  { aisleOrder, deleted = false }: { aisleOrder?: readonly AisleId[]; deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${STORES_COLLECTION}/${id}`)
+      .set({
+        name: "Osher Ad",
+        shopId,
+        ...(aisleOrder === undefined ? {} : { aisleOrder }),
+        ...deletedFields(deleted),
+      });
   });
 }

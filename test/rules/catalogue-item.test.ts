@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { serverTimestamp } from "firebase/firestore";
+import { deleteField, serverTimestamp } from "firebase/firestore";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, categoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../../src/catalogue/shop.ts";
@@ -904,4 +904,38 @@ test("tagIds: a CatalogueItem's Tags can be changed without touching reference c
   await assertSucceeds(
     firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).update({ tagIds: ["vegan", "bulk"] }),
   );
+});
+
+test("aisleId: a CatalogueItem without an aisleId stays valid", async () => {
+  await seedLiveCategory();
+  await assertSucceeds(createCatalogueItemWith({}));
+});
+
+test("aisleId: an aisleId is accepted whether or not it names an Aisle", async () => {
+  await seedLiveCategory();
+  await assertSucceeds(createCatalogueItemWith({ aisleId: "dairy" }));
+});
+
+test("aisleId: a value that is not a non-empty string is denied", async () => {
+  await seedLiveCategory();
+  for (const aisleId of [7, ["dairy"], ""]) {
+    await assertFails(createCatalogueItemWith({ aisleId }));
+  }
+});
+
+test("aisleId: a CatalogueItem's Aisle can be set, changed and cleared without touching reference counts", async () => {
+  await seedLiveCategory();
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  const catalogueItem = firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`);
+  await assertSucceeds(catalogueItem.update({ aisleId: "dairy" }));
+  await assertSucceeds(catalogueItem.update({ aisleId: "frozen" }));
+  await assertSucceeds(catalogueItem.update({ aisleId: deleteField() }));
+});
+
+test("aisleId: setting a non-string aisleId on an existing CatalogueItem is denied", async () => {
+  await seedLiveCategory();
+  await seedCatalogueItem(rulesTestEnv.env, itemId("dish-soap"), categoryId("cleaning"));
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertFails(firestore.doc(`${CATALOGUE_ITEMS_COLLECTION}/dish-soap`).update({ aisleId: 7 }));
 });

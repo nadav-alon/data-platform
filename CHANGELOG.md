@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.12.0
+
+Redeploy (`npm run deploy`) to get the new rules, which also moves `meta/platform` to `0.12.0`;
+until then `checkPlatform` reads `outdated`. The minor moves because Aisle and Store writes need the
+new rules; nothing needs migrating, since the schema is additive.
+
+- **Schemas** (`src/catalogue/`): `COLLECTION_SCHEMAS` gains `aisles` (`aisleSchema`, soft-deletable),
+  `aisleNames` (`aisleNameReservationSchema`) and `stores` (`storeSchema`: `name`, `shopId`, `aisleOrder`,
+  empty by default, each Aisle at most once). `aisle.ts` exports `AisleId`/`aisleIdSchema`, `AisleNameKey`
+  and `aisleNameKey(name)`, built exactly as `tagNameKey`; `store.ts` exports `StoreId`/`storeIdSchema`.
+  A CatalogueItem gains an optional `aisleId`.
+- **Rules** (`firestore.rules`): a Member creates, renames, soft-deletes and restores an Aisle, held
+  by an `aisleNames` reservation exactly as a Tag is; and creates, renames, reorders, soft-deletes and
+  restores a Store, whose `shopId` must name a live Shop and whose `aisleOrder` may not repeat an
+  id. Hard delete is denied on `aisles` and `stores`. A CatalogueItem accepts an optional `aisleId`.
+- **Writing an Aisle**: write the Aisle and its `aisleNames` reservation, keyed by
+  `aisleNameKey(name)`, in one batch, or the write is denied. Stores take no reservation and do not
+  count toward their Shop's `referenceCount`.
+
 ## v0.11.0
 
 Redeploy (`npm run deploy`) to get the new rules, which also moves `meta/platform` to `0.11.0`;
