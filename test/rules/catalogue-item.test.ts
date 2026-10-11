@@ -911,7 +911,7 @@ test("aisleId: a CatalogueItem without an aisleId stays valid", async () => {
   await assertSucceeds(createCatalogueItemWith({}));
 });
 
-test("aisleId: a CatalogueItem created with an aisleId, soft-deleted Aisle or not, is accepted", async () => {
+test("aisleId: an aisleId is accepted whether or not it names an Aisle", async () => {
   await seedLiveCategory();
   await assertSucceeds(createCatalogueItemWith({ aisleId: "dairy" }));
 });
