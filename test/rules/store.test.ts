@@ -204,14 +204,14 @@ test("soft delete: a deletedAt other than the server's time is denied", async ()
   );
 });
 
-test("soft delete: a Store whose Shop is soft-deleted can still be soft-deleted and restored", async () => {
+test("soft delete: a Store whose Shop is soft-deleted can be soft-deleted but not restored", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedShop(rulesTestEnv.env, shopId("grocery"), 0, { deleted: true });
   await seedStore(rulesTestEnv.env, storeId("osherAd"), shopId("grocery"));
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   const doc = firestore.doc(`${STORES_COLLECTION}/osherAd`);
   await assertSucceeds(doc.update({ deletedAt: serverTimestamp() }));
-  await assertSucceeds(doc.update({ deletedAt: deleteField() }));
+  await assertFails(doc.update({ deletedAt: deleteField() }));
 });
 
 test("a Store can't be hard-deleted", async () => {

@@ -802,11 +802,12 @@ service cloud.firestore {
         && isValidStore(request.resource.data)
         && isCreatedLive(request.resource.data)
         && isLiveAt(shopPath(request.resource.data.shopId));
-      /** A Store may move to another Shop, which must then be live. */
+      /** A Store that moves to another Shop, or is restored, needs a live Shop, as a CatalogueItem does. */
       allow update: if isMember()
         && isValidStore(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
-        && (request.resource.data.shopId == resource.data.shopId
+        && ((request.resource.data.shopId == resource.data.shopId
+            && !isRestoring(resource.data, request.resource.data))
           || isLiveAt(shopPath(request.resource.data.shopId)));
       allow delete: if false;
     }
