@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { deletedAtSchema } from "../core/index.ts";
+import { escapeName, isNameKey, normalizeName } from "./name-key.ts";
 
 export const TAGS_COLLECTION = "tags";
 
@@ -28,8 +29,8 @@ export const tagIdSchema = z.string().refine(isTagId, "TagId must not be empty")
 export const tagSchema = z.looseObject({
   name: z
     .string()
-    .refine((name) => normalizeTagName(name).length > 0, "Tag name must not be blank")
-    .refine((name) => isTagNameKey(escapedTagName(name)), "Tag name can't be stored as a document id"),
+    .refine((name) => normalizeName(name).length > 0, "Tag name must not be blank")
+    .refine((name) => isTagNameKey(escapeName(name)), "Tag name can't be stored as a document id"),
   deletedAt: deletedAtSchema,
 });
 
@@ -42,34 +43,9 @@ declare const tagNameKeyBrand: unique symbol;
 /** A Tag name's key, safe as a `tagNames` doc id. Only `tagNameKey` and the guard produce one. */
 export type TagNameKey = string & { readonly [tagNameKeyBrand]: true };
 
-const ESCAPED = /%(?:25|2F)/g;
-
-/**
- * Trims space, tab, newline and carriage return and lowercases A-Z only. Beyond ASCII,
- * `firestore.rules` trims and lowercases a different set of characters than JS does, so a wider
- * key would disagree with the rules; names differing only by non-ASCII case or whitespace stay
- * distinct.
- */
-function normalizeTagName(name: string): string {
-  return name
-    .replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, "")
-    .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
-}
-
-/** Longest key, well inside Firestore's 1500-byte doc id limit at four bytes a character. */
-const MAX_TAG_NAME_KEY_LENGTH = 100;
-
-/**
- * The guard: a non-empty, trimmed, lowercased name with `%` and `/` escaped as `%25` and `%2F`,
- * that Firestore accepts as a doc id: not `.` or `..`, not `__.*__`, at most
- * `MAX_TAG_NAME_KEY_LENGTH` characters.
- */
+/** The guard: a name key (see `isNameKey`) that a Tag name can reserve. */
 export function isTagNameKey(value: string): value is TagNameKey {
-  if (value.length > MAX_TAG_NAME_KEY_LENGTH || value === "." || value === "..") return false;
-  if (/^__[\s\S]*__$/.test(value)) return false;
-  if (!/^(?:[^%/]|%25|%2F)+$/.test(value)) return false;
-  const name = value.replace(ESCAPED, (escape) => (escape === "%25" ? "%" : "/"));
-  return name === normalizeTagName(name);
+  return isNameKey(value);
 }
 
 /**
@@ -79,15 +55,11 @@ export function isTagNameKey(value: string): value is TagNameKey {
  * the same key. Throws on a name with no storable key: blank, or one Firestore refuses as a doc id.
  */
 export function tagNameKey(name: string): TagNameKey {
-  const key = escapedTagName(name);
+  const key = escapeName(name);
   if (!isTagNameKey(key)) {
     throw new Error(`Tag name has no key: ${JSON.stringify(name)}`);
   }
   return key;
-}
-
-function escapedTagName(name: string): string {
-  return normalizeTagName(name).replaceAll("%", "%25").replaceAll("/", "%2F");
 }
 
 /**
