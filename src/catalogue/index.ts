@@ -3,6 +3,7 @@ export * from "./shop.ts";
 export * from "./category.ts";
 export * from "./tag.ts";
 export * from "./aisle.ts";
+export * from "./store.ts";
 export * from "./catalogue-item.ts";
 export * from "./resolve-shop.ts";
 export { computeReferenceCounts, parseExistingCatalogue } from "./reference-count-backfill.ts";
