@@ -36,7 +36,9 @@ export function firebaseWebConfig(value: unknown): FirebaseWebConfig {
   if (!result.success) {
     const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".")))];
     throw new InvalidFirebaseWebConfigError(
-      `Firebase config is missing or has empty fields: ${fields.filter(Boolean).join(", ")}`,
+      fields.includes("")
+        ? "Firebase config is not an object"
+        : `Firebase config is missing or has empty fields: ${fields.join(", ")}`,
     );
   }
   return result.data;
