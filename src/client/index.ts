@@ -6,3 +6,10 @@ export {
   isFirebaseWebConfig,
 } from "./web-config.ts";
 export type { FirebaseWebConfig } from "./web-config.ts";
+export {
+  clearFirebaseConfig,
+  FIREBASE_CONFIG_STORAGE_KEY,
+  getStoredFirebaseConfig,
+  saveFirebaseConfig,
+} from "./config-storage.ts";
+export type { ConfigStorage } from "./config-storage.ts";
