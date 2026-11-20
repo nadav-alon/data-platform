@@ -1,5 +1,5 @@
 import { doc, getDoc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
-import { email as toEmail, type Email } from "../core/email.ts";
+import { lowercasedEmail, type Email } from "../core/email.ts";
 import { inviteDocPath } from "../core/invites.ts";
 import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
 import { memberDocPath } from "../core/members.ts";
@@ -16,6 +16,11 @@ export type HouseholdDeps = {
 
 const HOUSEHOLD_DEPS: HouseholdDeps = { doc, getDoc, serverTimestamp, writeBatch };
 
+/** Whether the doc at `path` exists. */
+async function docExists(deps: HouseholdDeps, db: Firestore, path: string): Promise<boolean> {
+  return (await deps.getDoc(deps.doc(db, path))).exists();
+}
+
 /** Whether this Household's `meta/household` has been claimed by anyone yet. */
 export function householdExists(db: Firestore): Promise<boolean> {
   return householdExistsWith(HOUSEHOLD_DEPS, db);
@@ -23,7 +28,7 @@ export function householdExists(db: Firestore): Promise<boolean> {
 
 /** `householdExists` with the calls injected; `index.ts` does not export it. */
 export async function householdExistsWith(deps: HouseholdDeps, db: Firestore): Promise<boolean> {
-  return (await deps.getDoc(deps.doc(db, HOUSEHOLD_DOC_PATH))).exists();
+  return docExists(deps, db, HOUSEHOLD_DOC_PATH);
 }
 
 /** Whether `uid` is recorded as a Member: their `members/{uid}` doc exists. */
@@ -37,7 +42,7 @@ export async function isHouseholdMemberWith(
   db: Firestore,
   uid: Uid,
 ): Promise<boolean> {
-  return (await deps.getDoc(deps.doc(db, memberDocPath(uid)))).exists();
+  return docExists(deps, db, memberDocPath(uid));
 }
 
 /**
@@ -45,7 +50,7 @@ export async function isHouseholdMemberWith(
  * be the caller's token email lowercased, so it is lowercased here whatever case Google reports.
  */
 function memberDoc(deps: HouseholdDeps, email: Email) {
-  return { email: toEmail(email.toLowerCase()), addedAt: deps.serverTimestamp() };
+  return { email: lowercasedEmail(email), addedAt: deps.serverTimestamp() };
 }
 
 /** First-claim: writes `meta/household` and the claimant's `members/{uid}` doc in one batch. */
@@ -82,12 +87,12 @@ export async function joinFromInviteWith(
   uid: Uid,
   email: Email,
 ): Promise<boolean> {
-  const inviteRef = deps.doc(db, inviteDocPath(email));
-  if (!(await deps.getDoc(inviteRef)).exists()) return false;
+  const invitePath = inviteDocPath(email);
+  if (!(await docExists(deps, db, invitePath))) return false;
 
   const batch = deps.writeBatch(db);
   batch.set(deps.doc(db, memberDocPath(uid)), memberDoc(deps, email));
-  batch.delete(inviteRef);
+  batch.delete(deps.doc(db, invitePath));
   try {
     await batch.commit();
   } catch (error) {

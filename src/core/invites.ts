@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Email } from "./email.ts";
+import { lowercasedEmail, type Email } from "./email.ts";
 import { firestoreTimestampSchema } from "./timestamp.ts";
 
 /** The collection backing `invites/{email}`: each an Invite, the Owner's offer of Membership to one Google email. */
@@ -11,7 +11,7 @@ export const INVITES_COLLECTION = "invites";
  * however their email is cased.
  */
 export function inviteDocPath(email: Email): string {
-  return `${INVITES_COLLECTION}/${email.toLowerCase()}`;
+  return `${INVITES_COLLECTION}/${lowercasedEmail(email)}`;
 }
 
 export const inviteSchema = z.object({

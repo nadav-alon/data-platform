@@ -17,4 +17,9 @@ export function email(value: string): Email {
   return result.data;
 }
 
+/** The Email lowercased: the form the rules require of a stored email and of an Invite id. */
+export function lowercasedEmail(value: Email): Email {
+  return value.toLowerCase() as Email;
+}
+
 export { emailSchema };
