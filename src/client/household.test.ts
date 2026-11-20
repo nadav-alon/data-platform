@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Firestore } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
 import { email } from "../core/email.ts";
 import { uid } from "../core/uid.ts";
 import {
   claimHouseholdWith,
   householdExistsWith,
   isHouseholdMemberWith,
+  joinFromInviteWith,
   type HouseholdDeps,
 } from "./household.ts";
 
@@ -88,4 +90,49 @@ test("claimHousehold records the email lowercased", async () => {
   const { deps, sets } = fakeBatch();
   await claimHouseholdWith(deps, db, alice, email("Owner@Example.com"));
   assert.deepEqual(sets[1]?.data, { email: "owner@example.com", addedAt: STAMP });
+});
+
+const invitee = email("Guest@Example.com");
+
+/** `fakeBatch`'s deps with `getDoc` reporting whether the Invite exists. */
+function fakeJoin(inviteExists: boolean, commit?: () => Promise<void>) {
+  const fake = fakeBatch(commit);
+  const deps = {
+    ...fake.deps,
+    getDoc: (async () => ({ exists: () => inviteExists })) as unknown as HouseholdDeps["getDoc"],
+  };
+  return { ...fake, deps };
+}
+
+test("joinFromInvite creates the members doc and deletes the Invite in one batch", async () => {
+  let commits = 0;
+  const { deps, sets, deletes } = fakeJoin(true, async () => void commits++);
+
+  assert.equal(await joinFromInviteWith(deps, db, alice, invitee), true);
+
+  assert.deepEqual(sets, [
+    { path: "members/alice", data: { email: "guest@example.com", addedAt: STAMP } },
+  ]);
+  assert.deepEqual(deletes, ["invites/guest@example.com"]);
+  assert.equal(commits, 1);
+});
+
+test("joinFromInvite does nothing and resolves false when there is no Invite", async () => {
+  const { deps, batches } = fakeJoin(false);
+  assert.equal(await joinFromInviteWith(deps, db, alice, invitee), false);
+  assert.deepEqual(batches, []);
+});
+
+test("joinFromInvite resolves false when the rules refuse the join", async () => {
+  const { deps } = fakeJoin(true, async () => {
+    throw new FirebaseError("permission-denied", "denied");
+  });
+  assert.equal(await joinFromInviteWith(deps, db, alice, invitee), false);
+});
+
+test("joinFromInvite rejects on a failure that is not a refusal", async () => {
+  const { deps } = fakeJoin(true, async () => {
+    throw new FirebaseError("unavailable", "offline");
+  });
+  await assert.rejects(joinFromInviteWith(deps, db, alice, invitee), /offline/);
 });

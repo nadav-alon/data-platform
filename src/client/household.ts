@@ -1,7 +1,9 @@
 import { doc, getDoc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
 import { email as toEmail, type Email } from "../core/email.ts";
+import { inviteDocPath } from "../core/invites.ts";
 import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
 import { memberDocPath } from "../core/members.ts";
+import { isRulesRefusal } from "./rules-refusal.ts";
 import type { Uid } from "../core/uid.ts";
 
 /** The Firestore calls the household functions make, injectable so a test can observe them. */
@@ -62,4 +64,35 @@ export async function claimHouseholdWith(
   batch.set(deps.doc(db, HOUSEHOLD_DOC_PATH), { owner: uid });
   batch.set(deps.doc(db, memberDocPath(uid)), memberDoc(deps, email));
   await batch.commit();
+}
+
+/**
+ * Turns the Invite addressed to `email` into Membership: one batch creates `members/{uid}` and
+ * deletes the Invite. Resolves `false` when there is no Invite, or when the rules refuse the join
+ * (for example the Invite was revoked in the meantime); any other failure rejects.
+ */
+export function joinFromInvite(db: Firestore, uid: Uid, email: Email): Promise<boolean> {
+  return joinFromInviteWith(HOUSEHOLD_DEPS, db, uid, email);
+}
+
+/** `joinFromInvite` with the calls injected; `index.ts` does not export it. */
+export async function joinFromInviteWith(
+  deps: HouseholdDeps,
+  db: Firestore,
+  uid: Uid,
+  email: Email,
+): Promise<boolean> {
+  const inviteRef = deps.doc(db, inviteDocPath(email));
+  if (!(await deps.getDoc(inviteRef)).exists()) return false;
+
+  const batch = deps.writeBatch(db);
+  batch.set(deps.doc(db, memberDocPath(uid)), memberDoc(deps, email));
+  batch.delete(inviteRef);
+  try {
+    await batch.commit();
+  } catch (error) {
+    if (isRulesRefusal(error)) return false;
+    throw error;
+  }
+  return true;
 }
