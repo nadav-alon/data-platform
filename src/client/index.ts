@@ -14,3 +14,10 @@ export {
 } from "./config-storage.ts";
 export type { ConfigStorage } from "./config-storage.ts";
 export { deviceTransferUrl, parseConfigFragment } from "./device-transfer.ts";
+export {
+  claimHousehold,
+  householdExists,
+  isHouseholdMember,
+  joinFromInvite,
+} from "./household.ts";
+export { isRulesRefusal } from "./rules-refusal.ts";
