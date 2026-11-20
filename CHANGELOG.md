@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.12.2
+
+No redeploy needed: additive, client-only.
+
+- **Client** (`src/client/`): `data-platform/client` gains the Firebase web config helpers.
+  `getStoredFirebaseWebConfig`, `saveFirebaseWebConfig` and `clearFirebaseWebConfig` keep the config under one
+  platform-wide localStorage key, `data-platform:firebase-config`, so every app on the same origin reuses
+  it; a malformed stored value reads as `null` and never throws. `deviceTransferUrl(pageUrl, config)` and
+  `parseConfigFragment(hash)` encode and decode the `#config=` device-transfer link (QR rendering stays in
+  the apps). `FirebaseWebConfig` is the branded config type, with `isFirebaseWebConfig`,
+  `firebaseWebConfig` and `InvalidFirebaseWebConfigError`. The home catalogue's old app-specific key is
+  not migrated here.
+
 ## v0.12.1
 
 No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move and `checkPlatform` stays
