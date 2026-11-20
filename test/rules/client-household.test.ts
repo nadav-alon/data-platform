@@ -7,7 +7,14 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import {
+  connectFirestoreEmulator,
+  doc,
+  getFirestore,
+  serverTimestamp,
+  writeBatch,
+  type Firestore,
+} from "firebase/firestore";
 import {
   claimHousehold,
   householdExists,
@@ -16,10 +23,12 @@ import {
 } from "../../src/client/index.ts";
 import { email, type Email } from "../../src/core/email.ts";
 import { uid, type Uid } from "../../src/core/uid.ts";
+import { inviteDocPath } from "../../src/core/invites.ts";
+import { memberDocPath } from "../../src/core/members.ts";
 import { seedHousehold, seedInvite } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
-const ref = setupRulesTestEnv();
+const rulesTestEnv = setupRulesTestEnv();
 
 const projectId = process.env.GCLOUD_PROJECT;
 const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
@@ -28,7 +37,7 @@ const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST;
 let appCount = 0;
 
 /** Signs a fresh app in through the Auth emulator as a verified Google `address`, and returns its Firestore and uid. */
-async function signIn(address: string): Promise<{ db: Firestore; uid: Uid; app: FirebaseApp }> {
+async function signIn(address: Email): Promise<{ db: Firestore; uid: Uid; app: FirebaseApp }> {
   assert.ok(projectId && authHost && firestoreHost, "run this suite through `npm run test:rules`");
   const app = initializeApp({ projectId, apiKey: "fake" }, `client-household-${appCount++}`);
   const auth = getAuth(app);
@@ -45,19 +54,19 @@ async function signIn(address: string): Promise<{ db: Firestore; uid: Uid; app: 
 
 /** Runs `body` as a signed-in `address`, then tears the app down. */
 async function asUser(
-  address: string,
+  address: Email,
   body: (user: { db: Firestore; uid: Uid; email: Email }) => Promise<void>,
 ): Promise<void> {
   const { db, uid: userUid, app } = await signIn(address);
   try {
-    await body({ db, uid: userUid, email: email(address) });
+    await body({ db, uid: userUid, email: address });
   } finally {
     await deleteApp(app);
   }
 }
 
 test("claimHousehold: the first signed-in user claims the Household and becomes a Member", async () => {
-  await asUser("Owner@Example.com", async ({ db, uid: me, email: addr }) => {
+  await asUser(email("Owner@Example.com"), async ({ db, uid: me, email: addr }) => {
     assert.equal(await householdExists(db), false);
     assert.equal(await isHouseholdMember(db, me), false);
 
@@ -69,27 +78,34 @@ test("claimHousehold: the first signed-in user claims the Household and becomes 
 });
 
 test("claimHousehold: a second claim of a claimed Household is refused", async () => {
-  await seedHousehold(ref.env, uid("alice"));
-  await asUser("mallory@example.com", async ({ db, uid: me, email: addr }) => {
+  await seedHousehold(rulesTestEnv.env, uid("alice"));
+  await asUser(email("mallory@example.com"), async ({ db, uid: me, email: addr }) => {
     await assert.rejects(claimHousehold(db, me, addr), { code: "permission-denied" });
     assert.equal(await isHouseholdMember(db, me), false);
   });
 });
 
 test("joinFromInvite: an invited user joins, and the Invite is spent", async () => {
-  await seedHousehold(ref.env, uid("alice"));
-  await seedInvite(ref.env, email("guest@example.com"));
-  await asUser("Guest@Example.com", async ({ db, uid: me, email: addr }) => {
+  await seedHousehold(rulesTestEnv.env, uid("alice"));
+  await seedInvite(rulesTestEnv.env, email("guest@example.com"));
+  await asUser(email("Guest@Example.com"), async ({ db, uid: me, email: addr }) => {
     assert.equal(await joinFromInvite(db, me, addr), true);
     assert.equal(await isHouseholdMember(db, me), true);
     assert.equal(await joinFromInvite(db, me, addr), false);
   });
 });
 
-test("joinFromInvite: a non-invited user's join is refused and leaves them a non-member", async () => {
-  await seedHousehold(ref.env, uid("alice"));
-  await seedInvite(ref.env, email("guest@example.com"));
-  await asUser("mallory@example.com", async ({ db, uid: me, email: addr }) => {
+test("joinFromInvite: a join the rules refuse is false, and leaves the user a non-member", async () => {
+  await seedHousehold(rulesTestEnv.env, uid("alice"));
+  await seedInvite(rulesTestEnv.env, email("guest@example.com"));
+  await asUser(email("mallory@example.com"), async ({ db, uid: me, email: addr }) => {
+    // Mallory's own Invite does not exist, so `joinFromInvite` stops at its pre-check; the refusal
+    // is the rules', shown by committing the join batch directly.
+    const batch = writeBatch(db);
+    batch.set(doc(db, memberDocPath(me)), { email: addr, addedAt: serverTimestamp() });
+    batch.delete(doc(db, inviteDocPath(addr)));
+    await assert.rejects(batch.commit(), { code: "permission-denied" });
+
     assert.equal(await joinFromInvite(db, me, addr), false);
     assert.equal(await isHouseholdMember(db, me), false);
   });
