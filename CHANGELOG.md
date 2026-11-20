@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.12.3
+
+No redeploy needed: additive client code only.
+
+- **Client** (`src/client/auth-client.ts`): `authClient(app)` on `data-platform/client` returns
+  `signIn()` (Google popup; resolves with the `AuthUser`), `signOut()`, `onAuthChange(listener)`
+  (the `AuthUser`, or `null` when signed out; returns the unsubscribe) and `currentUid()`.
+  `AuthUser` is `{ uid: Uid, email: Email }`; a signed-in user with no email or a bad uid throws
+  rather than reading as signed out. The app's Auth is looked up on each call. On an app from
+  `initFirebase(config, { local: true })` it signs in through the local kit's Auth and its emulator popup.
+  Porting from home-catalogue's `src/auth/authClient.ts`, the four free functions become one object:
+  `signInWithGoogle(app)` → `authClient(app).signIn()`, `signOutUser(app)` → `.signOut()`,
+  `watchAuthState(app, cb)` → `.onAuthChange(cb)`, `currentUserUid(app)` → `.currentUid()`.
+
 ## v0.12.2
 
 No redeploy needed: additive, client-only.
