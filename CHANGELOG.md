@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.3
+
+No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move.
+
+- **Client** (`src/client/household.ts`): `data-platform/client` gains `householdExists(db)`,
+  `isHouseholdMember(db, uid)`, `claimHousehold(db, uid, email)` (the first-claim batch) and
+  `joinFromInvite(db, uid, email)`, which resolves `false` when there is no Invite or the rules refuse
+  the join. `isRulesRefusal(error)` tells a `permission-denied` from any other failure.
+
 ## v0.12.2
 
 No redeploy needed: additive, client-only.
