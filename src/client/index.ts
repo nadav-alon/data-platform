@@ -7,10 +7,10 @@ export {
 } from "./web-config.ts";
 export type { FirebaseWebConfig } from "./web-config.ts";
 export {
-  clearFirebaseConfig,
+  clearFirebaseWebConfig,
   FIREBASE_CONFIG_STORAGE_KEY,
-  getStoredFirebaseConfig,
-  saveFirebaseConfig,
+  getStoredFirebaseWebConfig,
+  saveFirebaseWebConfig,
 } from "./config-storage.ts";
 export type { ConfigStorage } from "./config-storage.ts";
 export { deviceTransferUrl, parseConfigFragment } from "./device-transfer.ts";

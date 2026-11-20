@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  clearFirebaseConfig,
+  clearFirebaseWebConfig,
   FIREBASE_CONFIG_STORAGE_KEY,
-  getStoredFirebaseConfig,
-  saveFirebaseConfig,
+  getStoredFirebaseWebConfig,
+  saveFirebaseWebConfig,
   type ConfigStorage,
 } from "./config-storage.ts";
 import { firebaseWebConfig } from "./web-config.ts";
@@ -30,28 +30,28 @@ function memoryStorage() {
 
 test("the stored config is absent until one is saved", () => {
   const { storage } = memoryStorage();
-  assert.equal(getStoredFirebaseConfig(storage), null);
+  assert.equal(getStoredFirebaseWebConfig(storage), null);
 });
 
 test("a saved config loads back, under a key not named after any app", () => {
   const { items, storage } = memoryStorage();
-  saveFirebaseConfig(config, storage);
-  assert.deepEqual(getStoredFirebaseConfig(storage), config);
+  saveFirebaseWebConfig(config, storage);
+  assert.deepEqual(getStoredFirebaseWebConfig(storage), config);
   assert.deepEqual([...items.keys()], [FIREBASE_CONFIG_STORAGE_KEY]);
   assert.doesNotMatch(FIREBASE_CONFIG_STORAGE_KEY, /home-catalogue|recipes/);
 });
 
 test("a cleared config reads as absent", () => {
   const { storage } = memoryStorage();
-  saveFirebaseConfig(config, storage);
-  clearFirebaseConfig(storage);
-  assert.equal(getStoredFirebaseConfig(storage), null);
+  saveFirebaseWebConfig(config, storage);
+  clearFirebaseWebConfig(storage);
+  assert.equal(getStoredFirebaseWebConfig(storage), null);
 });
 
 test("a malformed stored value reads as absent and never throws", () => {
   for (const raw of ["{not json", '{"apiKey": "only-this-field"}', "null", '"text"']) {
     const { items, storage } = memoryStorage();
     items.set(FIREBASE_CONFIG_STORAGE_KEY, raw);
-    assert.equal(getStoredFirebaseConfig(storage), null, raw);
+    assert.equal(getStoredFirebaseWebConfig(storage), null, raw);
   }
 });

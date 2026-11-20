@@ -10,7 +10,7 @@ export const FIREBASE_CONFIG_STORAGE_KEY = "data-platform:firebase-config";
 export type ConfigStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 /** The stored config, or `null` if none is stored or the stored value is not a valid config. Never throws on a bad value. */
-export function getStoredFirebaseConfig(
+export function getStoredFirebaseWebConfig(
   storage: ConfigStorage = localStorage,
 ): FirebaseWebConfig | null {
   const raw = storage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
@@ -22,13 +22,13 @@ export function getStoredFirebaseConfig(
   }
 }
 
-export function saveFirebaseConfig(
+export function saveFirebaseWebConfig(
   config: FirebaseWebConfig,
   storage: ConfigStorage = localStorage,
 ): void {
   storage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(config));
 }
 
-export function clearFirebaseConfig(storage: ConfigStorage = localStorage): void {
+export function clearFirebaseWebConfig(storage: ConfigStorage = localStorage): void {
   storage.removeItem(FIREBASE_CONFIG_STORAGE_KEY);
 }
