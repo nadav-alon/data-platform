@@ -90,6 +90,16 @@ Per-Household catalogue data for a Core Item, keyed by its id: Category, Necessi
 Tags (`tagIds`, empty by default), at most one Aisle (`aisleId`), and an optional Shop override that takes precedence over the
 Category's default.
 
+**Recipe**:
+A household's cooking instructions, one document with everything embedded: a title, its
+Ingredients, prep steps (done before cooking starts) and steps, and optionally servings, a source
+URL and notes. Soft-deletable and never hard-deleted, so its id stays stable.
+
+**Ingredient**:
+One line of a Recipe: a name, optionally the Item it names (`itemId`), a quantity with an optional
+unit (a unit needs a quantity), and a prep note. It is _assumed_ when the Recipe takes it for granted
+(`assumed`, like salt): an assumed Ingredient never names an Item.
+
 **Soft delete**:
 Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with `deletedAt` rather than removing it,
 so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
