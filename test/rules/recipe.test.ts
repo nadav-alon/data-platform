@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
-import { RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
+import { INGREDIENT_UNITS, RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
-import { seededDeletedAt, seedHousehold, seedMember } from "./seed.ts";
+import { seedHousehold, seedMember, seedRecipe } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
 const alice = uid("alice");
@@ -24,15 +24,6 @@ const validRecipe = {
   sourceUrl: "https://example.com/pancakes",
   notes: "Good",
 };
-
-async function seedRecipe(deleted = false): Promise<void> {
-  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${RECIPES_COLLECTION}/pancakes`)
-      .set({ ...validRecipe, ...(deleted ? { deletedAt: seededDeletedAt } : {}) });
-  });
-}
 
 async function assertMemberWrite(
   name: string,
@@ -83,8 +74,36 @@ test("collection validation: an Ingredient with an unknown unit is rejected", as
   );
 });
 
+for (const unit of INGREDIENT_UNITS) {
+  test(`collection validation: an Ingredient with the unit ${unit} is accepted`, async () => {
+    await assertMemberWrite(`unit ${unit}`, withIngredient({ name: "Flour", quantity: 1, unit }), "accept");
+  });
+}
+
 test("collection validation: a Recipe with an empty step is rejected", async () => {
   await assertMemberWrite("empty step", { ...validRecipe, steps: [""] }, "reject");
+});
+
+// Known drift (#284): the rules check only the first element of a list, so an invalid second
+// element is accepted by the rules though zod rejects it. Pinned directly, as the drift guard
+// cannot express a verdict the two disagree on. When the rules close the gap, flip these to assertFails.
+test("known drift: an invalid second Ingredient is accepted by the rules", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(
+    firestore.doc(`${RECIPES_COLLECTION}/pancakes`).set({
+      ...validRecipe,
+      ingredients: [{ name: "Flour" }, { name: "Salt", assumed: true, itemId: "salt" }],
+    }),
+  );
+});
+
+test("known drift: an empty second step is accepted by the rules", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
+  await assertSucceeds(
+    firestore.doc(`${RECIPES_COLLECTION}/pancakes`).set({ ...validRecipe, steps: ["Mix", ""] }),
+  );
 });
 
 test("collection validation: a Recipe with fractional servings is rejected", async () => {
@@ -100,16 +119,42 @@ test("isMember() gate: a signed-in non-member creating a Recipe is denied", asyn
 
 test("isMember() gate: a non-member cannot read a Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).get());
 });
 
+test("isMember() gate: a non-member cannot update a Recipe", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+
+  const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
+  await assertFails(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).update({ title: "Crepes" }));
+});
+
+test("isMember() gate: a non-member cannot delete a Recipe", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+
+  const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
+  await assertFails(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).delete());
+});
+
+test("isMember() gate: an unauthenticated request cannot read, write or delete a Recipe", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+
+  const firestore = rulesTestEnv.env.unauthenticatedContext().firestore();
+  await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).get());
+  await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).set(validRecipe));
+  await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).delete());
+});
+
 test("update: a Member can edit a live Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const context = rulesTestEnv.env.authenticatedContext(bob);
   await assertSucceeds(
@@ -119,7 +164,7 @@ test("update: a Member can edit a live Recipe", async () => {
 
 test("update: a Member updating a Recipe into an invalid one is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).update({ title: "" }));
@@ -127,7 +172,7 @@ test("update: a Member updating a Recipe into an invalid one is denied", async (
 
 test("soft delete: a Member can soft-delete a Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertSucceeds(
@@ -137,7 +182,7 @@ test("soft delete: a Member can soft-delete a Recipe", async () => {
 
 test("soft delete: a Member setting a Recipe's deletedAt to a client-chosen time is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(
@@ -159,7 +204,7 @@ test("soft delete: creating a Recipe that is already soft-deleted is denied", as
 
 test("soft delete: a soft-deleted Recipe can be restored", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe(true);
+  await seedRecipe(rulesTestEnv.env, "pancakes", { deleted: true });
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertSucceeds(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).set(validRecipe));
@@ -167,7 +212,7 @@ test("soft delete: a soft-deleted Recipe can be restored", async () => {
 
 test("soft delete: restoring a Recipe by writing deletedAt: null is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe(true);
+  await seedRecipe(rulesTestEnv.env, "pancakes", { deleted: true });
 
   const context = rulesTestEnv.env.authenticatedContext(alice);
   await assertFails(context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).update({ deletedAt: null }));
@@ -175,7 +220,7 @@ test("soft delete: restoring a Recipe by writing deletedAt: null is denied", asy
 
 test("hard delete: the Owner cannot delete a Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).delete());
@@ -183,7 +228,7 @@ test("hard delete: the Owner cannot delete a Recipe", async () => {
 
 test("hard delete: the Owner cannot delete a soft-deleted Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedRecipe(true);
+  await seedRecipe(rulesTestEnv.env, "pancakes", { deleted: true });
 
   const firestore = rulesTestEnv.env.authenticatedContext(alice).firestore();
   await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).delete());
@@ -192,7 +237,7 @@ test("hard delete: the Owner cannot delete a soft-deleted Recipe", async () => {
 test("hard delete: a non-Owner Member cannot delete a Recipe", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
-  await seedRecipe();
+  await seedRecipe(rulesTestEnv.env, "pancakes");
 
   const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).delete());
