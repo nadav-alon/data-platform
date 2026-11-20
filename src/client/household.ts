@@ -1,4 +1,5 @@
 import { doc, getDoc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { email as toEmail, type Email } from "../core/email.ts";
 import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
 import { memberDocPath } from "../core/members.ts";
 import type { Uid } from "../core/uid.ts";
@@ -35,4 +36,30 @@ export async function isHouseholdMemberWith(
   uid: Uid,
 ): Promise<boolean> {
   return (await deps.getDoc(deps.doc(db, memberDocPath(uid)))).exists();
+}
+
+/**
+ * The Member doc's shape, shared by every writer of `members/{uid}`. The rules require `email` to
+ * be the caller's token email lowercased, so it is lowercased here whatever case Google reports.
+ */
+function memberDoc(deps: HouseholdDeps, email: Email) {
+  return { email: toEmail(email.toLowerCase()), addedAt: deps.serverTimestamp() };
+}
+
+/** First-claim: writes `meta/household` and the claimant's `members/{uid}` doc in one batch. */
+export function claimHousehold(db: Firestore, uid: Uid, email: Email): Promise<void> {
+  return claimHouseholdWith(HOUSEHOLD_DEPS, db, uid, email);
+}
+
+/** `claimHousehold` with the calls injected; `index.ts` does not export it. */
+export async function claimHouseholdWith(
+  deps: HouseholdDeps,
+  db: Firestore,
+  uid: Uid,
+  email: Email,
+): Promise<void> {
+  const batch = deps.writeBatch(db);
+  batch.set(deps.doc(db, HOUSEHOLD_DOC_PATH), { owner: uid });
+  batch.set(deps.doc(db, memberDocPath(uid)), memberDoc(deps, email));
+  await batch.commit();
 }
