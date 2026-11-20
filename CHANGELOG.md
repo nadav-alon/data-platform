@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.12.1
+
+No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move and `checkPlatform` stays
+at `ok` against a `0.12.0` deploy.
+
+- **Client** (`src/client/`, `docs/adr/0002-…md`): a new `data-platform/client` export, with `firebase`
+  an optional peer like `data-platform/local`; the main entry stays zod-only. It exports
+  `initFirebase(config)`, which returns `{ app, db }` with a persistent Firestore cache so writes queue
+  offline. `initFirebase(config, { local: true })` runs against the local kit: a memory cache, Auth
+  created through `initLocalAuth`, and Auth and Firestore pointed at the emulators through
+  `connectLocal`, so do not call `connectLocal` again.
+
 ## v0.12.0
 
 Redeploy (`npm run deploy`) to get the new rules, which also moves `meta/platform` to `0.12.0`;
