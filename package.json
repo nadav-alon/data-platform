@@ -1,6 +1,6 @@
 {
   "name": "data-platform",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "type": "module",
   "private": true,
   "engines": {
@@ -8,6 +8,10 @@
   },
   "exports": {
     ".": "./dist/index.js",
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
     "./local": {
       "types": "./dist/local/index.d.ts",
       "default": "./dist/local/index.js"
