@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RECIPES_COLLECTION, isRecipeId, recipeId, recipeSchema } from "./recipe.ts";
+import { recipes } from "../index.ts";
+import {
+  RECIPES_COLLECTION,
+  isRecipeId,
+  recipeId,
+  recipeIdSchema,
+  recipeSchema,
+  type RecipeId,
+} from "./recipe.ts";
 
 const valid = {
   title: "Pancakes",
@@ -79,8 +87,35 @@ test("rejects a non-positive or fractional servings", () => {
   assert.ok(!recipeSchema.safeParse({ ...valid, servings: 1.5 }).success);
 });
 
-test("recipeId rejects an empty string", () => {
+test("isRecipeId accepts a non-empty string", () => {
+  assert.equal(isRecipeId("pancakes"), true);
+});
+
+test("isRecipeId rejects an empty string", () => {
   assert.equal(isRecipeId(""), false);
-  assert.throws(() => recipeId(""));
+});
+
+test("recipeId narrows a valid value", () => {
   assert.equal(recipeId("pancakes"), "pancakes");
+});
+
+test("recipeId throws on an empty value, naming the value", () => {
+  assert.throws(() => recipeId(""), /got ""/);
+});
+
+test("recipeIdSchema accepts a non-empty string", () => {
+  const parsed: RecipeId = recipeIdSchema.parse("pancakes");
+  assert.equal(parsed, "pancakes");
+});
+
+test("recipeIdSchema rejects an empty string", () => {
+  assert.throws(() => recipeIdSchema.parse(""));
+});
+
+test("RecipeId's guard, constructor and schema are reachable through recipes", () => {
+  const id: recipes.RecipeId = recipeId("pancakes");
+  assert.equal(id, "pancakes");
+  assert.equal(recipes.isRecipeId, isRecipeId);
+  assert.equal(recipes.recipeId, recipeId);
+  assert.equal(recipes.recipeIdSchema, recipeIdSchema);
 });
