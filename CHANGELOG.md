@@ -1,13 +1,27 @@
 # Changelog
 
-## v0.12.3
+## v0.12.4
 
-No redeploy needed: additive, so `PLATFORM_VERSION`'s minor doesn't move.
+No redeploy needed: additive client code only.
 
 - **Client** (`src/client/household.ts`): `data-platform/client` gains `householdExists(db)`,
   `isHouseholdMember(db, uid)`, `claimHousehold(db, uid, email)` (the first-claim batch) and
   `joinFromInvite(db, uid, email)`, which resolves `false` when there is no Invite or the rules refuse
-  the join. `isRulesRefusal(error)` tells a `permission-denied` from any other failure.
+  the join.
+
+## v0.12.3
+
+No redeploy needed: additive client code only.
+
+- **Client** (`src/client/auth-client.ts`): `authClient(app)` on `data-platform/client` returns
+  `signIn()` (Google popup; resolves with the `AuthUser`), `signOut()`, `onAuthChange(listener)`
+  (the `AuthUser`, or `null` when signed out; returns the unsubscribe) and `currentUid()`.
+  `AuthUser` is `{ uid: Uid, email: Email }`; a signed-in user with no email or a bad uid throws
+  rather than reading as signed out. The app's Auth is looked up on each call. On an app from
+  `initFirebase(config, { local: true })` it signs in through the local kit's Auth and its emulator popup.
+  Porting from home-catalogue's `src/auth/authClient.ts`, the four free functions become one object:
+  `signInWithGoogle(app)` → `authClient(app).signIn()`, `signOutUser(app)` → `.signOut()`,
+  `watchAuthState(app, cb)` → `.onAuthChange(cb)`, `currentUserUid(app)` → `.currentUid()`.
 
 ## v0.12.2
 
