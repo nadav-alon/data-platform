@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.13.0
+
+Redeploy (`npm run deploy`) to move `meta/platform` to `0.13.0`; until then `checkPlatform` reads
+`outdated`, because pre-1.0 the minor is the breaking digit. The rules and schemas are unchanged, so
+nothing needs migrating.
+
+- **Client** (`src/client/`): the release of the new `data-platform/client` export, so the home
+  catalogue and the recipes app pin one tag. It collects `initFirebase`, the Firebase web config
+  helpers (`FirebaseWebConfig`, `getStoredFirebaseWebConfig`, `saveFirebaseWebConfig`,
+  `clearFirebaseWebConfig`, `deviceTransferUrl`, `parseConfigFragment`), `authClient` and the household
+  functions (`householdExists`, `isHouseholdMember`, `claimHousehold`, `joinFromInvite`) from
+  v0.12.2 to v0.12.4.
+
 ## v0.12.4
 
 No redeploy needed: additive client code only.
