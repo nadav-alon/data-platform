@@ -10,6 +10,7 @@ function fakeDeps(overrides: Partial<AuthDeps> = {}) {
   const provider = { providerId: "google.com" } as GoogleAuthProvider;
   const calls = {
     authApps: [] as FirebaseApp[],
+    signedOut: [] as Auth[],
     popups: [] as { auth: Auth; provider: unknown }[],
   };
   const deps: AuthDeps = {
@@ -21,6 +22,9 @@ function fakeDeps(overrides: Partial<AuthDeps> = {}) {
       calls.popups.push({ auth: a, provider: p });
       return {};
     }) as unknown as AuthDeps["signInWithPopup"],
+    signOut: async (a) => {
+      calls.signedOut.push(a);
+    },
     newGoogleProvider: () => provider,
     ...overrides,
   };
@@ -46,4 +50,12 @@ test("signIn rejects when the popup does", async () => {
   });
 
   await assert.rejects(authClientWith(deps, app).signIn(), /popup-closed-by-user/);
+});
+
+test("signOut signs the app's Auth out", async () => {
+  const { app, auth, calls, deps } = fakeDeps();
+
+  await authClientWith(deps, app).signOut();
+
+  assert.deepEqual(calls.signedOut, [auth]);
 });

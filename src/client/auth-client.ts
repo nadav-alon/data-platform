@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
   type Auth,
 } from "firebase/auth";
 
@@ -10,18 +11,22 @@ import {
 export type AuthDeps = {
   readonly getAuth: (app: FirebaseApp) => Auth;
   readonly signInWithPopup: typeof signInWithPopup;
+  readonly signOut: (auth: Auth) => Promise<void>;
   readonly newGoogleProvider: () => GoogleAuthProvider;
 };
 
 const AUTH_DEPS: AuthDeps = {
   getAuth,
   signInWithPopup,
+  signOut,
   newGoogleProvider: () => new GoogleAuthProvider(),
 };
 
 export type AuthClient = {
   /** Opens the Google sign-in popup. Rejects with Firebase's error if the popup is dismissed or blocked. */
   readonly signIn: () => Promise<void>;
+  /** Signs the current user out. */
+  readonly signOut: () => Promise<void>;
 };
 
 /**
@@ -39,5 +44,6 @@ export function authClientWith(deps: AuthDeps, app: FirebaseApp): AuthClient {
     signIn: async () => {
       await deps.signInWithPopup(auth, deps.newGoogleProvider());
     },
+    signOut: () => deps.signOut(auth),
   };
 }
