@@ -26,7 +26,6 @@ test("COLLECTION_SCHEMAS merges every Core, Catalogue and Recipes collection's s
 test("COLLECTION_SCHEMAS has no key collision between Core, Catalogue and Recipes", () => {
   const coreKeys = Object.keys(dataPlatform.core.CORE_COLLECTION_SCHEMAS);
   const catalogueKeys = Object.keys(dataPlatform.catalogue.CATALOGUE_COLLECTION_SCHEMAS);
-
   const recipesKeys = Object.keys(dataPlatform.recipes.RECIPES_COLLECTION_SCHEMAS);
 
   assert.equal(
