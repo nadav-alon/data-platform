@@ -13,3 +13,4 @@ export {
   saveFirebaseConfig,
 } from "./config-storage.ts";
 export type { ConfigStorage } from "./config-storage.ts";
+export { deviceTransferUrl, parseConfigFragment } from "./device-transfer.ts";
