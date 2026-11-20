@@ -91,10 +91,10 @@ Tags (`tagIds`, empty by default), at most one Aisle (`aisleId`), and an optiona
 Category's default.
 
 **Soft delete**:
-Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle or Store deleted with `deletedAt` rather than removing it,
+Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with `deletedAt` rather than removing it,
 so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
 reference counts and can't be referenced. It is the only way an app deletes: the rules deny hard
-delete on all seven, and only the Firebase console, as admin, can still remove one.
+delete on all eight, and only the Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
 **Necessity**:
