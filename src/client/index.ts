@@ -16,3 +16,9 @@ export type { ConfigStorage } from "./config-storage.ts";
 export { deviceTransferUrl, parseConfigFragment } from "./device-transfer.ts";
 export { authClient } from "./auth-client.ts";
 export type { AuthClient, AuthUser } from "./auth-client.ts";
+export {
+  claimHousehold,
+  householdExists,
+  isHouseholdMember,
+  joinFromInvite,
+} from "./household.ts";

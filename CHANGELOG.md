@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.4
+
+No redeploy needed: additive client code only.
+
+- **Client** (`src/client/household.ts`): `data-platform/client` gains `householdExists(db)`,
+  `isHouseholdMember(db, uid)`, `claimHousehold(db, uid, email)` (the first-claim batch) and
+  `joinFromInvite(db, uid, email)`, which resolves `false` when there is no Invite or the rules refuse
+  the join.
+
 ## v0.12.3
 
 No redeploy needed: additive client code only.
