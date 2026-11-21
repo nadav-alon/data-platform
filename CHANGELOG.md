@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.15.1
+
+Client only; rules and schemas are unchanged, so no redeploy is needed.
+
+- **Client**: `data-platform/client` exports `terminateFirebase(client)`, which terminates Firestore
+  and deletes the app, so a reset can call `initFirebase` again from a different config.
+
 ## v0.15.0
 
 Rules and schemas are unchanged, but `initFirebase`'s `local` option changes type, so the minor moves

@@ -5,7 +5,13 @@ import type { Auth } from "firebase/auth";
 import type { Firestore, FirestoreSettings } from "firebase/firestore";
 import { LOCAL_PROJECT_ID } from "../local/emulator-config.ts";
 import { connectLocal } from "../local/connect-local.ts";
-import { initFirebaseWith, type FirebaseDeps, type LocalKit } from "./init-firebase.ts";
+import {
+  initFirebaseWith,
+  terminateFirebaseWith,
+  type FirebaseDeps,
+  type LocalKit,
+  type TerminateDeps,
+} from "./init-firebase.ts";
 
 const config: FirebaseOptions = { projectId: "a-real-project", apiKey: "key" };
 
@@ -104,4 +110,64 @@ test("initFirebase in local mode refuses a config for any other project", () => 
     () => initFirebaseWith(deps, config, { local: { ...kit, connectLocal } }),
     /a-real-project/,
   );
+});
+
+function fakeTerminateDeps(
+  onTerminate: (db: Firestore) => Promise<void> | void = () => {},
+  onDelete: (app: FirebaseApp) => Promise<void> | void = () => {},
+): TerminateDeps {
+  return {
+    terminate: (async (db: Firestore) => {
+      await onTerminate(db);
+    }) as TerminateDeps["terminate"],
+    deleteApp: (async (app: FirebaseApp) => {
+      await onDelete(app);
+    }) as TerminateDeps["deleteApp"],
+  };
+}
+
+test("terminateFirebase terminates Firestore, then deletes the app", async () => {
+  const { app, db } = fakeDeps(config.projectId);
+  const order: string[] = [];
+  const deps = fakeTerminateDeps(
+    async (d) => {
+      await Promise.resolve();
+      order.push(d === db ? "terminate db" : "terminate other");
+    },
+    (a) => {
+      order.push(a === app ? "delete app" : "delete other");
+    },
+  );
+
+  await terminateFirebaseWith(deps, { app, db });
+
+  assert.deepEqual(order, ["terminate db", "delete app"]);
+});
+
+test("initFirebase runs again from a different config after terminateFirebase", async () => {
+  // One registry shared by init and terminate, like Firebase's: `[DEFAULT]` is taken until
+  // `deleteApp` frees it.
+  const taken = new Set<string>();
+  const db = { type: "firestore" } as unknown as Firestore;
+  const { deps } = fakeDeps(config.projectId);
+  const initDeps: FirebaseDeps = {
+    ...deps,
+    initializeApp: ((options?: FirebaseOptions) => {
+      if (taken.has("[DEFAULT]")) throw new Error("duplicate-app");
+      taken.add("[DEFAULT]");
+      return { name: "[DEFAULT]", options } as FirebaseApp;
+    }) as FirebaseDeps["initializeApp"],
+    initializeFirestore: (() => db) as FirebaseDeps["initializeFirestore"],
+  };
+  const terminateDeps = fakeTerminateDeps(undefined, (a) => {
+    taken.delete(a.name);
+  });
+  const other: FirebaseOptions = { projectId: "another-project", apiKey: "key2" };
+
+  const client = initFirebaseWith(initDeps, config);
+  assert.throws(() => initFirebaseWith(initDeps, other), /duplicate-app/);
+  await terminateFirebaseWith(terminateDeps, client);
+  const next = initFirebaseWith(initDeps, other);
+
+  assert.equal(next.app.options.projectId, "another-project");
 });

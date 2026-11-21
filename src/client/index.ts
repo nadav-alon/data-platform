@@ -1,4 +1,4 @@
-export { initFirebase } from "./init-firebase.ts";
+export { initFirebase, terminateFirebase } from "./init-firebase.ts";
 export type { FirebaseClient, InitFirebaseOptions, LocalKit } from "./init-firebase.ts";
 export {
   firebaseWebConfig,
