@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.16.0
+
+No redeploy needed: rules and schemas are unchanged, and the new code is not part of the published
+package's exports.
+
+- **MCP server** (`src/mcp/`): a read-only stdio MCP server that answers questions about the
+  Household's Items and Recipes from Claude Code, signed in as the developer's own Member through
+  Google OAuth so every read passes `firestore.rules`. It runs from a clone (`npm run mcp`); setup is
+  in the README. `@modelcontextprotocol/sdk` is a dev dependency only.
+
 ## v0.15.2
 
 No redeploy needed: additive client and `data-platform/local` code only.
