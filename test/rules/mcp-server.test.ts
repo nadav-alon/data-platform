@@ -28,7 +28,7 @@ async function callTool(
   }
 }
 
-test("the server lists exactly the two read tools and the add tool", async () => {
+test("the server lists the two read tools, read only, and the two add tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const server = createHouseholdServer(db);
   const client = new Client({ name: "test", version: "0" });
@@ -36,11 +36,15 @@ test("the server lists exactly the two read tools and the add tool", async () =>
   try {
     await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["add_catalogue_item", "list_items", "list_recipes"]);
-    assert.deepEqual(
-      tools.filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name).sort(),
-      ["list_items", "list_recipes"],
-    );
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+      "add_catalogue_item",
+      "add_recipe",
+      "list_items",
+      "list_recipes",
+    ]);
+    for (const tool of tools) {
+      assert.equal(tool.annotations?.readOnlyHint, tool.name.startsWith("list_"), tool.name);
+    }
   } finally {
     await client.close();
     await server.close();

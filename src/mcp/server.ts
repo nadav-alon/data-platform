@@ -4,8 +4,10 @@ import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
 import { itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { readItems, readRecipes } from "./household-reader.ts";
+import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
+const ADDS_ONLY = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const;
 
 /** One JSON text block: the raw records, with no derived view. */
 function asJson(records: unknown): { content: [{ type: "text"; text: string }] } {
@@ -14,9 +16,9 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
- * makeable, and what to shop for, is left to the model to work out from them. `add_catalogue_item`
- * is its one write; the only confirmation is Claude Code's own tool-permission prompt. Connect it
- * to a transport with `server.connect`.
+ * makeable, and what to shop for, is left to the model to work out from them. Its writes,
+ * `add_catalogue_item` and `add_recipe`, ask for no confirmation of their own: the client's tool
+ * permission prompt is the only one. Connect it to a transport with `server.connect`.
  */
 export function createHouseholdServer(db: Firestore): McpServer {
   const server = new McpServer({ name: "data-platform-household", version: "0.1.0" });
@@ -52,9 +54,19 @@ export function createHouseholdServer(db: Firestore): McpServer {
         aisleId: catalogueItemSchema.shape.aisleId,
         tagIds: catalogueItemSchema.shape.tagIds.optional(),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+      annotations: ADDS_ONLY,
     },
     async (input) => asJson({ id: await addCatalogueItem(db, input) }),
+  );
+  server.registerTool(
+    "add_recipe",
+    {
+      description:
+        "Add a Recipe with its Ingredients to the Household. Read the source (a URL or pasted text) first and pass the Recipe as structured input; the server fetches nothing. An Ingredient may link a live Item by `itemId` (see list_items); an assumed Ingredient (a staple such as salt) names no Item; a `unit` needs a `quantity`. Returns the new Recipe's id.",
+      inputSchema: newRecipeSchema,
+      annotations: ADDS_ONLY,
+    },
+    async (recipe) => asJson({ id: await addRecipe(db, recipe) }),
   );
   return server;
 }
