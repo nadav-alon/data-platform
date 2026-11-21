@@ -7,7 +7,8 @@ No redeploy needed: additive client and `data-platform/local` code only.
 - **Local** (`src/local/`): `data-platform/local` exports `LOCAL_WEB_CONFIG`, the web config whose
   `projectId` is `LOCAL_PROJECT_ID`, so an app passes it straight to `initFirebase` in local mode.
 - **Client**: `data-platform/client` exports `isRulesRefusal(error)`, true when Firestore's rules
-  denied the request (`permission-denied`), so an app can tell a refusal from a network error.
+  denied the request (`permission-denied`), so an app can tell a refusal from a network or
+  programming error.
 
 ## v0.15.1
 
