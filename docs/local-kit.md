@@ -53,10 +53,14 @@ An app that uses `initFirebase` from `data-platform/client` passes the kit inste
 
 ```ts
 import { initFirebase } from "data-platform/client";
-import { localKit } from "data-platform/local";
+import { LOCAL_WEB_CONFIG, localKit } from "data-platform/local";
 
-const { app, db } = initFirebase(config, import.meta.env.DEV ? { local: localKit } : {});
+const { app, db } = import.meta.env.DEV
+  ? initFirebase(LOCAL_WEB_CONFIG, { local: localKit })
+  : initFirebase(config);
 ```
+
+`LOCAL_WEB_CONFIG` is the web config for local mode: its `projectId` is `LOCAL_PROJECT_ID`, which `initFirebase` requires with `local`, and its other fields are placeholders the emulators ignore.
 
 An app that never imports `data-platform/local` ships none of the kit; `initFirebase` does not import it. The static import above drops out of a production build only because the package declares `"sideEffects": false` and the bundler folds `import.meta.env.DEV` to `false`; a bundler that ignores `sideEffects` may keep part of the kit, so check the production bundle.
 
