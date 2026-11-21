@@ -13,7 +13,7 @@ import {
 export type ItemRecord = Item & { readonly id: ItemId };
 
 /** Whether a stored document is live: it has no `deletedAt`. */
-function isLive(data: Record<string, unknown>): boolean {
+export function isLive(data: Record<string, unknown>): boolean {
   return data.deletedAt === undefined;
 }
 

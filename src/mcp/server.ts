@@ -1,11 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Firestore } from "firebase/firestore";
-import { z } from "zod";
 import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
-import { itemId, itemSchema } from "../core/item.ts";
+import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { readItems, readRecipes } from "./household-reader.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
+import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
@@ -75,18 +75,18 @@ export function createHouseholdServer(db: Firestore): McpServer {
     "set_item_state",
     {
       description:
-        "Set one live Item's State (enough, running low or out), recording it in the Item's State history. Use an Item id from list_items.",
-      inputSchema: { itemId: z.string(), state: z.string() },
+        "Set one live Item's State, recording it in the Item's State history. Use an Item id from list_items.",
+      inputSchema: { itemId: itemIdSchema, state: stateSchema },
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
-        idempotentHint: true,
+        idempotentHint: false,
         openWorldHint: false,
       },
     },
     async ({ itemId: id, state }) => {
       try {
-        await setItemState(db, itemId(id), state);
+        await setItemState(db, id, state);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return { isError: true, content: [{ type: "text", text: message }] };
