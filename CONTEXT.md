@@ -102,11 +102,12 @@ unit (a unit needs a quantity), and a prep note. It is _assumed_ when the Recipe
 (`assumed`, like salt): an assumed Ingredient never names an Item.
 
 **Soft delete**:
-Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with `deletedAt` rather than removing it,
-so its history survives. A record without `deletedAt` is _live_. A soft-deleted record holds no
-reference counts. Where a reference is unchecked, it can still point at one: an Ingredient's
-`itemId` is not checked, so a Recipe may name a soft-deleted Item. It is the only way an app deletes: the rules deny hard
-delete on all eight, and only the Firebase console, as admin, can still remove one.
+Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with
+`deletedAt` rather than removing it, so its history survives. A record without `deletedAt` is
+_live_. A soft-deleted record holds no reference counts. Where a reference is unchecked, it can
+still point at one: an Ingredient's `itemId` is not checked, so a Recipe may name a soft-deleted
+Item. It is the only way an app deletes: the rules deny hard delete on all eight, and only the
+Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
 **Necessity**:
