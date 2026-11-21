@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.15.1
 
 Client only; rules and schemas are unchanged, so no redeploy is needed.
 
