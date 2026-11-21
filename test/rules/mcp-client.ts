@@ -14,7 +14,7 @@ const projectId = process.env.GCLOUD_PROJECT;
 const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
 const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST;
 
-/** Wipes the test project's Auth accounts, then seeds `name`'s users and fixtures. */
+/** Wipes the test project's Auth accounts and Firestore documents, then seeds `name`'s users and fixtures. */
 export async function seedLocalHousehold(name: ScenarioName): Promise<void> {
   if (!projectId || !authHost || !firestoreHost) {
     throw new Error("run this suite through `npm run test:rules`");
@@ -22,6 +22,10 @@ export async function seedLocalHousehold(name: ScenarioName): Promise<void> {
   await fetch(`http://${authHost}/emulator/v1/projects/${projectId}/accounts`, {
     method: "DELETE",
   });
+  await fetch(
+    `http://${firestoreHost}/emulator/v1/projects/${projectId}/databases/(default)/documents`,
+    { method: "DELETE" },
+  );
   await seedAuthUsers(SCENARIOS[name].users, { projectId, host: authHost });
   await withEmulatorWriter((writer) => seedScenario(writer, name), {
     projectId,
