@@ -1,23 +1,33 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth } from "firebase/auth";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { firebaseWebConfig } from "../../src/client/web-config.ts";
 import { googleClientId, type ServerConfig } from "../../src/mcp/config.ts";
 import { readItems } from "../../src/mcp/household-reader.ts";
 import { openMemberSession, type MemberSessionDeps } from "../../src/mcp/member-session.ts";
-import { fakeGoogleIdToken, seedLocalHousehold } from "./mcp-client.ts";
+import { emulatorApp, fakeGoogleIdToken, seedLocalHousehold } from "./mcp-client.ts";
 
 const projectId = process.env.GCLOUD_PROJECT as string;
-const [firestoreHost, firestorePort] = (process.env.FIRESTORE_EMULATOR_HOST ?? "").split(":");
 
 const config: ServerConfig = {
-  firebase: { projectId, apiKey: "fake" } as ServerConfig["firebase"],
-  oauthClient: { clientId: googleClientId("1-a.apps.googleusercontent.com"), clientSecret: "shh" },
+  firebase: firebaseWebConfig({
+    apiKey: "fake",
+    authDomain: "fake.firebaseapp.com",
+    projectId,
+    storageBucket: "fake.appspot.com",
+    messagingSenderId: "1",
+    appId: "1:1:web:fake",
+  }),
+  oauthClient: {
+    clientId: googleClientId("1-a.apps.googleusercontent.com"),
+    clientSecret: "shh",
+  },
 };
 
 /** Deps whose Google is the Auth emulator's fake one: the browser signs in as `email`. */
-function deps(email: string, cached?: string): MemberSessionDeps & { saved: string[]; opened: string[] } {
+function deps(
+  email: string,
+  cached?: string,
+): MemberSessionDeps & { saved: string[]; opened: string[] } {
   const saved: string[] = [];
   const opened: string[] = [];
   const google = (grant: string) =>
@@ -31,7 +41,8 @@ function deps(email: string, cached?: string): MemberSessionDeps & { saved: stri
     opened,
     tokenCache: { load: () => cached, save: (token) => saved.push(token) },
     fetch: (async (_url: string | URL | Request, init?: RequestInit) =>
-      cached === "revoked" && new URLSearchParams(String(init?.body)).get("grant_type") === "refresh_token"
+      cached === "revoked" &&
+      new URLSearchParams(String(init?.body)).get("grant_type") === "refresh_token"
         ? Response.json({ error: "invalid_grant" }, { status: 400 })
         : google(new URLSearchParams(String(init?.body)).get("grant_type") ?? "")) as typeof fetch,
     openUrl: async (url) => {
@@ -44,14 +55,7 @@ function deps(email: string, cached?: string): MemberSessionDeps & { saved: stri
       }).toString();
       void fetch(back);
     },
-    initApp: (webConfig) => {
-      const app = initializeApp(webConfig, `session-${Math.random()}`);
-      connectAuthEmulator(getAuth(app), `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`, {
-        disableWarnings: true,
-      });
-      connectFirestoreEmulator(getFirestore(app), firestoreHost ?? "", Number(firestorePort));
-      return app;
-    },
+    initApp: emulatorApp,
   };
 }
 

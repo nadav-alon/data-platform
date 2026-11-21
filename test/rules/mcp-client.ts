@@ -1,4 +1,4 @@
-import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
+import { deleteApp, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import {
   connectAuthEmulator,
   getAuth,
@@ -35,7 +35,22 @@ export async function seedLocalHousehold(name: ScenarioName): Promise<void> {
 
 /** What the Auth emulator accepts as a Google id token for `email`. */
 export function fakeGoogleIdToken(email: string): string {
-  return JSON.stringify({ sub: `google-${email}`, email, email_verified: true });
+  return JSON.stringify({
+    sub: `google-${email}`,
+    email,
+    email_verified: true,
+  });
+}
+
+/** A Firebase app for `webConfig` under a fresh name, wired to the Auth and Firestore emulators. */
+export function emulatorApp(webConfig: FirebaseOptions): FirebaseApp {
+  const app = initializeApp(webConfig, `mcp-test-${Date.now()}-${Math.random()}`);
+  const [host, port] = (firestoreHost ?? "").split(":");
+  connectAuthEmulator(getAuth(app), `http://${authHost}`, {
+    disableWarnings: true,
+  });
+  connectFirestoreEmulator(getFirestore(app), host ?? "", Number(port));
+  return app;
 }
 
 /** A Firestore client of the test project, signed in with a fake Google id token for `email`. */
@@ -44,13 +59,7 @@ export async function signedInClient(
   signIn: (app: FirebaseApp, idToken: string) => Promise<unknown> = (app, idToken) =>
     signInWithCredential(getAuth(app), GoogleAuthProvider.credential(idToken)),
 ): Promise<{ db: Firestore; close: () => Promise<void> }> {
-  const app = initializeApp(
-    { projectId, apiKey: "fake" },
-    `mcp-test-${Date.now()}-${Math.random()}`,
-  );
-  const [host, port] = (firestoreHost ?? "").split(":");
-  connectAuthEmulator(getAuth(app), `http://${authHost}`, { disableWarnings: true });
-  connectFirestoreEmulator(getFirestore(app), host ?? "", Number(port));
+  const app = emulatorApp({ projectId, apiKey: "fake" });
   await signIn(app, fakeGoogleIdToken(email));
   return { db: getFirestore(app), close: () => deleteApp(app) };
 }
