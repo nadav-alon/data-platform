@@ -48,7 +48,7 @@ export type AuthClient = {
 };
 
 /**
- * The Google sign-in client for an app from `initFirebase`. Through `initFirebase(config, { local: true })`
+ * The Google sign-in client for an app from `initFirebase`. Through `initFirebase(config, { local: localKit })`
  * the app's Auth is the local kit's, so sign-in goes through the Auth emulator's popup. The app's
  * Auth is looked up on each call, so a hand-wired local app may build the client before
  * `initLocalAuth`.
