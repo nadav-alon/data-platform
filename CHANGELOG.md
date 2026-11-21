@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+No redeploy needed: additive `data-platform/local` code only.
+
 - **Local** (`src/local/`): `data-platform/local` exports `LOCAL_WEB_CONFIG`, the web config whose
   `projectId` is `LOCAL_PROJECT_ID`, so an app passes it straight to `initFirebase` in local mode.
 
