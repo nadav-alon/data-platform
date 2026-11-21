@@ -4,6 +4,7 @@ import { firebaseWebConfig } from "../../src/client/web-config.ts";
 import { googleClientId, type ServerConfig } from "../../src/mcp/config.ts";
 import { readItems } from "../../src/mcp/household-reader.ts";
 import { openMemberSession, type MemberSessionDeps } from "../../src/mcp/member-session.ts";
+import { googleRefreshToken } from "../../src/mcp/google-oauth.ts";
 import { emulatorApp, fakeGoogleIdToken, seedLocalHousehold } from "./mcp-client.ts";
 
 const projectId = process.env.GCLOUD_PROJECT as string;
@@ -39,7 +40,10 @@ function deps(
   return {
     saved,
     opened,
-    tokenCache: { load: () => cached, save: (token) => saved.push(token) },
+    tokenCache: {
+      load: () => (cached === undefined ? undefined : googleRefreshToken(cached)),
+      save: (token) => saved.push(token),
+    },
     fetch: (async (_url: string | URL | Request, init?: RequestInit) =>
       cached === "revoked" &&
       new URLSearchParams(String(init?.body)).get("grant_type") === "refresh_token"

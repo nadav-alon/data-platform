@@ -2,7 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { googleClientId } from "./config.ts";
-import { GoogleOAuthError, refreshTokens, signInViaBrowser } from "./google-oauth.ts";
+import {
+  GoogleOAuthError,
+  googleRefreshToken,
+  refreshTokens,
+  signInViaBrowser,
+} from "./google-oauth.ts";
 
 const client = { clientId: googleClientId("1-a.apps.googleusercontent.com"), clientSecret: "shh" };
 
@@ -52,7 +57,9 @@ test("sign-in sends PKCE and offline access, then exchanges the code for tokens"
   assert.equal(exchange?.get("client_secret"), "shh");
   assert.equal(exchange?.get("redirect_uri"), auth?.searchParams.get("redirect_uri"));
   assert.equal(
-    createHash("sha256").update(exchange?.get("code_verifier") ?? "").digest("base64url"),
+    createHash("sha256")
+      .update(exchange?.get("code_verifier") ?? "")
+      .digest("base64url"),
     auth?.searchParams.get("code_challenge"),
   );
 });
@@ -61,7 +68,10 @@ test("a redirect with another state is rejected without asking for tokens", asyn
   const endpoint = fakeTokenEndpoint(() => Response.json(tokenBody));
 
   await assert.rejects(
-    signInViaBrowser(client, { fetch: endpoint.fetcher, openUrl: browserReturning({ state: "forged" }) }),
+    signInViaBrowser(client, {
+      fetch: endpoint.fetcher,
+      openUrl: browserReturning({ state: "forged" }),
+    }),
     GoogleOAuthError,
   );
   assert.equal(endpoint.bodies.length, 0);
@@ -81,17 +91,22 @@ test("a consent the developer declines is rejected naming Google's error", async
 
 test("refreshTokens trades a refresh token, and flags one Google no longer honours", async () => {
   const ok = fakeTokenEndpoint(() => Response.json({ id_token: "id2", access_token: "access2" }));
-  assert.deepEqual(await refreshTokens(client, "refresh", { fetch: ok.fetcher }), {
-    idToken: "id2",
-    accessToken: "access2",
-    refreshToken: undefined,
-  });
+  assert.deepEqual(
+    await refreshTokens(client, googleRefreshToken("refresh"), { fetch: ok.fetcher }),
+    {
+      idToken: "id2",
+      accessToken: "access2",
+      refreshToken: undefined,
+    },
+  );
   assert.equal(ok.bodies[0]?.get("grant_type"), "refresh_token");
   assert.equal(ok.bodies[0]?.get("refresh_token"), "refresh");
 
-  const revoked = fakeTokenEndpoint(() => Response.json({ error: "invalid_grant" }, { status: 400 }));
+  const revoked = fakeTokenEndpoint(() =>
+    Response.json({ error: "invalid_grant" }, { status: 400 }),
+  );
   await assert.rejects(
-    refreshTokens(client, "refresh", { fetch: revoked.fetcher }),
+    refreshTokens(client, googleRefreshToken("refresh"), { fetch: revoked.fetcher }),
     (error: unknown) => error instanceof GoogleOAuthError && error.refreshRefused,
   );
 });

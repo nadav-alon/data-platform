@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { googleRefreshToken } from "./google-oauth.ts";
 import { fileTokenCache } from "./token-cache.ts";
 
 test("a saved refresh token is loaded back from a file only the developer can read", () => {
@@ -10,8 +11,8 @@ test("a saved refresh token is loaded back from a file only the developer can re
   const cache = fileTokenCache(dir);
   assert.equal(cache.load(), undefined);
 
-  cache.save("refresh-1");
-  cache.save("refresh-2");
+  cache.save(googleRefreshToken("refresh-1"));
+  cache.save(googleRefreshToken("refresh-2"));
 
   assert.equal(fileTokenCache(dir).load(), "refresh-2");
   assert.equal(statSync(join(dir, "tokens.json")).mode & 0o777, 0o600);

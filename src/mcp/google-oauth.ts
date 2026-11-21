@@ -7,11 +7,26 @@ import type { OAuthClient } from "./config.ts";
 const AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
+const googleRefreshTokenSchema = z.string().min(1).brand<"GoogleRefreshToken">();
+
+/** A Google refresh token: opaque, so the guard only checks that it is not empty. */
+export type GoogleRefreshToken = z.infer<typeof googleRefreshTokenSchema>;
+
+export function isGoogleRefreshToken(value: string): value is GoogleRefreshToken {
+  return googleRefreshTokenSchema.safeParse(value).success;
+}
+
+/** The constructor: narrows, or throws. It does not echo the value: it is a credential. */
+export function googleRefreshToken(value: string): GoogleRefreshToken {
+  if (!isGoogleRefreshToken(value)) throw new Error("Not a Google refresh token: it is empty");
+  return value;
+}
+
 /** What Google returns for a sign-in; `refreshToken` is what the cache keeps. */
 export type GoogleTokens = {
   readonly idToken: string;
   readonly accessToken: string;
-  readonly refreshToken: string | undefined;
+  readonly refreshToken: GoogleRefreshToken | undefined;
 };
 
 /** Thrown when Google refuses a token request; `refreshRefused` is true for a revoked or expired refresh token. */
@@ -33,7 +48,7 @@ export type GoogleOAuthDeps = {
 const tokenResponseSchema = z.object({
   id_token: z.string().min(1),
   access_token: z.string().min(1),
-  refresh_token: z.string().min(1).optional(),
+  refresh_token: googleRefreshTokenSchema.optional(),
 });
 
 const base64Url = (bytes: Buffer): string => bytes.toString("base64url");
@@ -86,7 +101,7 @@ export async function signInViaBrowser(
 /** Trades a cached refresh token for fresh tokens. Rejects with `refreshRefused` when Google no longer honours it. */
 export function refreshTokens(
   client: OAuthClient,
-  refreshToken: string,
+  refreshToken: GoogleRefreshToken,
   deps: Pick<GoogleOAuthDeps, "fetch">,
 ): Promise<GoogleTokens> {
   return requestTokens(deps, client, { grant_type: "refresh_token", refresh_token: refreshToken });
