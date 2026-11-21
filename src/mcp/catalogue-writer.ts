@@ -1,20 +1,18 @@
 import { collection, doc, increment, writeBatch, type Firestore } from "firebase/firestore";
-import { catalogueItemSchema, CATALOGUE_ITEMS_COLLECTION } from "../catalogue/catalogue-item.ts";
+import {
+  catalogueItemSchema,
+  CATALOGUE_ITEMS_COLLECTION,
+  type CatalogueItem,
+} from "../catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION } from "../catalogue/category.ts";
 import { SHOPS_COLLECTION } from "../catalogue/shop.ts";
-import { ITEMS_COLLECTION, itemId, itemSchema, type ItemId } from "../core/item.ts";
+import { ITEMS_COLLECTION, itemId, itemSchema, type Item, type ItemId } from "../core/item.ts";
 
 /** What a conversation supplies to add a CatalogueItem: the Item's own fields and its catalogue data. */
-export type NewCatalogueItem = {
-  readonly name: string;
-  /** Defaults to `enough`. */
-  readonly state?: string;
-  readonly categoryId: string;
-  readonly necessity: string;
-  readonly shopId?: string;
-  readonly aisleId?: string;
-  readonly tagIds?: readonly string[];
-};
+export type NewCatalogueItem = Pick<Item, "name"> &
+  Partial<Pick<Item, "state">> &
+  Pick<CatalogueItem, "categoryId" | "necessity"> &
+  Partial<Pick<CatalogueItem, "shopId" | "aisleId" | "tagIds">>;
 
 /**
  * Adds a new Item and its CatalogueItem in one batch, and bumps the `referenceCount` of the
@@ -28,9 +26,10 @@ export async function addCatalogueItem(db: Firestore, input: NewCatalogueItem): 
   const catalogueItem = catalogueItemSchema.parse({
     categoryId: input.categoryId,
     necessity: input.necessity,
-    shopId: input.shopId,
-    aisleId: input.aisleId,
-    tagIds: input.tagIds,
+    // Optional keys only when set: Firestore rejects an explicit `undefined` field.
+    ...(input.shopId !== undefined && { shopId: input.shopId }),
+    ...(input.aisleId !== undefined && { aisleId: input.aisleId }),
+    ...(input.tagIds !== undefined && { tagIds: input.tagIds }),
   });
   const itemRef = doc(collection(db, ITEMS_COLLECTION));
   const id = itemId(itemRef.id);
