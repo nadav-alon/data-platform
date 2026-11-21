@@ -1,12 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ZodError } from "zod";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { readRecipes } from "../../src/mcp/household-reader.ts";
 import { addRecipe, type NewRecipe } from "../../src/mcp/recipe-writer.ts";
-import { createHouseholdServer } from "../../src/mcp/server.ts";
-import { seedLocalHousehold, signedInClient } from "./mcp-client.ts";
+import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
 const pancakes: NewRecipe = {
   title: "Pancakes",
@@ -53,6 +50,22 @@ test("addRecipe refuses a Recipe the schema rejects, and writes nothing", async 
   }
 });
 
+test("addRecipe refuses a deletedAt or any key the schema does not name, and writes nothing", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    const before = (await readRecipes(db)).length;
+
+    for (const extra of [{ deletedAt: null }, { deletedAt: "2026-01-01" }, { householdId: "x" }]) {
+      await assert.rejects(addRecipe(db, { ...pancakes, ...extra } as NewRecipe), ZodError);
+    }
+
+    assert.equal((await readRecipes(db)).length, before);
+  } finally {
+    await close();
+  }
+});
+
 test("addRecipe by a non-Member is refused by the rules", async () => {
   await seedLocalHousehold("owner-with-recipes");
   const { db, close } = await signedInClient("stranger@example.com");
@@ -66,11 +79,8 @@ test("addRecipe by a non-Member is refused by the rules", async () => {
 test("the add_recipe tool adds a Recipe, and returns an error result for one the schema refuses", async () => {
   await seedLocalHousehold("owner-with-recipes");
   const { db, close } = await signedInClient("owner@example.com");
-  const server = createHouseholdServer(db);
-  const client = new Client({ name: "test", version: "0" });
-  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
-    await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
 
     const added = await client.callTool({ name: "add_recipe", arguments: pancakes });
     assert.notEqual(added.isError, true);
@@ -83,8 +93,7 @@ test("the add_recipe tool adds a Recipe, and returns an error result for one the
     assert.equal(refused.isError, true);
     assert.ok(!(await readRecipes(db)).some((recipe) => recipe.title === "Bad"));
   } finally {
-    await client.close();
-    await server.close();
+    await closeMcp();
     await close();
   }
 });

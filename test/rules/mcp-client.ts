@@ -1,3 +1,5 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { deleteApp, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import {
   connectAuthEmulator,
@@ -6,6 +8,7 @@ import {
   signInWithCredential,
 } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import { createHouseholdServer } from "../../src/mcp/server.ts";
 import { seedAuthUsers } from "../../src/local/auth-users.ts";
 import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
 import { SCENARIOS, seedScenario, type ScenarioName } from "../../src/local/scenarios.ts";
@@ -62,4 +65,21 @@ export async function signedInClient(
   const app = emulatorApp({ projectId, apiKey: "fake" });
   await signIn(app, fakeGoogleIdToken(email));
   return { db: getFirestore(app), close: () => deleteApp(app) };
+}
+
+/** An MCP client connected over a linked in-memory pair to a household server over `db`; `close` tears both down. */
+export async function connectedMcpClient(
+  db: Firestore,
+): Promise<{ client: Client; close: () => Promise<void> }> {
+  const server = createHouseholdServer(db);
+  const client = new Client({ name: "test", version: "0" });
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
+  return {
+    client,
+    close: async () => {
+      await client.close();
+      await server.close();
+    },
+  };
 }
