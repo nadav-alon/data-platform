@@ -1,0 +1,20 @@
+import { addDoc, collection, type Firestore } from "firebase/firestore";
+import { z } from "zod";
+import { RECIPES_COLLECTION, recipeId, recipeSchema, type RecipeId } from "../recipes/recipe.ts";
+
+/** What a caller supplies to add a Recipe: a live Recipe, so never a `deletedAt`. */
+export const newRecipeSchema = recipeSchema.omit({ deletedAt: true });
+
+export type NewRecipe = z.input<typeof newRecipeSchema>;
+
+/**
+ * Adds a live Recipe with its Ingredients and returns its id. The input is validated by the
+ * Recipe zod schema before anything is sent, and throws a `ZodError` when it is refused; the write
+ * is then checked by `firestore.rules` as the signed-in Member, so a non-Member's write rejects
+ * with Firestore's `permission-denied`.
+ */
+export async function addRecipe(db: Firestore, input: NewRecipe): Promise<RecipeId> {
+  const recipe = newRecipeSchema.parse(input);
+  const created = await addDoc(collection(db, RECIPES_COLLECTION), recipe);
+  return recipeId(created.id);
+}
