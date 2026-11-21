@@ -19,14 +19,14 @@ Recipe that Claude has read from a URL or pasted text (the server has no scraper
 no confirmation of its own: Claude Code's tool-permission prompt is the only one.
 It runs from a clone of this repo; the published package has no bin for it.
 
-| Tool                  | Returns                                                                                                                                           |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_items`          | every live Item, with its State                                                                                                                   |
-| `list_recipes`        | every live Recipe, with its Ingredients; each Ingredient's `item` is its linked live Item, or `null`                                              |
-| `add_catalogue_item`  | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first             |
-| `add_recipe`          | adds a live Recipe with its Ingredients from structured input; validated by the Recipe zod schema first; returns its `id`                         |
-| `set_item_state`      | sets one live Item's State and records it in State history, as the Catalogue app does                                                             |
-| `set_ingredient_link` | links one Ingredient of a Recipe to an Item, marks it Assumed, or unlinks it; validated by the Recipe zod schema first; returns the Recipe's `id` |
+| Tool                  | Returns                                                                                                                                                                             |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_items`          | every live Item, with its State                                                                                                                                                     |
+| `list_recipes`        | every live Recipe, with its Ingredients; each Ingredient's `item` is its linked live Item, or `null`                                                                                |
+| `add_catalogue_item`  | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first                                               |
+| `add_recipe`          | adds a live Recipe with its Ingredients from structured input; validated by the Recipe zod schema first; returns its `id`                                                           |
+| `set_item_state`      | sets one live Item's State and records it in State history, as the Catalogue app does                                                                                               |
+| `set_ingredient_link` | links one Ingredient of a Recipe to an Item, marks it Assumed, or unlinks it; the input and the resulting Ingredients are validated by zod schemas first; returns the Recipe's `id` |
 
 ### One-time setup
 

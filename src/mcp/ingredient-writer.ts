@@ -32,9 +32,10 @@ export type SetIngredientLink = z.input<typeof setIngredientLinkSchema>;
 
 /**
  * Links one Ingredient of a live Recipe to an Item, marks it assumed, or unlinks it (an empty
- * `link`), leaving its other fields as stored. The input and the resulting Recipe are validated by
- * the Recipe zod schema before anything is sent, and a `ZodError` is thrown when either is refused;
- * an unknown or soft-deleted Recipe, or a position past its last Ingredient, throws an `Error`.
+ * `link`), leaving its other fields as stored. The input is validated by `setIngredientLinkSchema`
+ * (a `link` naming both an Item and Assumed is refused there) and the resulting Ingredients by the
+ * Recipe schema's `ingredients` shape before anything is sent; a `ZodError` is thrown when either
+ * is refused. An unknown or soft-deleted Recipe, or a position past its last Ingredient, throws an `Error`.
  * The write is then checked by `firestore.rules` as the signed-in Member.
  */
 export async function setIngredientLink(db: Firestore, input: SetIngredientLink): Promise<RecipeId> {
