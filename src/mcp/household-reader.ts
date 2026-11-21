@@ -1,14 +1,16 @@
 import { collection, getDocs, type Firestore } from "firebase/firestore";
-import { ITEMS_COLLECTION, itemSchema, type Item } from "../core/item.ts";
+import { ITEMS_COLLECTION, itemId, itemSchema, type Item, type ItemId } from "../core/item.ts";
 import {
   RECIPES_COLLECTION,
+  recipeId,
   recipeSchema,
   type Ingredient,
   type Recipe,
+  type RecipeId,
 } from "../recipes/recipe.ts";
 
 /** An Item as stored, with its document id. Soft-deleted Items are never returned. */
-export type ItemRecord = Item & { readonly id: string };
+export type ItemRecord = Item & { readonly id: ItemId };
 
 /** Whether a stored document is live: it has no `deletedAt`. */
 function isLive(data: Record<string, unknown>): boolean {
@@ -23,7 +25,7 @@ export async function readItems(db: Firestore): Promise<ItemRecord[]> {
   const snapshot = await getDocs(collection(db, ITEMS_COLLECTION));
   return snapshot.docs
     .filter((document) => isLive(document.data()))
-    .map((document) => ({ ...itemSchema.parse(document.data()), id: document.id }));
+    .map((document) => ({ ...itemSchema.parse(document.data()), id: itemId(document.id) }));
 }
 
 /** An Ingredient as stored, with the live Item it links to. */
@@ -37,7 +39,7 @@ export type IngredientRecord = Ingredient & {
 
 /** A live Recipe as stored, with its id and each Ingredient's linked Item. */
 export type RecipeRecord = Omit<Recipe, "ingredients"> & {
-  readonly id: string;
+  readonly id: RecipeId;
   readonly ingredients: IngredientRecord[];
 };
 
@@ -58,7 +60,7 @@ export async function readRecipes(db: Firestore): Promise<RecipeRecord[]> {
       const recipe = recipeSchema.parse(document.data());
       return {
         ...recipe,
-        id: document.id,
+        id: recipeId(document.id),
         ingredients: recipe.ingredients.map((ingredient) => ({
           ...ingredient,
           item: (ingredient.itemId && itemsById.get(ingredient.itemId)) || null,
