@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.15.2
 
 No redeploy needed: additive client and `data-platform/local` code only.
 
