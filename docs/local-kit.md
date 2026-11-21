@@ -24,8 +24,9 @@ npx data-platform-local owner-with-items
 | `invited-member`   | claimed by another Owner; a Shop, Category, one Item with its CatalogueItem; no Invite pending | `member@example.com`, a Member |
 
 `owner-with-recipes` seeds Recipes that are Makeable, Almost makeable (one and two Missing Ingredients),
-with an Unlinked, an Assumed and a `running low` Ingredient, and one linked to the soft-deleted Item. It also seeds a full-field Recipe (prep steps, several steps,
-Ingredients with `quantity`, `unit` and `prepNote`, `servings`, `sourceUrl`, `notes`) and a soft-deleted Recipe.
+with an Unlinked, an Assumed and a `running low` Ingredient, and one linked to the soft-deleted Item.
+It also seeds a full-field Recipe (prep steps, several steps, Ingredients with `quantity`, `unit` and
+`prepNote`, `servings`, `sourceUrl`, `notes`) and a soft-deleted Recipe.
 
 An unknown name fails listing the known ones. With no name the bin starts `empty`. Auth listens on
 `127.0.0.1:9099` and Firestore on `127.0.0.1:8090`.
