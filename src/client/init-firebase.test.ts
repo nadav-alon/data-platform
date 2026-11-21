@@ -60,6 +60,19 @@ test("initFirebase returns the app and a Firestore with a persistent local cache
   assert.deepEqual(calls.connected, []);
 });
 
+test("initFirebase's persistent cache is shared across tabs and apps on the origin", () => {
+  const { calls, deps } = fakeDeps(config.projectId);
+
+  initFirebaseWith(deps, config);
+
+  // The SDK exposes no tab-manager flag; the multi-tab cache is the one whose offline component
+  // provider is the multi-tab one.
+  const cache = calls.settings[0]?.settings.localCache as unknown as {
+    _offlineComponentProvider: { build: (...args: never[]) => unknown };
+  };
+  assert.match(String(cache._offlineComponentProvider.build), /MultiTabOfflineComponentProvider/);
+});
+
 test("initFirebase in local mode uses a memory cache, then Auth, then connects the local kit", () => {
   const { app, db, calls, order, deps, kit } = fakeDeps(LOCAL_PROJECT_ID);
 
