@@ -10,13 +10,8 @@ import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
-const UPDATES = {
-  readOnlyHint: false,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const;
 const ADDS_ONLY = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const;
+const UPDATES = { ...ADDS_ONLY, idempotentHint: true } as const;
 
 /** One JSON text block: the raw records, with no derived view. */
 function asJson(records: unknown): { content: [{ type: "text"; text: string }] } {
