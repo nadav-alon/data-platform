@@ -96,8 +96,9 @@ const TERMINATE_DEPS: TerminateDeps = { terminate, deleteApp };
 
 /**
  * Tears down what `initFirebase` made: terminates Firestore, then deletes the app, so a reset can
- * call `initFirebase` again from a different config. Resolves once both are done. The client is
- * unusable afterwards; drop every reference to it, and to listeners attached through it.
+ * call `initFirebase` again from a different config. Resolves once both are done. Deleting the app
+ * also tears down its Auth, both the `initLocalAuth` instance and any `getAuth(app)`, so there is
+ * no separate sign-out or Auth teardown. The client is unusable afterwards; drop every reference to it, and to listeners attached through it.
  */
 export function terminateFirebase(client: FirebaseClient): Promise<void> {
   return terminateFirebaseWith(TERMINATE_DEPS, client);
