@@ -10,9 +10,10 @@ import {
 } from "../local/emulator-config.ts";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OWN_PACKAGE = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](data-platform[^"']*)["']/g;
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.[^"']*)["']/g;
 
-/** Every source file a bundler would pull in from `entry`, following relative imports. */
+/** Every source file a bundler would pull in from `entry`, following relative imports only; the first test below fails on an import of the package by its own name, which this walk cannot follow. */
 function reachableFrom(entry: string): Map<string, string> {
   const files = new Map<string, string>();
   const pending = [entry];
@@ -28,6 +29,14 @@ function reachableFrom(entry: string): Map<string, string> {
 }
 
 const bundle = reachableFrom(join(SRC, "client", "index.ts"));
+
+test("a bundle importing only data-platform/client never imports the package by its own name", () => {
+  const own = [...bundle].flatMap(([path, source]) =>
+    [...source.matchAll(OWN_PACKAGE)].map((m) => `${relative(SRC, path)} imports ${m[1]}`),
+  );
+
+  assert.deepEqual(own, []);
+});
 
 test("a bundle importing only data-platform/client reaches nothing under local/", () => {
   const local = [...bundle.keys()].map((p) => relative(SRC, p)).filter((p) => p.startsWith(`local${sep}`));
