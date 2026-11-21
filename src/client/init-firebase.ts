@@ -1,39 +1,42 @@
 import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import type { Auth } from "firebase/auth";
 import {
   initializeFirestore,
   memoryLocalCache,
   persistentLocalCache,
   type Firestore,
 } from "firebase/firestore";
-import { connectLocal } from "../local/connect-local.ts";
-import { initLocalAuth } from "../local/init-local-auth.ts";
 
 export type FirebaseClient = { readonly app: FirebaseApp; readonly db: Firestore };
+
+/**
+ * The local kit's wiring, supplied by `data-platform/local` as `localKit`. `initFirebase` takes it
+ * as an argument rather than importing it, so an app that never imports `data-platform/local`
+ * ships none of the kit.
+ */
+export type LocalKit = {
+  readonly connectLocal: (app: FirebaseApp) => void;
+  readonly initLocalAuth: (app: FirebaseApp) => Auth;
+};
 
 export type InitFirebaseOptions = {
   /**
    * Runs against the local kit: a memory cache, so a local run neither touches a live Household
    * nor keeps data between reloads, and Auth (in memory, with the popup resolver) and Firestore
-   * both pointed at the emulators. The config's `projectId` must be `LOCAL_PROJECT_ID`. Do not
-   * also call `connectLocal`: this already has.
+   * both pointed at the emulators. Pass `localKit` from `data-platform/local`; the config's
+   * `projectId` must be that kit's `LOCAL_PROJECT_ID`. Do not also call `connectLocal`: this
+   * already has.
    */
-  readonly local?: boolean;
+  readonly local?: LocalKit;
 };
 
-/** The Firebase and local-kit calls `initFirebase` makes, injectable so a test can observe them. */
+/** The Firebase calls `initFirebase` makes, injectable so a test can observe them. */
 export type FirebaseDeps = {
   readonly initializeApp: typeof initializeApp;
   readonly initializeFirestore: typeof initializeFirestore;
-  readonly initLocalAuth: typeof initLocalAuth;
-  readonly connectLocal: typeof connectLocal;
 };
 
-const FIREBASE_DEPS: FirebaseDeps = {
-  initializeApp,
-  initializeFirestore,
-  initLocalAuth,
-  connectLocal,
-};
+const FIREBASE_DEPS: FirebaseDeps = { initializeApp, initializeFirestore };
 
 /**
  * Initializes the Firebase app and a Firestore with a persistent local cache, so reads and writes
@@ -54,13 +57,14 @@ export function initFirebaseWith(
   options: InitFirebaseOptions = {},
 ): FirebaseClient {
   const app = deps.initializeApp(config);
-  if (!options.local) {
+  const { local } = options;
+  if (!local) {
     return { app, db: deps.initializeFirestore(app, { localCache: persistentLocalCache() }) };
   }
   const db = deps.initializeFirestore(app, { localCache: memoryLocalCache() });
   // Auth first: `connectLocal` reaches it through `getAuth`, which would otherwise create a
   // default Auth with no popup resolver. `connectLocal` also owns the project-ID guard.
-  deps.initLocalAuth(app);
-  deps.connectLocal(app);
+  local.initLocalAuth(app);
+  local.connectLocal(app);
   return { app, db };
 }

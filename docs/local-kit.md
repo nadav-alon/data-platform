@@ -47,6 +47,17 @@ out, and the browser popup resolver, so `signInWithPopup` works against the Auth
 after `initializeApp` and before the app's first Auth call, including `connectLocal`. An app that calls `initializeAuth` itself must
 pass `popupRedirectResolver` too, or sign-in through the popup throws `auth/argument-error`.
 
+An app that uses `initFirebase` from `data-platform/client` passes the kit instead of calling these itself:
+
+```ts
+import { initFirebase } from "data-platform/client";
+import { localKit } from "data-platform/local";
+
+const { app, db } = initFirebase(config, import.meta.env.DEV ? { local: localKit } : {});
+```
+
+An app that never imports `data-platform/local` ships none of the kit; `initFirebase` does not import it. The static import above drops out of a production build only because the package declares `"sideEffects": false` and the bundler folds `import.meta.env.DEV` to `false`; a bundler that ignores `sideEffects` may keep part of the kit, so check the production bundle.
+
 Call `connectLocal` before the app's first Auth or Firestore call. The export is browser-safe: it
 needs only `firebase` and `zod`, while the Admin SDK writer and Auth seeding stay inside the bin.
 `seedScenario` and `seedFixtures` are exported too; a fixture that fails its schema in `COLLECTION_SCHEMAS` throws

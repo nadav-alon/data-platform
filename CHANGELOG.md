@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.15.0
+
+Rules and schemas are unchanged, but `initFirebase`'s `local` option changes type, so the minor moves
+(pre-1.0 it is the breaking digit). Redeploy to move `meta/platform` to `0.15.0`; until then
+`checkPlatform` reads `outdated`.
+
+- **Client** (breaking): `initFirebase(config, { local })` takes the local kit as an argument,
+  `{ local: localKit }` with `localKit` from `data-platform/local`, instead of `{ local: true }`.
+  `data-platform/client` no longer imports anything under `local/`, so a production bundle that never
+  imports `data-platform/local` carries none of the kit's project ID or emulator ports. `LocalKit` is
+  exported as a type.
+- **Local** (`src/local/`): `data-platform/local` exports `localKit`.
+
 ## v0.14.0
 
 Redeploy to get the new rules, which also moves `meta/platform` to `0.14.0`; until then
