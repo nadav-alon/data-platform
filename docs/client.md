@@ -8,25 +8,32 @@ optional peer dependency the app installs itself, and the main export never impo
 ## Start Firebase
 
 ```ts
-import { initFirebase, getStoredFirebaseWebConfig } from "data-platform/client";
+import {
+  initFirebase,
+  getStoredFirebaseWebConfig,
+  terminateFirebase,
+} from "data-platform/client";
+import { localKit } from "data-platform/local";
 
 const config = getStoredFirebaseWebConfig();
-if (config) {
-  const { app, db } = initFirebase(config);
-}
+if (!config) return;
+const client = initFirebase(config);
+const { app, db } = client;
 ```
 
-`initFirebase` shares a persistent Firestore cache across tabs and apps. Call it once per page.
-To reset onto a different config, `await terminateFirebase(client)` first, then call `initFirebase`
+`initFirebase` shares a persistent Firestore cache across tabs and apps, but only when every app on
+the origin initializes through this release with the default Firebase app name; an app that misses
+that falls back to a memory cache. They also share one Auth session. Call it once per page. To
+reset onto a different config, `await terminateFirebase(client)` first, then call `initFirebase`
 again. Against the local kit, pass it in: `initFirebase(config, { local: localKit })`, see
 [local-kit.md](local-kit.md).
 
 ## Web config
 
 `firebaseWebConfig` and `isFirebaseWebConfig` build and check a `FirebaseWebConfig`. The config is
-kept in `localStorage` with `saveFirebaseWebConfig`, `getStoredFirebaseWebConfig` (`null` when absent
-or invalid) and `clearFirebaseWebConfig`. `deviceTransferUrl(pageUrl, config)` makes a `#config=` link
-for a new device, and `parseConfigFragment(location.hash)` reads it back.
+kept in `localStorage` with `saveFirebaseWebConfig`, `getStoredFirebaseWebConfig` (`null` when
+absent or invalid) and `clearFirebaseWebConfig`. `deviceTransferUrl(pageUrl, config)` makes a
+`#config=` link for a new device, and `parseConfigFragment(location.hash)` reads it back.
 
 ## Sign in and the membership gate
 
@@ -44,7 +51,7 @@ const user = await auth.signIn();
 if (!(await isHouseholdMember(db, user.uid))) {
   if (!(await householdExists(db)))
     await claimHousehold(db, user.uid, user.email);
-  else await joinFromInvite(db, user.uid, user.email); // false: no Invite
+  else await joinFromInvite(db, user.uid, user.email); // false: no Invite, or the rules refused
 }
 ```
 
