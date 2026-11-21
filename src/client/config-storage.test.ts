@@ -56,10 +56,28 @@ test("a malformed stored value reads as absent and never throws", () => {
   }
 });
 
+const blockedError = () => new DOMException("blocked", "SecurityError");
+
+/** Run `body` with the global `localStorage` replaced by `descriptor` (or removed), then restore it. */
+function withGlobalLocalStorage(
+  descriptor: PropertyDescriptor | undefined,
+  body: () => void,
+): void {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  try {
+    Reflect.deleteProperty(globalThis, "localStorage");
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    body();
+  } finally {
+    Reflect.deleteProperty(globalThis, "localStorage");
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+  }
+}
+
 test("a storage whose getItem throws reads as absent and never throws", () => {
   const storage = {
     getItem: () => {
-      throw new DOMException("blocked", "SecurityError");
+      throw blockedError();
     },
     setItem: () => {},
     removeItem: () => {},
@@ -67,20 +85,22 @@ test("a storage whose getItem throws reads as absent and never throws", () => {
   assert.equal(getStoredFirebaseWebConfig(storage), null);
 });
 
-test("with no storage argument, an undefined or throwing global localStorage reads as absent", () => {
-  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
-  try {
-    Reflect.deleteProperty(globalThis, "localStorage");
+test("with no storage argument, an undefined global localStorage reads as absent", () => {
+  withGlobalLocalStorage(undefined, () => {
     assert.equal(getStoredFirebaseWebConfig(), null);
-    Object.defineProperty(globalThis, "localStorage", {
+  });
+});
+
+test("with no storage argument, a global localStorage that throws on access reads as absent", () => {
+  withGlobalLocalStorage(
+    {
       configurable: true,
       get() {
-        throw new DOMException("blocked", "SecurityError");
+        throw blockedError();
       },
-    });
-    assert.equal(getStoredFirebaseWebConfig(), null);
-  } finally {
-    Reflect.deleteProperty(globalThis, "localStorage");
-    if (original) Object.defineProperty(globalThis, "localStorage", original);
-  }
+    },
+    () => {
+      assert.equal(getStoredFirebaseWebConfig(), null);
+    },
+  );
 });

@@ -14,8 +14,10 @@ export function getStoredFirebaseWebConfig(
   storage?: ConfigStorage,
 ): FirebaseWebConfig | null {
   try {
-    storage ??= localStorage;
-    const raw = storage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
+    // The default is resolved here, not as a default parameter: a parameter default runs outside this
+    // `try`, so a missing or throwing `localStorage` would crash instead of reading as absent.
+    const store = storage ?? localStorage;
+    const raw = store.getItem(FIREBASE_CONFIG_STORAGE_KEY);
     if (raw === null) return null;
     return firebaseWebConfig(JSON.parse(raw));
   } catch {
