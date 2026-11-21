@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-No redeploy needed: rules and schemas are unchanged, and the new code is not part of the published
-package's exports.
+No redeploy needed: rules and schemas are unchanged. The MCP server code is not part of the published
+package's exports; the **Local** entry below is.
 
 - **MCP server** (`src/mcp/`): `add_catalogue_item` adds an Item and its CatalogueItem in one batch,
   parsed by the domain zod schemas first and passing `firestore.rules` as the signed-in Member. It
@@ -12,6 +12,9 @@ package's exports.
   validated by the Recipe zod schema before it is sent and checked by `firestore.rules` as the
   signed-in Member. It too asks for no confirmation of its own.
 
+- **Local** (`data-platform/local`): `connectLocal` takes optional `{ authHost, firestoreHost }`
+  (`host:port` each, validated as an `EmulatorHost`) to reach emulators on other ports. The
+  defaults stay `127.0.0.1:9099` and `127.0.0.1:8090`.
 - **Tests**: `npm run test:rules:parallel` runs the rules suite on Auth 9199 and Firestore 8190
   (`firebase.parallel.json`), so it can run beside another emulator on the default ports. The
   suite takes its ports from `FIREBASE_AUTH_EMULATOR_HOST` and `FIRESTORE_EMULATOR_HOST`.

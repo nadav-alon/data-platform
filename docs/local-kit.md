@@ -64,7 +64,7 @@ const { app, db } = import.meta.env.DEV
 
 An app that never imports `data-platform/local` ships none of the kit; `initFirebase` does not import it. The static import above drops out of a production build only because the package declares `"sideEffects": false` and the bundler folds `import.meta.env.DEV` to `false`; a bundler that ignores `sideEffects` may keep part of the kit, so check the production bundle.
 
-Call `connectLocal` before the app's first Auth or Firestore call. The export is browser-safe: it
+Call `connectLocal` before the app's first Auth or Firestore call. It connects to `127.0.0.1:9099` (Auth) and `127.0.0.1:8090` (Firestore); to reach emulators on other ports pass `connectLocal(app, { authHost: "127.0.0.1:9199", firestoreHost: "127.0.0.1:8190" })` (`host:port` each; a malformed one throws). The export is browser-safe: it
 needs only `firebase` and `zod`, while the Admin SDK writer and Auth seeding stay inside the bin.
 `seedScenario` and `seedFixtures` are exported too; a fixture that fails its schema in `COLLECTION_SCHEMAS` throws
 naming the collection and doc, before anything is written.
