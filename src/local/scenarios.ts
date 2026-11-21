@@ -203,6 +203,9 @@ export const SCENARIOS = {
           notes: "Keeps for three days in a tin.",
         },
       ),
+      recipe(recipeId("retired-stew"), "Retired stew", [{ name: "Tomatoes", itemId: itemId("tomatoes") }], {
+        deletedAt: addedAt,
+      }),
     ],
   },
 } as const satisfies Record<string, Scenario>;

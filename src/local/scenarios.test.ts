@@ -176,3 +176,9 @@ test("owner-with-recipes seeds a Recipe with every optional field set", () => {
   assert.ok(full);
 });
 
+test("owner-with-recipes seeds a soft-deleted Recipe", () => {
+  const recipes = SCENARIOS["owner-with-recipes"].fixtures
+    .filter((f) => f.collection === "recipes")
+    .map((f) => recipeSchema.parse(f.data));
+  assert.equal(recipes.filter((r) => r.deletedAt !== undefined).length, 1);
+});
