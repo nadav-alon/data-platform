@@ -1,0 +1,125 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { ZodError } from "zod";
+import { readRecipes } from "../../src/mcp/household-reader.ts";
+import { setIngredientLink } from "../../src/mcp/ingredient-writer.ts";
+import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
+
+async function ingredientsOf(db: Parameters<typeof readRecipes>[0], id: string) {
+  return (await readRecipes(db)).find((recipe) => recipe.id === id)?.ingredients;
+}
+
+test("setIngredientLink links an unlinked Ingredient to an Item and keeps its other fields", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: { itemId: "milk" } });
+
+    const bananas = (await ingredientsOf(db, "banana-bread"))?.[0];
+    assert.equal(bananas?.item?.id, "milk");
+    assert.equal(bananas?.name, "Bananas");
+    assert.equal(bananas?.quantity, 3);
+    assert.equal(bananas?.prepNote, "very ripe");
+  } finally {
+    await close();
+  }
+});
+
+test("setIngredientLink marks an Ingredient Assumed, dropping its Item", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    await setIngredientLink(db, { recipeId: "pancakes", ingredient: 1, link: { assumed: true } });
+
+    const milk = (await ingredientsOf(db, "pancakes"))?.[1];
+    assert.equal(milk?.assumed, true);
+    assert.equal(milk?.itemId, undefined);
+    assert.equal(milk?.item, null);
+  } finally {
+    await close();
+  }
+});
+
+test("setIngredientLink unlinks a linked and an Assumed Ingredient", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    await setIngredientLink(db, { recipeId: "pancakes", ingredient: 0, link: {} });
+    await setIngredientLink(db, { recipeId: "scrambled-eggs", ingredient: 1, link: {} });
+
+    const flour = (await ingredientsOf(db, "pancakes"))?.[0];
+    assert.equal(flour?.itemId, undefined);
+    assert.equal(flour?.item, null);
+    const salt = (await ingredientsOf(db, "scrambled-eggs"))?.[1];
+    assert.equal(salt?.assumed, undefined);
+    assert.equal(salt?.itemId, undefined);
+  } finally {
+    await close();
+  }
+});
+
+test("setIngredientLink refuses what the schema rejects, and writes nothing", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    const before = await ingredientsOf(db, "pancakes");
+
+    for (const link of [
+      { itemId: "" },
+      { itemId: "milk", assumed: true },
+      { assumed: false },
+    ]) {
+      await assert.rejects(
+        setIngredientLink(db, { recipeId: "pancakes", ingredient: 0, link } as never),
+        ZodError,
+      );
+    }
+    await assert.rejects(
+      setIngredientLink(db, { recipeId: "pancakes", ingredient: -1, link: {} }),
+      ZodError,
+    );
+    await assert.rejects(setIngredientLink(db, { recipeId: "pancakes", ingredient: 9, link: {} }), Error);
+    await assert.rejects(setIngredientLink(db, { recipeId: "retired-stew", ingredient: 0, link: {} }), Error);
+
+    assert.deepEqual(await ingredientsOf(db, "pancakes"), before);
+  } finally {
+    await close();
+  }
+});
+
+test("setIngredientLink by a non-Member is refused by the rules", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("stranger@example.com");
+  try {
+    await assert.rejects(
+      setIngredientLink(db, { recipeId: "pancakes", ingredient: 0, link: {} }),
+      { code: "permission-denied" },
+    );
+  } finally {
+    await close();
+  }
+});
+
+test("the set_ingredient_link tool updates an Ingredient, and returns an error result for one the schema refuses", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  const { client, close: closeMcp } = await connectedMcpClient(db);
+  try {
+    const done = await client.callTool({
+      name: "set_ingredient_link",
+      arguments: { recipeId: "omelette", ingredient: 1, link: { itemId: "butter" } },
+    });
+    assert.notEqual(done.isError, true);
+    assert.equal((await ingredientsOf(db, "omelette"))?.[1]?.item?.id, "butter");
+
+    const refused = await client.callTool({
+      name: "set_ingredient_link",
+      arguments: { recipeId: "omelette", ingredient: 0, link: { itemId: "milk", assumed: true } },
+    });
+    assert.equal(refused.isError, true);
+    assert.equal((await ingredientsOf(db, "omelette"))?.[0]?.item?.id, "eggs");
+  } finally {
+    await closeMcp();
+    await close();
+  }
+});
