@@ -1,10 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Firestore } from "firebase/firestore";
+import { z } from "zod";
 import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
-import { itemSchema } from "../core/item.ts";
+import { itemId, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { readItems, readRecipes } from "./household-reader.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
+import { setItemState } from "./household-writer.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 const ADDS_ONLY = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const;
@@ -17,8 +19,9 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item` and `add_recipe`, ask for no confirmation of their own: the client's tool
- * permission prompt is the only one. Connect it to a transport with `server.connect`.
+ * `add_catalogue_item`, `add_recipe` and `set_item_state`, ask for no confirmation of their own:
+ * the client's tool permission prompt is the only one. Connect it to a transport with
+ * `server.connect`.
  */
 export function createHouseholdServer(db: Firestore): McpServer {
   const server = new McpServer({ name: "data-platform-household", version: "0.1.0" });
@@ -67,6 +70,29 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: ADDS_ONLY,
     },
     async (recipe) => asJson({ id: await addRecipe(db, recipe) }),
+  );
+  server.registerTool(
+    "set_item_state",
+    {
+      description:
+        "Set one live Item's State (enough, running low or out), recording it in the Item's State history. Use an Item id from list_items.",
+      inputSchema: { itemId: z.string(), state: z.string() },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ itemId: id, state }) => {
+      try {
+        await setItemState(db, itemId(id), state);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { isError: true, content: [{ type: "text", text: message }] };
+      }
+      return { content: [{ type: "text", text: `Set ${id} to ${state}.` }] };
+    },
   );
   return server;
 }
