@@ -2,7 +2,10 @@ import { email, type Email } from "../core/email.ts";
 import type { FirestoreTimestamp } from "../core/timestamp.ts";
 import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
 import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
+import { itemId, type ItemId } from "../core/item.ts";
+import type { State } from "../core/state.ts";
 import { uid, type Uid } from "../core/uid.ts";
+import { recipeId, type Ingredient, type RecipeId } from "../recipes/recipe.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -58,11 +61,44 @@ const cleaningCategory = (referenceCount: number): Fixture => ({
   data: { name: "Cleaning", defaultShopId: "grocery", referenceCount },
 });
 
+/** The `pantry` Category; its `referenceCount` is the live CatalogueItems naming it, so soft-deleted Cinnamon is not counted. */
+const pantryCategory = (referenceCount: number): Fixture => ({
+  collection: "categories",
+  id: "pantry",
+  data: { name: "Pantry", defaultShopId: "grocery", referenceCount },
+});
+
 const dishSoapCatalogueItem: Fixture = {
   collection: "catalogueItems",
   id: "dishSoap",
   data: { categoryId: "cleaning", necessity: "essential" },
 };
+
+/** A Pantry Item's Item doc and live CatalogueItem, so the home catalogue shows it. */
+const pantryItem = (
+  id: ItemId,
+  name: string,
+  state: State,
+): Fixture[] => [
+  { collection: "items", id, data: { name, state } },
+  { collection: "catalogueItems", id, data: { categoryId: "pantry", necessity: "important" } },
+];
+
+const recipe = (id: RecipeId, title: string, ingredients: readonly Ingredient[]): Fixture => ({
+  collection: "recipes",
+  id,
+  data: { title, ingredients, prepSteps: [], steps: ["Cook"] },
+});
+
+/** A soft-deleted Item with its CatalogueItem: it holds no reference, so `pantry` does not count it. */
+const retiredSpice: Fixture[] = [
+  { collection: "items", id: "cinnamon", data: { name: "Cinnamon", state: "out", deletedAt: addedAt } },
+  {
+    collection: "catalogueItems",
+    id: "cinnamon",
+    data: { categoryId: "pantry", necessity: "optional", deletedAt: addedAt },
+  },
+];
 
 /**
  * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
@@ -101,6 +137,51 @@ export const SCENARIOS = {
       cleaningCategory(1),
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "out" } },
       dishSoapCatalogueItem,
+    ],
+  },
+  "owner-with-recipes": {
+    users: [owner],
+    fixtures: [
+      platformMetaFixture,
+      householdMeta(owner.uid),
+      memberDoc(owner),
+      groceryShop,
+      pantryCategory(6),
+      ...pantryItem(itemId("flour"), "Flour", "enough"),
+      ...pantryItem(itemId("milk"), "Milk", "enough"),
+      ...pantryItem(itemId("eggs"), "Eggs", "enough"),
+      ...pantryItem(itemId("butter"), "Butter", "running low"),
+      ...pantryItem(itemId("sugar"), "Sugar", "out"),
+      ...pantryItem(itemId("tomatoes"), "Tomatoes", "out"),
+      ...retiredSpice,
+      recipe(recipeId("pancakes"), "Pancakes", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Milk", itemId: itemId("milk") },
+        { name: "Eggs", itemId: itemId("eggs") },
+      ]),
+      recipe(recipeId("sugar-cookies"), "Sugar cookies", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Eggs", itemId: itemId("eggs") },
+        { name: "Sugar", itemId: itemId("sugar") },
+      ]),
+      recipe(recipeId("tomato-jam"), "Tomato jam", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Tomatoes", itemId: itemId("tomatoes") },
+        { name: "Sugar", itemId: itemId("sugar") },
+      ]),
+      recipe(recipeId("omelette"), "Omelette", [{ name: "Eggs", itemId: itemId("eggs") }, { name: "Chives" }]),
+      recipe(recipeId("scrambled-eggs"), "Scrambled eggs", [
+        { name: "Eggs", itemId: itemId("eggs") },
+        { name: "Salt", assumed: true },
+      ]),
+      recipe(recipeId("shortbread"), "Shortbread", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Butter", itemId: itemId("butter") },
+      ]),
+      recipe(recipeId("spice-cake"), "Spice cake", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Cinnamon", itemId: itemId("cinnamon") },
+      ]),
     ],
   },
 } as const satisfies Record<string, Scenario>;
