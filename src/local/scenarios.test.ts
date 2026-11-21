@@ -8,7 +8,7 @@ import { CATALOGUE_ITEMS_COLLECTION } from "../catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, categoryId } from "../catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
 import { stateSchema } from "../core/state.ts";
-import { ingredientSchema, recipeSchema, type Ingredient } from "../recipes/recipe.ts";
+import { recipeSchema, type Ingredient } from "../recipes/recipe.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -131,9 +131,9 @@ for (const collection of [SHOPS_COLLECTION, CATEGORIES_COLLECTION]) {
   }
 }
 
-/** The Ingredients of a Recipe fixture, parsed so a malformed one fails the test. */
-const ingredientsOf = (data: Record<string, unknown>): Ingredient[] =>
-  ingredientSchema.array().parse(data.ingredients);
+/** Every Recipe a scenario seeds, parsed against `recipeSchema`, soft-deleted ones included. */
+const recipesOf = (scenario: Scenario) =>
+  scenario.fixtures.filter((f) => f.collection === "recipes").map((f) => recipeSchema.parse(f.data));
 
 test("owner-with-recipes covers every State, a soft-deleted Item and every Recipe case", () => {
   const fixtures: readonly Fixture[] = SCENARIOS["owner-with-recipes"].fixtures;
@@ -144,9 +144,9 @@ test("owner-with-recipes covers every State, a soft-deleted Item and every Recip
   const deleted = items.filter((i) => i.data.deletedAt);
   assert.equal(deleted.length, 1);
 
-  const recipes = fixtures
-    .filter((f) => f.collection === "recipes")
-    .map((r) => ingredientsOf(r.data));
+  const recipes = recipesOf(SCENARIOS["owner-with-recipes"])
+    .filter((r) => r.deletedAt === undefined)
+    .map((r) => r.ingredients);
   const live = items.filter((i) => !i.data.deletedAt);
   const stateOf = (ing: Ingredient) => live.find((i) => i.id === ing.itemId)?.data.state;
   const missing = (r: Ingredient[]) => r.filter((i) => stateOf(i) === "out").length;
@@ -161,9 +161,7 @@ test("owner-with-recipes covers every State, a soft-deleted Item and every Recip
 });
 
 test("owner-with-recipes seeds a Recipe with every optional field set", () => {
-  const recipes = SCENARIOS["owner-with-recipes"].fixtures
-    .filter((f) => f.collection === "recipes")
-    .map((f) => recipeSchema.parse(f.data));
+  const recipes = recipesOf(SCENARIOS["owner-with-recipes"]);
   const full = recipes.find(
     (r) =>
       r.prepSteps.length > 0 &&
@@ -171,14 +169,12 @@ test("owner-with-recipes seeds a Recipe with every optional field set", () => {
       r.servings !== undefined &&
       r.sourceUrl !== undefined &&
       r.notes !== undefined &&
-      r.ingredients.some((i) => i.quantity !== undefined && i.unit !== undefined && i.prepNote !== undefined),
+      r.ingredients.every((i) => i.quantity !== undefined && i.unit !== undefined && i.prepNote !== undefined),
   );
   assert.ok(full);
 });
 
 test("owner-with-recipes seeds a soft-deleted Recipe", () => {
-  const recipes = SCENARIOS["owner-with-recipes"].fixtures
-    .filter((f) => f.collection === "recipes")
-    .map((f) => recipeSchema.parse(f.data));
+  const recipes = recipesOf(SCENARIOS["owner-with-recipes"]);
   assert.equal(recipes.filter((r) => r.deletedAt !== undefined).length, 1);
 });
