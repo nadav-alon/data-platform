@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { recipeId } from "../../src/recipes/recipe.ts";
 import { readRecipes } from "../../src/mcp/household-reader.ts";
 import { seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
@@ -10,10 +11,10 @@ test("readRecipes returns live Recipes with Ingredients, each with its linked It
     const recipes = await readRecipes(db);
     const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 
-    assert.ok(!byId.has("retired-stew"), "a soft-deleted Recipe is left out");
+    assert.ok(!byId.has(recipeId("retired-stew")), "a soft-deleted Recipe is left out");
     assert.ok(recipes.every((recipe) => recipe.deletedAt === undefined));
 
-    const shortbread = byId.get("shortbread");
+    const shortbread = byId.get(recipeId("shortbread"));
     assert.ok(shortbread);
     assert.equal(shortbread.title, "Shortbread");
     assert.deepEqual(
@@ -25,14 +26,14 @@ test("readRecipes returns live Recipes with Ingredients, each with its linked It
     );
     assert.equal(shortbread.ingredients[1]?.item?.id, "butter");
 
-    const banana = byId.get("banana-bread");
+    const banana = byId.get(recipeId("banana-bread"));
     assert.ok(banana);
     assert.equal(banana.servings, 8);
     assert.deepEqual(banana.prepSteps, ["Heat the oven to 180C", "Grease a loaf tin"]);
     assert.equal(banana.ingredients[0]?.item, null, "an unlinked Ingredient has no Item");
     assert.equal(banana.ingredients[1]?.quantity, 250);
 
-    const scrambled = byId.get("scrambled-eggs");
+    const scrambled = byId.get(recipeId("scrambled-eggs"));
     assert.equal(scrambled?.ingredients[1]?.assumed, true);
     assert.equal(scrambled?.ingredients[1]?.item, null);
   } finally {
