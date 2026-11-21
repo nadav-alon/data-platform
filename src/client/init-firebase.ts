@@ -35,15 +35,24 @@ export type InitFirebaseOptions = {
 export type FirebaseDeps = {
   readonly initializeApp: typeof initializeApp;
   readonly initializeFirestore: typeof initializeFirestore;
+  readonly persistentLocalCache: typeof persistentLocalCache;
+  readonly persistentMultipleTabManager: typeof persistentMultipleTabManager;
 };
 
-const FIREBASE_DEPS: FirebaseDeps = { initializeApp, initializeFirestore };
+const FIREBASE_DEPS: FirebaseDeps = {
+  initializeApp,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+};
 
 /**
  * Initializes the Firebase app and a Firestore with a persistent local cache, so reads and writes
  * keep working offline and queued writes survive a reload. The cache is shared across tabs and
  * across platform apps on the same origin and project, which all open the same on-disk cache, so
- * each of them keeps it rather than one owning it and the rest falling back to memory. Call it
+ * each of them keeps it rather than one owning it and the rest falling back to memory. That holds
+ * as long as every app on the origin initializes through this release with the default Firebase
+ * app name; they also share one Auth session. Call it
  * once per page: Firebase rejects a second Firestore with different settings on the same app.
  */
 export function initFirebase(
@@ -62,7 +71,9 @@ export function initFirebaseWith(
   const app = deps.initializeApp(config);
   const { local } = options;
   if (!local) {
-    const localCache = persistentLocalCache({ tabManager: persistentMultipleTabManager() });
+    const localCache = deps.persistentLocalCache({
+      tabManager: deps.persistentMultipleTabManager(),
+    });
     return { app, db: deps.initializeFirestore(app, { localCache }) };
   }
   const db = deps.initializeFirestore(app, { localCache: memoryLocalCache() });

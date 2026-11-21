@@ -16,6 +16,8 @@ function fakeDeps(projectId: string | undefined) {
   const calls = {
     appConfigs: [] as (FirebaseOptions | undefined)[],
     settings: [] as { app: FirebaseApp; settings: FirestoreSettings }[],
+    tabManagers: [] as unknown[],
+    caches: [] as unknown[],
     auths: [] as FirebaseApp[],
     connected: [] as FirebaseApp[],
   };
@@ -29,6 +31,16 @@ function fakeDeps(projectId: string | undefined) {
       calls.settings.push({ app: a, settings });
       return db;
     }) as FirebaseDeps["initializeFirestore"],
+    persistentMultipleTabManager: (() => {
+      const manager = { kind: "multi-tab manager" };
+      calls.tabManagers.push(manager);
+      return manager;
+    }) as unknown as FirebaseDeps["persistentMultipleTabManager"],
+    persistentLocalCache: ((settings?: { tabManager?: unknown }) => {
+      const cache = { kind: "persistent", tabManager: settings?.tabManager };
+      calls.caches.push(cache);
+      return cache;
+    }) as unknown as FirebaseDeps["persistentLocalCache"],
   };
   const kit: LocalKit = {
     initLocalAuth: (a) => {
@@ -65,12 +77,10 @@ test("initFirebase's persistent cache is shared across tabs and apps on the orig
 
   initFirebaseWith(deps, config);
 
-  // The SDK exposes no tab-manager flag; the multi-tab cache is the one whose offline component
-  // provider is the multi-tab one.
-  const cache = calls.settings[0]?.settings.localCache as unknown as {
-    _offlineComponentProvider: { build: (...args: never[]) => unknown };
-  };
-  assert.match(String(cache._offlineComponentProvider.build), /MultiTabOfflineComponentProvider/);
+  assert.equal(calls.tabManagers.length, 1);
+  const cache = calls.caches[0] as { tabManager?: unknown };
+  assert.equal(cache.tabManager, calls.tabManagers[0]);
+  assert.equal(calls.settings[0]?.settings.localCache, cache);
 });
 
 test("initFirebase in local mode uses a memory cache, then Auth, then connects the local kit", () => {
