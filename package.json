@@ -1,6 +1,6 @@
 {
   "name": "data-platform",
-  "version": "0.15.2",
+  "version": "0.16.0",
   "type": "module",
   "sideEffects": false,
   "private": true,
@@ -25,13 +25,15 @@
     "test": "node --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
     "test:rules": "firebase emulators:exec --project demo-data-platform-rules-test --only auth,firestore \"node --test --test-concurrency=1 'test/rules/**/*.test.ts'\"",
     "deploy": "node scripts/deploy/deploy.ts",
-    "provision": "node scripts/provision/provision.ts"
+    "provision": "node scripts/provision/provision.ts",
+    "mcp": "node src/mcp/bin.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/node": "^22.20.4",
     "firebase": "^12.0.0",
     "firebase-admin": "^14.5.0",
