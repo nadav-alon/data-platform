@@ -4,7 +4,7 @@ import type { FirebaseApp, FirebaseOptions } from "firebase/app";
 import type { Auth } from "firebase/auth";
 import type { Firestore, FirestoreSettings } from "firebase/firestore";
 import { LOCAL_PROJECT_ID } from "../local/emulator-config.ts";
-import { localKit } from "../local/local-kit.ts";
+import { connectLocal } from "../local/connect-local.ts";
 import { initFirebaseWith, type FirebaseDeps, type LocalKit } from "./init-firebase.ts";
 
 const config: FirebaseOptions = { projectId: "a-real-project", apiKey: "key" };
@@ -76,8 +76,9 @@ test("initFirebase in local mode uses a memory cache, then Auth, then connects t
 test("initFirebase in local mode refuses a config for any other project", () => {
   const { deps, kit } = fakeDeps(config.projectId);
 
+  // The real connectLocal, not the fake: it owns the project-ID guard under test.
   assert.throws(
-    () => initFirebaseWith(deps, config, { local: { ...kit, connectLocal: localKit.connectLocal } }),
+    () => initFirebaseWith(deps, config, { local: { ...kit, connectLocal } }),
     /a-real-project/,
   );
 });
