@@ -2,6 +2,7 @@ export { connectLocal } from "./connect-local.ts";
 export { initLocalAuth } from "./init-local-auth.ts";
 export { localKit } from "./local-kit.ts";
 export { LOCAL_PROJECT_ID } from "./emulator-config.ts";
+export { LOCAL_WEB_CONFIG } from "./local-web-config.ts";
 export { scenarioName, seedScenario } from "./scenarios.ts";
 export type { Scenario, ScenarioName, ScenarioUser } from "./scenarios.ts";
 export { seedFixtures } from "./seed.ts";
