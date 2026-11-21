@@ -7,6 +7,8 @@ import { computeReferenceCounts, parseExistingCatalogue } from "../catalogue/ref
 import { CATALOGUE_ITEMS_COLLECTION } from "../catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, categoryId } from "../catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
+import { stateSchema } from "../core/state.ts";
+import { ingredientSchema, type Ingredient } from "../recipes/recipe.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -16,8 +18,8 @@ function recordingWriter(): { writer: FixtureWriter; written: Map<string, Record
   return { writer: { async set(path, data) { written.set(path, data); } }, written };
 }
 
-test("the known scenarios include empty, owner-with-items and invited-member", () => {
-  for (const name of ["empty", "owner-with-items", "invited-member"]) {
+test("the known scenarios include empty, owner-with-items, invited-member and owner-with-recipes", () => {
+  for (const name of ["empty", "owner-with-items", "invited-member", "owner-with-recipes"]) {
     assert.ok(SCENARIO_NAMES.includes(name as never), name);
   }
 });
@@ -129,21 +131,25 @@ for (const collection of [SHOPS_COLLECTION, CATEGORIES_COLLECTION]) {
   }
 }
 
+/** The Ingredients of a Recipe fixture, parsed so a malformed one fails the test. */
+const ingredientsOf = (data: Record<string, unknown>): Ingredient[] =>
+  ingredientSchema.array().parse(data.ingredients);
+
 test("owner-with-recipes covers every State, a soft-deleted Item and every Recipe case", () => {
   const fixtures: readonly Fixture[] = SCENARIOS["owner-with-recipes"].fixtures;
   const items = fixtures.filter((f) => f.collection === "items");
-  for (const state of ["enough", "running low", "out"]) {
+  for (const state of stateSchema.options) {
     assert.ok(items.some((i) => i.data.state === state && !i.data.deletedAt), state);
   }
   const deleted = items.filter((i) => i.data.deletedAt);
   assert.equal(deleted.length, 1);
 
-  type Ing = { itemId?: string; assumed?: true };
   const recipes = fixtures
     .filter((f) => f.collection === "recipes")
-    .map((r) => r.data.ingredients as Ing[]);
-  const stateOf = (ing: Ing) => items.find((i) => i.id === ing.itemId)?.data.state;
-  const missing = (r: Ing[]) => r.filter((i) => stateOf(i) === "out").length;
+    .map((r) => ingredientsOf(r.data));
+  const live = items.filter((i) => !i.data.deletedAt);
+  const stateOf = (ing: Ingredient) => live.find((i) => i.id === ing.itemId)?.data.state;
+  const missing = (r: Ingredient[]) => r.filter((i) => stateOf(i) === "out").length;
 
   assert.ok(recipes.some((r) => r.every((i) => stateOf(i) === "enough")), "makeable");
   assert.ok(recipes.some((r) => missing(r) === 1), "one Missing");
