@@ -1,8 +1,9 @@
 # Data Platform
 
 One Firebase store that side-project PWAs share. This repo owns the zod schemas and the Firestore
-security rules for every app's collections; apps pin it as a git tag dependency and each Household
-deploys the rules to its own Firebase project. Decided on
+security rules for every app's collections, plus the `data-platform/client` helpers (Firebase setup,
+sign-in, the membership gate; see `docs/client.md`) and the `data-platform/local` kit; apps pin it as
+a git tag dependency and each Household deploys the rules to its own Firebase project. Decided on
 [Data platform shape](https://github.com/nadav-alon/side-projects-manager/issues/917) and [Auth model](https://github.com/nadav-alon/side-projects-manager/issues/919).
 
 ## Language
