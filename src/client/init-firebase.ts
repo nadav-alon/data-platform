@@ -1,10 +1,11 @@
-import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import { deleteApp, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import type { Auth } from "firebase/auth";
 import {
   initializeFirestore,
   memoryLocalCache,
   persistentLocalCache,
   persistentMultipleTabManager,
+  terminate,
   type Firestore,
 } from "firebase/firestore";
 
@@ -53,7 +54,8 @@ const FIREBASE_DEPS: FirebaseDeps = {
  * each of them keeps it rather than one owning it and the rest falling back to memory. That holds
  * as long as every app on the origin initializes through this release with the default Firebase
  * app name; they also share one Auth session. Call it
- * once per page: Firebase rejects a second Firestore with different settings on the same app.
+ * once per page: Firebase rejects a second Firestore with different settings on the same app. A
+ * reset that needs a different config calls `terminateFirebase` first, then `initFirebase` again.
  */
 export function initFirebase(
   config: FirebaseOptions,
@@ -82,4 +84,30 @@ export function initFirebaseWith(
   local.initLocalAuth(app);
   local.connectLocal(app);
   return { app, db };
+}
+
+/** The Firebase calls `terminateFirebase` makes, injectable so a test can observe them. */
+export type TerminateDeps = {
+  readonly terminate: typeof terminate;
+  readonly deleteApp: typeof deleteApp;
+};
+
+const TERMINATE_DEPS: TerminateDeps = { terminate, deleteApp };
+
+/**
+ * Tears down what `initFirebase` made: terminates Firestore, then deletes the app, so a reset can
+ * call `initFirebase` again from a different config. Resolves once both are done. The client is
+ * unusable afterwards; drop every reference to it, and to listeners attached through it.
+ */
+export function terminateFirebase(client: FirebaseClient): Promise<void> {
+  return terminateFirebaseWith(TERMINATE_DEPS, client);
+}
+
+/** `terminateFirebase` with the calls injected; `index.ts` does not export it. */
+export async function terminateFirebaseWith(
+  deps: TerminateDeps,
+  client: FirebaseClient,
+): Promise<void> {
+  await deps.terminate(client.db);
+  await deps.deleteApp(client.app);
 }

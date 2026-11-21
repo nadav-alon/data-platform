@@ -5,7 +5,13 @@ import type { Auth } from "firebase/auth";
 import type { Firestore, FirestoreSettings } from "firebase/firestore";
 import { LOCAL_PROJECT_ID } from "../local/emulator-config.ts";
 import { connectLocal } from "../local/connect-local.ts";
-import { initFirebaseWith, type FirebaseDeps, type LocalKit } from "./init-firebase.ts";
+import {
+  initFirebaseWith,
+  terminateFirebaseWith,
+  type FirebaseDeps,
+  type LocalKit,
+  type TerminateDeps,
+} from "./init-firebase.ts";
 
 const config: FirebaseOptions = { projectId: "a-real-project", apiKey: "key" };
 
@@ -104,4 +110,56 @@ test("initFirebase in local mode refuses a config for any other project", () => 
     () => initFirebaseWith(deps, config, { local: { ...kit, connectLocal } }),
     /a-real-project/,
   );
+});
+
+test("terminateFirebase terminates Firestore, then deletes the app", async () => {
+  const { app, db } = fakeDeps(config.projectId);
+  const order: string[] = [];
+  const deps: TerminateDeps = {
+    terminate: (async (d: Firestore) => {
+      order.push(d === db ? "terminate db" : "terminate other");
+    }) as TerminateDeps["terminate"],
+    deleteApp: (async (a: FirebaseApp) => {
+      order.push(a === app ? "delete app" : "delete other");
+    }) as TerminateDeps["deleteApp"],
+  };
+
+  await terminateFirebaseWith(deps, { app, db });
+
+  assert.deepEqual(order, ["terminate db", "delete app"]);
+});
+
+test("terminateFirebase does not delete the app until Firestore has terminated", async () => {
+  const { app, db } = fakeDeps(config.projectId);
+  const order: string[] = [];
+  const deps: TerminateDeps = {
+    terminate: (async () => {
+      await Promise.resolve();
+      order.push("terminated");
+    }) as TerminateDeps["terminate"],
+    deleteApp: (async () => {
+      order.push("deleted");
+    }) as TerminateDeps["deleteApp"],
+  };
+
+  await terminateFirebaseWith(deps, { app, db });
+
+  assert.deepEqual(order, ["terminated", "deleted"]);
+});
+
+test("initFirebase runs again from a different config after terminateFirebase", async () => {
+  const first = fakeDeps(config.projectId);
+  const second = fakeDeps("another-project");
+  const other: FirebaseOptions = { projectId: "another-project", apiKey: "key2" };
+  const deps: TerminateDeps = {
+    terminate: (async () => {}) as TerminateDeps["terminate"],
+    deleteApp: (async () => {}) as TerminateDeps["deleteApp"],
+  };
+
+  const client = initFirebaseWith(first.deps, config);
+  await terminateFirebaseWith(deps, client);
+  const next = initFirebaseWith(second.deps, other);
+
+  assert.equal(next.app, second.app);
+  assert.deepEqual(second.calls.appConfigs, [other]);
 });
