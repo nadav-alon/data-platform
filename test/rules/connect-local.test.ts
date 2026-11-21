@@ -4,17 +4,21 @@ import { deleteApp, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { connectLocal } from "../../src/local/connect-local.ts";
-import { AUTH_EMULATOR_PORT, EMULATOR_HOST, LOCAL_PROJECT_ID } from "../../src/local/emulator-config.ts";
+import { LOCAL_PROJECT_ID } from "../../src/local/emulator-config.ts";
+
+const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? "";
+const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST ?? "";
+const [expectedAuthHost = "", expectedAuthPort = ""] = authHost.split(":");
 
 test("connectLocal points Auth and Firestore at the emulators", async () => {
   const app = initializeApp({ projectId: LOCAL_PROJECT_ID, apiKey: "fake" }, "connect-local");
   try {
-    connectLocal(app);
+    connectLocal(app, { authHost, firestoreHost });
 
     assert.deepEqual(getAuth(app).emulatorConfig, {
       protocol: "http",
-      host: EMULATOR_HOST,
-      port: AUTH_EMULATOR_PORT,
+      host: expectedAuthHost,
+      port: Number(expectedAuthPort),
       options: { disableWarnings: true },
     });
 
