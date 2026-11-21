@@ -20,6 +20,7 @@ npx data-platform-local owner-with-items
 | ------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------ |
 | `empty`            | unclaimed, nothing seeded                                                                      | any new account                |
 | `owner-with-items` | claimed; a Shop, Category, two Items, each with its CatalogueItem                              | `owner@example.com`, the Owner |
+| `owner-with-recipes` | claimed; a Shop, Category, Items covering every State plus a soft-deleted one, each with its CatalogueItem; Recipes that are Makeable, Almost makeable (one and two Missing Ingredients), with an Unlinked, an Assumed and a `running low` Ingredient, and one linked to the soft-deleted Item | `owner@example.com`, the Owner |
 | `invited-member`   | claimed by another Owner; a Shop, Category, one Item with its CatalogueItem; no Invite pending | `member@example.com`, a Member |
 
 An unknown name fails listing the known ones. With no name the bin starts `empty`. Auth listens on

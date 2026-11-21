@@ -64,6 +64,32 @@ const dishSoapCatalogueItem: Fixture = {
   data: { categoryId: "cleaning", necessity: "essential" },
 };
 
+/** A Pantry Item's Item doc and live CatalogueItem, so the home catalogue shows it. */
+const pantryItem = (
+  id: string,
+  name: string,
+  state: "enough" | "running low" | "out",
+): Fixture[] => [
+  { collection: "items", id, data: { name, state } },
+  { collection: "catalogueItems", id, data: { categoryId: "pantry", necessity: "important" } },
+];
+
+const recipe = (id: string, title: string, ingredients: readonly Record<string, unknown>[]): Fixture => ({
+  collection: "recipes",
+  id,
+  data: { title, ingredients, prepSteps: [], steps: ["Cook"] },
+});
+
+/** A soft-deleted Item with its CatalogueItem: it holds no reference, so `pantry` does not count it. */
+const retiredSpice: Fixture[] = [
+  { collection: "items", id: "cinnamon", data: { name: "Cinnamon", state: "out", deletedAt: addedAt } },
+  {
+    collection: "catalogueItems",
+    id: "cinnamon",
+    data: { categoryId: "pantry", necessity: "optional", deletedAt: addedAt },
+  },
+];
+
 /**
  * The named Households the local kit can seed, each with the `meta/platform` a deploy of this
  * release writes. `empty` is an unclaimed Household; the others are claimed, and every `users`
@@ -101,6 +127,55 @@ export const SCENARIOS = {
       cleaningCategory(1),
       { collection: "items", id: "dishSoap", data: { name: "Dish soap", state: "out" } },
       dishSoapCatalogueItem,
+    ],
+  },
+  "owner-with-recipes": {
+    users: [owner],
+    fixtures: [
+      platformMetaFixture,
+      householdMeta(owner.uid),
+      memberDoc(owner),
+      groceryShop,
+      {
+        collection: "categories",
+        id: "pantry",
+        data: { name: "Pantry", defaultShopId: "grocery", referenceCount: 6 },
+      },
+      ...pantryItem("flour", "Flour", "enough"),
+      ...pantryItem("milk", "Milk", "enough"),
+      ...pantryItem("eggs", "Eggs", "enough"),
+      ...pantryItem("butter", "Butter", "running low"),
+      ...pantryItem("sugar", "Sugar", "out"),
+      ...pantryItem("tomatoes", "Tomatoes", "out"),
+      ...retiredSpice,
+      recipe("pancakes", "Pancakes", [
+        { name: "Flour", itemId: "flour" },
+        { name: "Milk", itemId: "milk" },
+        { name: "Eggs", itemId: "eggs" },
+      ]),
+      recipe("sugar-cookies", "Sugar cookies", [
+        { name: "Flour", itemId: "flour" },
+        { name: "Eggs", itemId: "eggs" },
+        { name: "Sugar", itemId: "sugar" },
+      ]),
+      recipe("tomato-jam", "Tomato jam", [
+        { name: "Flour", itemId: "flour" },
+        { name: "Tomatoes", itemId: "tomatoes" },
+        { name: "Sugar", itemId: "sugar" },
+      ]),
+      recipe("omelette", "Omelette", [{ name: "Eggs", itemId: "eggs" }, { name: "Chives" }]),
+      recipe("scrambled-eggs", "Scrambled eggs", [
+        { name: "Eggs", itemId: "eggs" },
+        { name: "Salt", assumed: true },
+      ]),
+      recipe("shortbread", "Shortbread", [
+        { name: "Flour", itemId: "flour" },
+        { name: "Butter", itemId: "butter" },
+      ]),
+      recipe("spice-cake", "Spice cake", [
+        { name: "Flour", itemId: "flour" },
+        { name: "Cinnamon", itemId: "cinnamon" },
+      ]),
     ],
   },
 } as const satisfies Record<string, Scenario>;

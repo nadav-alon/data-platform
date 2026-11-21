@@ -128,3 +128,28 @@ for (const collection of [SHOPS_COLLECTION, CATEGORIES_COLLECTION]) {
     });
   }
 }
+
+test("owner-with-recipes covers every State, a soft-deleted Item and every Recipe case", () => {
+  const fixtures: readonly Fixture[] = SCENARIOS["owner-with-recipes"].fixtures;
+  const items = fixtures.filter((f) => f.collection === "items");
+  for (const state of ["enough", "running low", "out"]) {
+    assert.ok(items.some((i) => i.data.state === state && !i.data.deletedAt), state);
+  }
+  const deleted = items.filter((i) => i.data.deletedAt);
+  assert.equal(deleted.length, 1);
+
+  type Ing = { itemId?: string; assumed?: true };
+  const recipes = fixtures
+    .filter((f) => f.collection === "recipes")
+    .map((r) => r.data.ingredients as Ing[]);
+  const stateOf = (ing: Ing) => items.find((i) => i.id === ing.itemId)?.data.state;
+  const missing = (r: Ing[]) => r.filter((i) => stateOf(i) === "out").length;
+
+  assert.ok(recipes.some((r) => r.every((i) => stateOf(i) === "enough")), "makeable");
+  assert.ok(recipes.some((r) => missing(r) === 1), "one Missing");
+  assert.ok(recipes.some((r) => missing(r) === 2), "two Missing");
+  assert.ok(recipes.some((r) => r.some((i) => !i.itemId && !i.assumed)), "unlinked");
+  assert.ok(recipes.some((r) => r.some((i) => i.assumed)), "assumed");
+  assert.ok(recipes.some((r) => r.some((i) => stateOf(i) === "running low")), "running low");
+  assert.ok(recipes.some((r) => r.some((i) => i.itemId === deleted[0]?.id)), "soft-deleted Item");
+});
