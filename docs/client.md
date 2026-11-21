@@ -42,7 +42,8 @@ import {
 const auth = authClient(app);
 const user = await auth.signIn();
 if (!(await isHouseholdMember(db, user.uid))) {
-  if (!(await householdExists(db))) await claimHousehold(db, user.uid, user.email);
+  if (!(await householdExists(db)))
+    await claimHousehold(db, user.uid, user.email);
   else await joinFromInvite(db, user.uid, user.email); // false: no Invite
 }
 ```
