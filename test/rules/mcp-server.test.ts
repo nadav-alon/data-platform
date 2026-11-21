@@ -21,7 +21,7 @@ async function callTool(
   }
 }
 
-test("the server lists the two read tools, read only, and the three write tools, which are not", async () => {
+test("the server lists the two read tools, read only, and the four write tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
@@ -31,6 +31,7 @@ test("the server lists the two read tools, read only, and the three write tools,
       "add_recipe",
       "list_items",
       "list_recipes",
+      "set_ingredient_link",
       "set_item_state",
     ]);
     for (const tool of tools) {

@@ -3,6 +3,7 @@ import type { Firestore } from "firebase/firestore";
 import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
 import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
+import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
 import { readItems, readRecipes } from "./household-reader.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
@@ -10,6 +11,7 @@ import { setItemState } from "./household-writer.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 const ADDS_ONLY = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const;
+const UPDATES = { ...ADDS_ONLY, idempotentHint: true } as const;
 
 /** One JSON text block: the raw records, with no derived view. */
 function asJson(records: unknown): { content: [{ type: "text"; text: string }] } {
@@ -19,9 +21,9 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item`, `add_recipe` and `set_item_state`, ask for no confirmation of their own:
- * the client's tool permission prompt is the only one. Connect it to a transport with
- * `server.connect`.
+ * `add_catalogue_item`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
+ * confirmation of their own: the client's tool permission prompt is the only one. Connect it to a
+ * transport with `server.connect`.
  */
 export function createHouseholdServer(db: Firestore): McpServer {
   const server = new McpServer({ name: "data-platform-household", version: "0.1.0" });
@@ -93,6 +95,16 @@ export function createHouseholdServer(db: Firestore): McpServer {
       }
       return { content: [{ type: "text", text: `Set ${id} to ${state}.` }] };
     },
+  );
+  server.registerTool(
+    "set_ingredient_link",
+    {
+      description:
+        "Change what one Ingredient of a live Recipe points at. `ingredient` is its 0-based position in the Recipe's Ingredients (see list_recipes). `link` is `{ itemId }` to link it to an Item from list_items, `{ assumed: true }` to mark it a staple taken as already in the house, or `{}` to unlink it. Its other fields are kept. Returns the Recipe's id.",
+      inputSchema: setIngredientLinkSchema,
+      annotations: UPDATES,
+    },
+    async (input) => asJson({ id: await setIngredientLink(db, input) }),
   );
   return server;
 }
