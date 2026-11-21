@@ -1,9 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createHouseholdServer } from "../../src/mcp/server.ts";
-import { seedLocalHousehold, signedInClient } from "./mcp-client.ts";
+import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
 /** Calls `tool` on a server over the signed-in Member's Firestore and parses its one JSON block. */
 async function callTool(
@@ -12,38 +9,34 @@ async function callTool(
   args?: Record<string, unknown>,
 ): Promise<{ isError: boolean; json: unknown }> {
   const { db, close } = await signedInClient(email);
-  const server = createHouseholdServer(db);
-  const client = new Client({ name: "test", version: "0" });
-  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
-    await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
     const result = await client.callTool({ name: tool, arguments: args });
     const [block] = result.content as { type: string; text: string }[];
     const isError = result.isError === true;
     return { isError, json: !isError && block?.type === "text" ? JSON.parse(block.text) : undefined };
   } finally {
-    await client.close();
-    await server.close();
+    await closeMcp();
     await close();
   }
 }
 
-test("the server lists exactly the two read tools and the add tool", async () => {
+test("the server lists the two read tools, read only, and the two add tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
-  const server = createHouseholdServer(db);
-  const client = new Client({ name: "test", version: "0" });
-  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
-    await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["add_catalogue_item", "list_items", "list_recipes"]);
-    assert.deepEqual(
-      tools.filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name).sort(),
-      ["list_items", "list_recipes"],
-    );
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+      "add_catalogue_item",
+      "add_recipe",
+      "list_items",
+      "list_recipes",
+    ]);
+    for (const tool of tools) {
+      assert.equal(tool.annotations?.readOnlyHint, tool.name.startsWith("list_"), tool.name);
+    }
   } finally {
-    await client.close();
-    await server.close();
+    await closeMcp();
     await close();
   }
 });
