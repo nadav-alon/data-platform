@@ -55,3 +55,14 @@ test("a malformed stored value reads as absent and never throws", () => {
     assert.equal(getStoredFirebaseWebConfig(storage), null, raw);
   }
 });
+
+test("a storage whose getItem throws reads as absent and never throws", () => {
+  const storage = {
+    getItem: () => {
+      throw new DOMException("blocked", "SecurityError");
+    },
+    setItem: () => {},
+    removeItem: () => {},
+  };
+  assert.equal(getStoredFirebaseWebConfig(storage), null);
+});

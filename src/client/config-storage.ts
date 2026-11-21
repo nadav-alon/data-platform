@@ -9,13 +9,13 @@ export const FIREBASE_CONFIG_STORAGE_KEY = "data-platform:firebase-config";
 /** The slice of `Storage` the config needs; `localStorage` satisfies it. */
 export type ConfigStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-/** The stored config, or `null` if none is stored or the stored value is not a valid config. Never throws on a bad value. */
+/** The stored config, or `null` if none is stored or the stored value is not a valid config. Never throws on a bad value or on storage that cannot be read. */
 export function getStoredFirebaseWebConfig(
   storage: ConfigStorage = localStorage,
 ): FirebaseWebConfig | null {
-  const raw = storage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
-  if (raw === null) return null;
   try {
+    const raw = storage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
+    if (raw === null) return null;
     return firebaseWebConfig(JSON.parse(raw));
   } catch {
     return null;
