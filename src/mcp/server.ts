@@ -62,7 +62,7 @@ export function createHouseholdServer(db: Firestore): McpServer {
     "add_recipe",
     {
       description:
-        "Add a Recipe with its Ingredients to the Household. Read the source (a URL or pasted text) first and pass the Recipe as structured input; the server fetches nothing. An Ingredient may link a live Item by `itemId` (see list_items); an assumed Ingredient (a staple such as salt) names no Item; a `unit` needs a `quantity`. Returns the new Recipe's id.",
+        "Add a Recipe with its Ingredients to the Household. Read the source (a URL or pasted text) first and pass the Recipe as structured input; the server fetches nothing. An Ingredient may link an Item by an `itemId` from list_items; an assumed Ingredient (a staple such as salt) names no Item; a `unit` needs a `quantity`. Returns the new Recipe's id.",
       inputSchema: newRecipeSchema,
       annotations: ADDS_ONLY,
     },
