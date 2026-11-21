@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+No redeploy needed: rules and schemas are unchanged.
+
+- **MCP server** (`src/mcp/`): `add_catalogue_item` adds an Item and its CatalogueItem in one batch,
+  parsed by the domain zod schemas first and passing `firestore.rules` as the signed-in Member. It
+  asks for no confirmation beyond Claude Code's own tool-permission prompt.
+
 ## v0.16.0
 
 No redeploy needed: rules and schemas are unchanged, and the new code is not part of the published
