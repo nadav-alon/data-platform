@@ -16,6 +16,7 @@ import {
   tagNameKey,
   type TagId,
 } from "../../src/catalogue/tag.ts";
+import { RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
@@ -193,6 +194,26 @@ export async function seedStore(
         name: "Osher Ad",
         shopId,
         ...(aisleOrder === undefined ? {} : { aisleOrder }),
+        ...deletedFields(deleted),
+      });
+  });
+}
+
+/** Seeds a valid Recipe directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedRecipe(
+  testEnv: RulesTestEnvironment,
+  id: string,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${RECIPES_COLLECTION}/${id}`)
+      .set({
+        title: "Pancakes",
+        ingredients: [{ name: "Flour" }],
+        prepSteps: [],
+        steps: ["Mix", "Fry"],
         ...deletedFields(deleted),
       });
   });

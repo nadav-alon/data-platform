@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.14.0
+
+Redeploy to get the new rules, which also moves `meta/platform` to `0.14.0`; until then
+`checkPlatform` reads `outdated`. A Household whose repo has the `FIREBASE_PROJECT_ID` Actions
+variable set is redeployed by the tag push itself; only the others need `npm run deploy` by hand.
+The minor moves because Recipe writes need the new rules; nothing needs migrating, since the schema
+is additive.
+
+- **Schemas** (`src/recipes/`, exported as the `recipes` namespace): `COLLECTION_SCHEMAS` gains
+  `recipes` (`recipeSchema`, soft-deletable), with `RecipeId`/`recipeIdSchema`, `RECIPES_COLLECTION`
+  and `RECIPES_COLLECTION_SCHEMAS`. A Recipe embeds its `ingredients`, `prepSteps` and `steps`;
+  an Ingredient never has `assumed` together with `itemId`, and a `unit` only with a `quantity`.
+- **Rules** (`firestore.rules`): a Member creates and updates a live Recipe, and soft-deletes or
+  restores it through `deletedAt`. Hard delete is denied. The rules check only the first element of
+  `ingredients`, `prepSteps` and `steps`, as they do for `barcodes`; zod checks them all.
+  `itemId` is not checked against existing Items.
+
 ## v0.13.0
 
 Redeploy to move `meta/platform` to `0.13.0`; until then `checkPlatform` reads `outdated`, because

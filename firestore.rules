@@ -82,7 +82,7 @@ service cloud.firestore {
 
     /**
      * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
-     * shops, tags, aisles and stores all `allow delete: if false`; the console's admin access can still hard delete.
+     * shops, tags, aisles, stores and recipes all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -552,6 +552,41 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    /** Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`. */
+    function isValidIngredient(ingredient) {
+      return ingredient is map
+        && isNonEmptyString(ingredient.name)
+        && (!('itemId' in ingredient) || isNonEmptyString(ingredient.itemId))
+        && (!('assumed' in ingredient) || (ingredient.assumed == true && !('itemId' in ingredient)))
+        && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0))
+        && (!('unit' in ingredient)
+          || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
+            && 'quantity' in ingredient))
+        && (!('prepNote' in ingredient) || ingredient.prepNote is string);
+    }
+
+    /** Matches `z.array(ingredientSchema)`. Only the first element is checked: rules can't loop over a list. */
+    function isValidIngredients(value) {
+      return value is list && (value.size() == 0 || isValidIngredient(value[0]));
+    }
+
+    /** Matches `z.array(z.string().min(1))`. Only the first element is checked, as in `isValidBarcodes`. */
+    function isValidSteps(value) {
+      return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
+    }
+
+    /** Matches `recipeSchema`: extra fields tolerate additive evolution. */
+    function isValidRecipe(data) {
+      return isNonEmptyString(data.title)
+        && isValidIngredients(data.ingredients)
+        && isValidSteps(data.prepSteps)
+        && isValidSteps(data.steps)
+        && (!('servings' in data) || (data.servings is int && data.servings > 0))
+        && (!('sourceUrl' in data) || data.sourceUrl is string)
+        && (!('notes' in data) || data.notes is string)
+        && isValidDeletedAt(data);
+    }
+
     /**
      * Approximates `memberSchema`'s `email`: a non-empty string, not the full `z.email()`
      * format check, which `firestore.rules` can't express.
@@ -809,6 +844,17 @@ service cloud.firestore {
         && ((request.resource.data.shopId == resource.data.shopId
             && !isRestoring(resource.data, request.resource.data))
           || isLiveAt(shopPath(request.resource.data.shopId)));
+      allow delete: if false;
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && isValidRecipe(request.resource.data)
+        && isCreatedLive(request.resource.data);
+      allow update: if isMember()
+        && isValidRecipe(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data);
       allow delete: if false;
     }
 
