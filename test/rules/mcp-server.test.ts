@@ -31,6 +31,7 @@ test("the server lists the two read tools, read only, and the three write tools,
       "add_recipe",
       "list_items",
       "list_recipes",
+      "set_ingredient_link",
       "set_item_state",
     ]);
     for (const tool of tools) {
