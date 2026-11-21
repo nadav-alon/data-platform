@@ -12,6 +12,10 @@ package's exports.
   validated by the Recipe zod schema before it is sent and checked by `firestore.rules` as the
   signed-in Member. It too asks for no confirmation of its own.
 
+- **Tests**: `npm run test:rules:parallel` runs the rules suite on Auth 9199 and Firestore 8190
+  (`firebase.parallel.json`), so it can run beside another emulator on the default ports. The
+  suite takes its ports from `FIREBASE_AUTH_EMULATOR_HOST` and `FIRESTORE_EMULATOR_HOST`.
+
 ## v0.16.0
 
 No redeploy needed: rules and schemas are unchanged, and the new code is not part of the published
