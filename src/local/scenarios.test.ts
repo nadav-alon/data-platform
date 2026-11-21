@@ -8,7 +8,7 @@ import { CATALOGUE_ITEMS_COLLECTION } from "../catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, categoryId } from "../catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
 import { stateSchema } from "../core/state.ts";
-import { ingredientSchema, type Ingredient } from "../recipes/recipe.ts";
+import { ingredientSchema, recipeSchema, type Ingredient } from "../recipes/recipe.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -159,3 +159,20 @@ test("owner-with-recipes covers every State, a soft-deleted Item and every Recip
   assert.ok(recipes.some((r) => r.some((i) => stateOf(i) === "running low")), "running low");
   assert.ok(recipes.some((r) => r.some((i) => i.itemId === deleted[0]?.id)), "soft-deleted Item");
 });
+
+test("owner-with-recipes seeds a Recipe with every optional field set", () => {
+  const recipes = SCENARIOS["owner-with-recipes"].fixtures
+    .filter((f) => f.collection === "recipes")
+    .map((f) => recipeSchema.parse(f.data));
+  const full = recipes.find(
+    (r) =>
+      r.prepSteps.length > 0 &&
+      r.steps.length > 1 &&
+      r.servings !== undefined &&
+      r.sourceUrl !== undefined &&
+      r.notes !== undefined &&
+      r.ingredients.some((i) => i.quantity !== undefined && i.unit !== undefined && i.prepNote !== undefined),
+  );
+  assert.ok(full);
+});
+

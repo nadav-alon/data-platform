@@ -84,10 +84,15 @@ const pantryItem = (
   { collection: "catalogueItems", id, data: { categoryId: "pantry", necessity: "important" } },
 ];
 
-const recipe = (id: RecipeId, title: string, ingredients: readonly Ingredient[]): Fixture => ({
+const recipe = (
+  id: RecipeId,
+  title: string,
+  ingredients: readonly Ingredient[],
+  rest: Record<string, unknown> = {},
+): Fixture => ({
   collection: "recipes",
   id,
-  data: { title, ingredients, prepSteps: [], steps: ["Cook"] },
+  data: { title, ingredients, prepSteps: [], steps: ["Cook"], ...rest },
 });
 
 /** A soft-deleted Item with its CatalogueItem: it holds no reference, so `pantry` does not count it. */
@@ -182,6 +187,22 @@ export const SCENARIOS = {
         { name: "Flour", itemId: itemId("flour") },
         { name: "Cinnamon", itemId: itemId("cinnamon") },
       ]),
+      recipe(
+        recipeId("banana-bread"),
+        "Banana bread",
+        [
+          { name: "Flour", itemId: itemId("flour"), quantity: 250, unit: "g", prepNote: "sifted" },
+          { name: "Eggs", itemId: itemId("eggs"), quantity: 2, unit: "piece", prepNote: "beaten" },
+          { name: "Butter", itemId: itemId("butter"), quantity: 2, unit: "tbsp", prepNote: "melted" },
+        ],
+        {
+          prepSteps: ["Heat the oven to 180C", "Grease a loaf tin"],
+          steps: ["Mash the bananas", "Mix in the wet ingredients", "Fold in the flour", "Bake for 55 minutes"],
+          servings: 8,
+          sourceUrl: "https://example.com/banana-bread",
+          notes: "Keeps for three days in a tin.",
+        },
+      ),
     ],
   },
 } as const satisfies Record<string, Scenario>;
