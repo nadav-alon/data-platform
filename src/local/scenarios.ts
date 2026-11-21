@@ -5,7 +5,7 @@ import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
 import { itemId, type ItemId } from "../core/item.ts";
 import type { State } from "../core/state.ts";
 import { uid, type Uid } from "../core/uid.ts";
-import { recipeId, type Ingredient, type RecipeId } from "../recipes/recipe.ts";
+import { recipeId, type Ingredient, type Recipe, type RecipeId } from "../recipes/recipe.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -88,11 +88,11 @@ const recipe = (
   id: RecipeId,
   title: string,
   ingredients: readonly Ingredient[],
-  rest: Record<string, unknown> = {},
+  optional: Partial<Omit<Recipe, "title" | "ingredients">> = {},
 ): Fixture => ({
   collection: "recipes",
   id,
-  data: { title, ingredients, prepSteps: [], steps: ["Cook"], ...rest },
+  data: { title, ingredients, prepSteps: [], steps: ["Cook"], ...optional },
 });
 
 /** A soft-deleted Item with its CatalogueItem: it holds no reference, so `pantry` does not count it. */
@@ -191,6 +191,7 @@ export const SCENARIOS = {
         recipeId("banana-bread"),
         "Banana bread",
         [
+          { name: "Bananas", quantity: 3, unit: "piece", prepNote: "very ripe" },
           { name: "Flour", itemId: itemId("flour"), quantity: 250, unit: "g", prepNote: "sifted" },
           { name: "Eggs", itemId: itemId("eggs"), quantity: 2, unit: "piece", prepNote: "beaten" },
           { name: "Butter", itemId: itemId("butter"), quantity: 2, unit: "tbsp", prepNote: "melted" },
