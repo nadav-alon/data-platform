@@ -44,8 +44,9 @@ pre-1.0 the minor is the breaking digit. A Household whose repo has the `FIREBAS
 variable set (RELEASING.md, "Deploying a release") is redeployed by the tag push itself; only the
 others need `npm run deploy` by hand. The rules and schemas are unchanged, so nothing needs migrating.
 
-The minor moves only to mark the release of the `data-platform/client` subpath: v0.13.0 is the one tag
-the home catalogue and the recipes app pin. It ships no new code under `src/client/`.
+The minor moves only to mark the release of the `data-platform/client` subpath. It ships no new code
+under `src/client/`. The tag both the home catalogue and the recipes app need is v0.15.0, which changed
+`initFirebase`'s `local` option to `localKit`, breaking.
 
 - **Client** (`src/client/`, no change in this release): everything `data-platform/client` has exported
   since v0.12.1, including `initFirebase`, the Firebase web config helpers (`FirebaseWebConfig`,
