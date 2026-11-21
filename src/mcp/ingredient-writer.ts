@@ -3,6 +3,7 @@ import { z } from "zod";
 import { itemIdSchema } from "../core/item.ts";
 import {
   RECIPES_COLLECTION,
+  recipeId as toRecipeId,
   recipeIdSchema,
   recipeSchema,
   type RecipeId,
@@ -56,5 +57,5 @@ export async function setIngredientLink(db: Firestore, input: SetIngredientLink)
     );
     transaction.update(ref, { ingredients: recipeSchema.shape.ingredients.parse(ingredients) });
   });
-  return recipeId as RecipeId;
+  return toRecipeId(recipeId);
 }
