@@ -2,7 +2,10 @@ import { email, type Email } from "../core/email.ts";
 import type { FirestoreTimestamp } from "../core/timestamp.ts";
 import { HOUSEHOLD_DOC_PATH } from "../core/household.ts";
 import { PLATFORM_DOC_PATH, PLATFORM_VERSION } from "../core/platform.ts";
+import { itemId, type ItemId } from "../core/item.ts";
+import type { State } from "../core/state.ts";
 import { uid, type Uid } from "../core/uid.ts";
+import { recipeId, type Ingredient, type RecipeId } from "../recipes/recipe.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -58,6 +61,13 @@ const cleaningCategory = (referenceCount: number): Fixture => ({
   data: { name: "Cleaning", defaultShopId: "grocery", referenceCount },
 });
 
+/** The `pantry` Category; its `referenceCount` is the live CatalogueItems naming it, so soft-deleted Cinnamon is not counted. */
+const pantryCategory = (referenceCount: number): Fixture => ({
+  collection: "categories",
+  id: "pantry",
+  data: { name: "Pantry", defaultShopId: "grocery", referenceCount },
+});
+
 const dishSoapCatalogueItem: Fixture = {
   collection: "catalogueItems",
   id: "dishSoap",
@@ -66,15 +76,15 @@ const dishSoapCatalogueItem: Fixture = {
 
 /** A Pantry Item's Item doc and live CatalogueItem, so the home catalogue shows it. */
 const pantryItem = (
-  id: string,
+  id: ItemId,
   name: string,
-  state: "enough" | "running low" | "out",
+  state: State,
 ): Fixture[] => [
   { collection: "items", id, data: { name, state } },
   { collection: "catalogueItems", id, data: { categoryId: "pantry", necessity: "important" } },
 ];
 
-const recipe = (id: string, title: string, ingredients: readonly Record<string, unknown>[]): Fixture => ({
+const recipe = (id: RecipeId, title: string, ingredients: readonly Ingredient[]): Fixture => ({
   collection: "recipes",
   id,
   data: { title, ingredients, prepSteps: [], steps: ["Cook"] },
@@ -136,45 +146,41 @@ export const SCENARIOS = {
       householdMeta(owner.uid),
       memberDoc(owner),
       groceryShop,
-      {
-        collection: "categories",
-        id: "pantry",
-        data: { name: "Pantry", defaultShopId: "grocery", referenceCount: 6 },
-      },
-      ...pantryItem("flour", "Flour", "enough"),
-      ...pantryItem("milk", "Milk", "enough"),
-      ...pantryItem("eggs", "Eggs", "enough"),
-      ...pantryItem("butter", "Butter", "running low"),
-      ...pantryItem("sugar", "Sugar", "out"),
-      ...pantryItem("tomatoes", "Tomatoes", "out"),
+      pantryCategory(6),
+      ...pantryItem(itemId("flour"), "Flour", "enough"),
+      ...pantryItem(itemId("milk"), "Milk", "enough"),
+      ...pantryItem(itemId("eggs"), "Eggs", "enough"),
+      ...pantryItem(itemId("butter"), "Butter", "running low"),
+      ...pantryItem(itemId("sugar"), "Sugar", "out"),
+      ...pantryItem(itemId("tomatoes"), "Tomatoes", "out"),
       ...retiredSpice,
-      recipe("pancakes", "Pancakes", [
-        { name: "Flour", itemId: "flour" },
-        { name: "Milk", itemId: "milk" },
-        { name: "Eggs", itemId: "eggs" },
+      recipe(recipeId("pancakes"), "Pancakes", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Milk", itemId: itemId("milk") },
+        { name: "Eggs", itemId: itemId("eggs") },
       ]),
-      recipe("sugar-cookies", "Sugar cookies", [
-        { name: "Flour", itemId: "flour" },
-        { name: "Eggs", itemId: "eggs" },
-        { name: "Sugar", itemId: "sugar" },
+      recipe(recipeId("sugar-cookies"), "Sugar cookies", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Eggs", itemId: itemId("eggs") },
+        { name: "Sugar", itemId: itemId("sugar") },
       ]),
-      recipe("tomato-jam", "Tomato jam", [
-        { name: "Flour", itemId: "flour" },
-        { name: "Tomatoes", itemId: "tomatoes" },
-        { name: "Sugar", itemId: "sugar" },
+      recipe(recipeId("tomato-jam"), "Tomato jam", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Tomatoes", itemId: itemId("tomatoes") },
+        { name: "Sugar", itemId: itemId("sugar") },
       ]),
-      recipe("omelette", "Omelette", [{ name: "Eggs", itemId: "eggs" }, { name: "Chives" }]),
-      recipe("scrambled-eggs", "Scrambled eggs", [
-        { name: "Eggs", itemId: "eggs" },
+      recipe(recipeId("omelette"), "Omelette", [{ name: "Eggs", itemId: itemId("eggs") }, { name: "Chives" }]),
+      recipe(recipeId("scrambled-eggs"), "Scrambled eggs", [
+        { name: "Eggs", itemId: itemId("eggs") },
         { name: "Salt", assumed: true },
       ]),
-      recipe("shortbread", "Shortbread", [
-        { name: "Flour", itemId: "flour" },
-        { name: "Butter", itemId: "butter" },
+      recipe(recipeId("shortbread"), "Shortbread", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Butter", itemId: itemId("butter") },
       ]),
-      recipe("spice-cake", "Spice cake", [
-        { name: "Flour", itemId: "flour" },
-        { name: "Cinnamon", itemId: "cinnamon" },
+      recipe(recipeId("spice-cake"), "Spice cake", [
+        { name: "Flour", itemId: itemId("flour") },
+        { name: "Cinnamon", itemId: itemId("cinnamon") },
       ]),
     ],
   },
