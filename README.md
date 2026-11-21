@@ -11,7 +11,7 @@ State, its Recipes with their Ingredients and each Ingredient's linked Item) fro
 conversation. It signs in with Google as your own Member, through a one-time browser sign-in, so
 every read and write passes `firestore.rules`: no service account, no Admin SDK. A soft-deleted record is
 never returned. The read tools return raw data; Claude works out what is makeable or what to shop for.
-The two writes are `add_catalogue_item` and `add_recipe`; each is validated by the domain zod schemas
+The writes are `add_catalogue_item` and `add_recipe`; each is validated by the domain zod schemas
 before it is sent. `add_recipe` takes a structured Recipe that Claude has read from a URL or pasted
 text (the server has no scraper). The server asks no confirmation of its own: Claude Code's
 tool-permission prompt is the only one.
