@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Firestore } from "firebase/firestore";
+import { z } from "zod";
+import { addCatalogueItem } from "./catalogue-writer.ts";
 import { readItems, readRecipes } from "./household-reader.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
@@ -10,8 +12,9 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 }
 
 /**
- * The MCP server over one Household's Firestore, read only. Its tools return raw records: what is
- * makeable, and what to shop for, is left to the model to work out from them. Connect it to a
+ * The MCP server over one Household's Firestore. Its read tools return raw records: what is
+ * makeable, and what to shop for, is left to the model to work out from them. `add_catalogue_item`
+ * is its one write and asks for no confirmation of its own: Claude Code's tool-permission prompt is it. Connect it to a
  * transport with `server.connect`.
  */
 export function createHouseholdServer(db: Firestore): McpServer {
@@ -33,6 +36,24 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: READ_ONLY,
     },
     async () => asJson(await readRecipes(db)),
+  );
+  server.registerTool(
+    "add_catalogue_item",
+    {
+      description:
+        "Add a new Item to the Household's catalogue. `state` is enough, running low or out (default enough); `necessity` is essential, important or optional; `categoryId` names a live Category, and `shopId`, when given, a live Shop overriding the Category's default. Returns the new Item's id.",
+      inputSchema: {
+        name: z.string(),
+        state: z.string().optional(),
+        categoryId: z.string(),
+        necessity: z.string(),
+        shopId: z.string().optional(),
+        aisleId: z.string().optional(),
+        tagIds: z.array(z.string()).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    async (input) => asJson({ id: await addCatalogueItem(db, input) }),
   );
   return server;
 }

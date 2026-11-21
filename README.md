@@ -4,19 +4,22 @@ One Firebase store for side-project PWAs: zod schemas and security rules for eve
 collections, plus the `data-platform/client` helpers (`docs/client.md`) and the `data-platform/local`
 kit (`docs/local-kit.md`). Standing a Household up is in `docs/household-setup.md`.
 
-## MCP server: read the Household from Claude Code
+## MCP server: read and add to the Household from Claude Code
 
-A local, read-only stdio MCP server answers questions about the Household (its Items with their
+A local stdio MCP server answers questions about the Household (its Items with their
 State, its Recipes with their Ingredients and each Ingredient's linked Item) from a Claude Code
 conversation. It signs in with Google as your own Member, through a one-time browser sign-in, so
-every read passes `firestore.rules`: no service account, no Admin SDK. A soft-deleted record is
+every read and write passes `firestore.rules`: no service account, no Admin SDK. A soft-deleted record is
 never returned. The tools return raw data; Claude works out what is makeable or what to shop for.
+The one write, `add_catalogue_item`, has no confirmation of its own: Claude Code's tool-permission
+prompt is the only one.
 It runs from a clone of this repo; the published package has no bin for it.
 
 | Tool           | Returns                                                                                              |
 | -------------- | ---------------------------------------------------------------------------------------------------- |
 | `list_items`   | every live Item, with its State                                                                      |
 | `list_recipes` | every live Recipe, with its Ingredients; each Ingredient's `item` is its linked live Item, or `null` |
+| `add_catalogue_item` | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first |
 
 ### One-time setup
 
