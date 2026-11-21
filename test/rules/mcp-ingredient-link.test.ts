@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ZodError } from "zod";
 import { readRecipes } from "../../src/mcp/household-reader.ts";
-import { setIngredientLink } from "../../src/mcp/ingredient-writer.ts";
+import { setIngredientLink, type IngredientLink } from "../../src/mcp/ingredient-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
 async function ingredientsOf(db: Parameters<typeof readRecipes>[0], id: string) {
@@ -64,13 +64,10 @@ test("setIngredientLink refuses what the schema rejects, and writes nothing", as
   try {
     const before = await ingredientsOf(db, "pancakes");
 
-    for (const link of [
-      { itemId: "" },
-      { itemId: "milk", assumed: true },
-      { assumed: false },
-    ]) {
+    const badLinks: unknown[] = [{ itemId: "" }, { itemId: "milk", assumed: true }, { assumed: false }];
+    for (const link of badLinks) {
       await assert.rejects(
-        setIngredientLink(db, { recipeId: "pancakes", ingredient: 0, link } as never),
+        setIngredientLink(db, { recipeId: "pancakes", ingredient: 0, link: link as IngredientLink }),
         ZodError,
       );
     }
@@ -78,8 +75,12 @@ test("setIngredientLink refuses what the schema rejects, and writes nothing", as
       setIngredientLink(db, { recipeId: "pancakes", ingredient: -1, link: {} }),
       ZodError,
     );
-    await assert.rejects(setIngredientLink(db, { recipeId: "pancakes", ingredient: 9, link: {} }), Error);
-    await assert.rejects(setIngredientLink(db, { recipeId: "retired-stew", ingredient: 0, link: {} }), Error);
+    await assert.rejects(setIngredientLink(db, { recipeId: "pancakes", ingredient: 9, link: {} }), {
+      message: /has no Ingredient 9/,
+    });
+    await assert.rejects(setIngredientLink(db, { recipeId: "retired-stew", ingredient: 0, link: {} }), {
+      message: /No live Recipe/,
+    });
 
     assert.deepEqual(await ingredientsOf(db, "pancakes"), before);
   } finally {
@@ -87,7 +88,7 @@ test("setIngredientLink refuses what the schema rejects, and writes nothing", as
   }
 });
 
-test("setIngredientLink by a non-Member is refused by the rules", async () => {
+test("setIngredientLink by a non-Member is refused (at the Recipe read, so the update rule is not reached)", async () => {
   await seedLocalHousehold("owner-with-recipes");
   const { db, close } = await signedInClient("stranger@example.com");
   try {
