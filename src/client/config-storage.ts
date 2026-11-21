@@ -11,9 +11,10 @@ export type ConfigStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 /** The stored config, or `null` if none is stored or the stored value is not a valid config. Never throws on a bad value or on storage that cannot be read. */
 export function getStoredFirebaseWebConfig(
-  storage: ConfigStorage = localStorage,
+  storage?: ConfigStorage,
 ): FirebaseWebConfig | null {
   try {
+    storage ??= localStorage;
     const raw = storage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
     if (raw === null) return null;
     return firebaseWebConfig(JSON.parse(raw));

@@ -66,3 +66,21 @@ test("a storage whose getItem throws reads as absent and never throws", () => {
   };
   assert.equal(getStoredFirebaseWebConfig(storage), null);
 });
+
+test("with no storage argument, an undefined or throwing global localStorage reads as absent", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  try {
+    Reflect.deleteProperty(globalThis, "localStorage");
+    assert.equal(getStoredFirebaseWebConfig(), null);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+    });
+    assert.equal(getStoredFirebaseWebConfig(), null);
+  } finally {
+    Reflect.deleteProperty(globalThis, "localStorage");
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+  }
+});
