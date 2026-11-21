@@ -11,6 +11,7 @@ State, its Recipes with their Ingredients and each Ingredient's linked Item) fro
 conversation. It signs in with Google as your own Member, through a one-time browser sign-in, so
 every read passes `firestore.rules`: no service account, no Admin SDK. A soft-deleted record is
 never returned. The tools return raw data; Claude works out what is makeable or what to shop for.
+It runs from a clone of this repo; the published package has no bin for it.
 
 | Tool           | Returns                                                                                              |
 | -------------- | ---------------------------------------------------------------------------------------------------- |

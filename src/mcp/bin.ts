@@ -21,8 +21,8 @@ function openUrl(url: string): void {
 }
 
 /**
- * `data-platform-mcp` serves the Household over stdio, for `claude mcp add`. `data-platform-mcp login`
- * only runs the one-time browser sign-in and caches it, then exits.
+ * This entry point (`npm run mcp`) serves the Household over stdio, for `claude mcp add`. With the
+ * argument `login` it only runs the one-time browser sign-in and caches it, then exits.
  */
 async function main(): Promise<void> {
   const config = readServerConfig();
