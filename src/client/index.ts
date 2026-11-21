@@ -22,3 +22,4 @@ export {
   isHouseholdMember,
   joinFromInvite,
 } from "./household.ts";
+export { isRulesRefusal } from "./rules-refusal.ts";

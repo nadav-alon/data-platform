@@ -57,3 +57,5 @@ if (!(await isHouseholdMember(db, user.uid))) {
 
 `authClient` gives `signIn`, `signOut`, `onAuthChange` and `currentUid`. `claimHousehold` makes the
 signer the Owner of an unclaimed Household; `joinFromInvite` turns an Invite into Membership.
+`isRulesRefusal(error)` is true when a Firestore call failed because the rules denied it, rather than
+a network or programming error.
