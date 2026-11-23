@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ZodError } from "zod";
 import { readRecipes } from "../../src/mcp/household-reader.ts";
+import { setIngredientBought, setRecipeWanted } from "../../src/client/index.ts";
+import { recipeId } from "../../src/recipes/recipe.ts";
 import { setIngredientLink, type IngredientLink } from "../../src/mcp/ingredient-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
@@ -121,6 +123,43 @@ test("the set_ingredient_link tool updates an Ingredient, and returns an error r
     assert.equal((await ingredientsOf(db, "omelette"))?.[0]?.item?.id, "eggs");
   } finally {
     await closeMcp();
+    await close();
+  }
+});
+
+async function boughtBananaBread(db: Parameters<typeof readRecipes>[0]) {
+  await setRecipeWanted(db, recipeId("banana-bread"), true);
+  await setIngredientBought(db, recipeId("banana-bread"), 0, true);
+  assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, true);
+}
+
+test("setIngredientLink drops bought when it links or assumes a bought Ingredient", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    await boughtBananaBread(db);
+    await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: { itemId: "milk" } });
+    assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, undefined);
+
+    await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: {} });
+    await boughtBananaBread(db);
+    await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: { assumed: true } });
+    const assumed = (await ingredientsOf(db, "banana-bread"))?.[0];
+    assert.equal(assumed?.assumed, true);
+    assert.equal(assumed?.bought, undefined);
+  } finally {
+    await close();
+  }
+});
+
+test("setIngredientLink keeps bought when it unlinks an Ingredient", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    await boughtBananaBread(db);
+    await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: {} });
+    assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, true);
+  } finally {
     await close();
   }
 });

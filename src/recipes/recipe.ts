@@ -28,7 +28,7 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 /**
  * One line of a Recipe. `itemId` links it to a Core Item; `assumed` marks a staple taken as
  * already in the house, so it never names an Item. A `unit` only means something beside a
- * `quantity`. `bought` marks an Unlinked Ingredient (no Item, not assumed) of a Wanted Recipe as
+ * `quantity`. `bought` marks an unlinked Ingredient (no Item, not assumed) of a Wanted Recipe as
  * bought; absent means not bought.
  */
 export const ingredientSchema = z
@@ -42,7 +42,7 @@ export const ingredientSchema = z
     bought: z.literal(true).optional(),
   })
   .refine((ingredient) => !(ingredient.bought === true && ingredient.itemId !== undefined), {
-    message: "A Linked Ingredient is never bought: its Item is what gets bought",
+    message: "An Ingredient that names an Item is never bought: its Item is what gets bought",
   })
   .refine((ingredient) => !(ingredient.bought === true && ingredient.assumed === true), {
     message: "An assumed Ingredient is never bought",
@@ -74,3 +74,27 @@ export const recipeSchema = z.looseObject({
 });
 
 export type Recipe = z.infer<typeof recipeSchema>;
+
+/** An Ingredient without its `bought`: what clearing it, or giving the Ingredient an Item or Assumed, leaves. */
+export function withoutBought<T extends { bought?: unknown }>(ingredient: T): Omit<T, "bought"> {
+  const { bought: _bought, ...rest } = ingredient;
+  return rest;
+}
+
+/** A Recipe snapshot's data when it is live; throws an `Error` for an unknown or soft-deleted Recipe. */
+export function liveRecipeData(snapshot: { data(): unknown }, id: RecipeId): unknown {
+  const data = snapshot.data() as { deletedAt?: unknown } | undefined;
+  if (data === undefined || data.deletedAt !== undefined) {
+    throw new Error(`No live Recipe ${JSON.stringify(id)}`);
+  }
+  return data;
+}
+
+/** The Recipe's Ingredient at `position`; throws an `Error` for a position that is not one. */
+export function ingredientAt(recipe: Recipe, id: RecipeId, position: number): Ingredient {
+  const ingredient = recipe.ingredients[position];
+  if (ingredient === undefined) {
+    throw new Error(`Recipe ${JSON.stringify(id)} has no Ingredient ${position}`);
+  }
+  return ingredient;
+}

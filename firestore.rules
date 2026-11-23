@@ -555,6 +555,8 @@ service cloud.firestore {
     /**
      * Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`,
      * `bought` only on an Ingredient that names no Item and is not assumed.
+     * `isValidIngredients` runs it on the first Ingredient only, so `bought` beside an `itemId` or
+     * `assumed` at a later position is refused by the schema but not by these rules.
      */
     function isValidIngredient(ingredient) {
       return ingredient is map

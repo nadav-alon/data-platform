@@ -1,5 +1,12 @@
 import { deleteField, doc, runTransaction, type Firestore } from "firebase/firestore";
-import { RECIPES_COLLECTION, recipeSchema, type RecipeId } from "../recipes/recipe.ts";
+import {
+  RECIPES_COLLECTION,
+  ingredientAt,
+  liveRecipeData,
+  recipeSchema,
+  withoutBought,
+  type RecipeId,
+} from "../recipes/recipe.ts";
 
 /** The Firestore calls the Wanted functions make, injectable so a test can observe them. */
 export type RecipeWantedDeps = {
@@ -29,29 +36,30 @@ export async function setRecipeWantedWith(
 ): Promise<void> {
   const ref = deps.doc(db, RECIPES_COLLECTION, id);
   await deps.runTransaction(db, async (transaction) => {
-    const recipe = recipeSchema.parse(liveData(await transaction.get(ref), id));
+    const recipe = recipeSchema.parse(liveRecipeData(await transaction.get(ref), id));
     if (wanted) {
       transaction.update(ref, { wanted: true });
       return;
     }
-    const ingredients = recipe.ingredients.map(({ bought: _bought, ...rest }) => rest);
+    const ingredients = recipe.ingredients.map(withoutBought);
     transaction.update(ref, { wanted: deps.deleteField(), ingredients });
   });
 }
 
 /**
- * Sets or clears one Ingredient's `bought`, `ingredient` being its 0-based position in the Recipe.
+ * Sets or clears one Ingredient's `bought`, `position` being its 0-based position in the Recipe.
  * Throws an `Error` for an unknown or soft-deleted Recipe, a Recipe that is not Wanted, a position
- * past its last Ingredient, or an Ingredient that is Linked or Assumed. The write is checked by
+ * that is not a non-negative integer or is past its last Ingredient, or an Ingredient that is
+ * linked to an Item or assumed. The write is checked by
  * `firestore.rules` as the signed-in Member.
  */
 export function setIngredientBought(
   db: Firestore,
   id: RecipeId,
-  ingredient: number,
+  position: number,
   bought: boolean,
 ): Promise<void> {
-  return setIngredientBoughtWith(RECIPE_WANTED_DEPS, db, id, ingredient, bought);
+  return setIngredientBoughtWith(RECIPE_WANTED_DEPS, db, id, position, bought);
 }
 
 /** `setIngredientBought` with the calls injected; `index.ts` does not export it. */
@@ -62,32 +70,23 @@ export async function setIngredientBoughtWith(
   position: number,
   bought: boolean,
 ): Promise<void> {
+  if (!Number.isInteger(position) || position < 0) {
+    throw new Error(`Ingredient position must be a non-negative integer, got ${position}`);
+  }
   const ref = deps.doc(db, RECIPES_COLLECTION, id);
   await deps.runTransaction(db, async (transaction) => {
-    const recipe = recipeSchema.parse(liveData(await transaction.get(ref), id));
+    const recipe = recipeSchema.parse(liveRecipeData(await transaction.get(ref), id));
     if (recipe.wanted !== true) {
       throw new Error(`Recipe ${JSON.stringify(id)} is not Wanted, so nothing in it can be bought`);
     }
-    const current = recipe.ingredients[position];
-    if (current === undefined) {
-      throw new Error(`Recipe ${JSON.stringify(id)} has no Ingredient ${position}`);
-    }
+    const current = ingredientAt(recipe, id, position);
     if (current.itemId !== undefined || current.assumed === true) {
-      throw new Error(`Ingredient ${position} of Recipe ${JSON.stringify(id)} is not Unlinked`);
+      throw new Error(`Ingredient ${position} of Recipe ${JSON.stringify(id)} is not unlinked`);
     }
-    const { bought: _bought, ...rest } = current;
+    const rest = withoutBought(current);
     const ingredients = recipe.ingredients.map((existing, index) =>
       index === position ? (bought ? { ...rest, bought: true as const } : rest) : existing,
     );
     transaction.update(ref, { ingredients });
   });
-}
-
-/** The data of a live Recipe's snapshot; throws when there is none. */
-function liveData(snapshot: { data(): unknown }, id: RecipeId): unknown {
-  const data = snapshot.data() as { deletedAt?: unknown } | undefined;
-  if (data === undefined || data.deletedAt !== undefined) {
-    throw new Error(`No live Recipe ${JSON.stringify(id)}`);
-  }
-  return data;
 }

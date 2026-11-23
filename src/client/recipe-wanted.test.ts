@@ -103,8 +103,15 @@ test("setIngredientBought refuses on a Recipe that is not Wanted", async () => {
 
 test("setIngredientBought refuses a Linked Ingredient, an Assumed one and a missing position", async () => {
   const { deps, updates } = fakeStore(recipe({ wanted: true }));
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 1, true), /not Unlinked/);
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 2, true), /not Unlinked/);
+  await assert.rejects(setIngredientBoughtWith(deps, db, id, 1, true), /not unlinked/);
+  await assert.rejects(setIngredientBoughtWith(deps, db, id, 2, true), /not unlinked/);
   await assert.rejects(setIngredientBoughtWith(deps, db, id, 9, true), /no Ingredient 9/);
+  assert.deepEqual(updates, []);
+});
+
+test("setIngredientBought refuses a position that is not a non-negative integer, touching nothing", async () => {
+  const { deps, updates } = fakeStore(recipe({ wanted: true }));
+  await assert.rejects(setIngredientBoughtWith(deps, db, id, -1, true), /non-negative integer/);
+  await assert.rejects(setIngredientBoughtWith(deps, db, id, 0.5, true), /non-negative integer/);
   assert.deepEqual(updates, []);
 });
