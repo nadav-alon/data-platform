@@ -2,9 +2,14 @@
 
 ## Unreleased
 
-No redeploy needed: rules and schemas are unchanged. The MCP server code is not part of the published
+Redeploy `firestore.rules`: they now accept `wanted` and `bought`. The MCP server code is not part of the published
 package's exports; the **Local** entry below is.
 
+- **Recipes**: a Recipe takes an optional `wanted: true`, and an Unlinked Ingredient (no Item, not
+  assumed) an optional `bought: true`; `bought` on a Linked or Assumed Ingredient fails validation.
+  `data-platform/client` adds `setRecipeWanted` (not Wanted clears every `bought` in the same write)
+  and `setIngredientBought` (refuses on a Recipe that is not Wanted). The MCP server's
+  `setIngredientLink` clears `bought` when it links or assumes an Ingredient.
 - **MCP server** (`src/mcp/`): `add_catalogue_item` adds an Item and its CatalogueItem in one batch,
   parsed by the domain zod schemas first and passing `firestore.rules` as the signed-in Member. It
   asks for no confirmation beyond Claude Code's own tool-permission prompt.
