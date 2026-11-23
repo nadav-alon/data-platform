@@ -6,7 +6,7 @@ export const HOUSEHOLD_SETTINGS_DOC_PATH = "meta/settings";
 
 export const householdSettingsSchema = z.looseObject({
   /**
-   * The Shop a Recipe row on the Shopping list belongs to. Names a Shop of this Household; absent
+   * The Shop the Recipe Ingredients a Household wants are bought at (see **Shop for Recipe Ingredients** in CONTEXT.md). Names a Shop of this Household; absent
    * means unset.
    */
   recipeIngredientShopId: shopIdSchema.optional(),
