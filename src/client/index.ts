@@ -23,3 +23,4 @@ export {
   joinFromInvite,
 } from "./household.ts";
 export { isRulesRefusal } from "./rules-refusal.ts";
+export { setIngredientBought, setRecipeWanted } from "./recipe-wanted.ts";

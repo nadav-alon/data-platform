@@ -94,12 +94,16 @@ Category's default.
 **Recipe**:
 A household's cooking instructions, one document with everything embedded: a title, its
 Ingredients, prep steps (done before cooking starts) and steps, and optionally servings, a source
-URL and notes. Soft-deletable and never hard-deleted, so its id stays stable.
+URL and notes. It is _Wanted_ when the Household wants to make it (`wanted`). Soft-deletable and never hard-deleted, so its id stays stable.
 
 **Ingredient**:
 One line of a Recipe: a name, optionally the Item it names (`itemId`), a quantity with an optional
 unit (a unit needs a quantity), and a prep note. It is _assumed_ when the Recipe takes it for granted
-(`assumed`, like salt): an assumed Ingredient never names an Item.
+(`assumed`, like salt): an assumed Ingredient never names an Item. An Ingredient that names no Item and is not assumed
+is _unlinked_, and only an unlinked Ingredient can be _bought_ (`bought`). The Wanted part is a
+client guarantee, not a schema invariant: `setIngredientBought` refuses a Recipe that is not Wanted and
+`setRecipeWanted` clears `bought` when it un-Wants, but the schema and rules accept `bought` on a Recipe
+that is not Wanted.
 
 **Soft delete**:
 Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with

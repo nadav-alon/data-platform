@@ -3,9 +3,12 @@ import { z } from "zod";
 import { itemIdSchema } from "../core/item.ts";
 import {
   RECIPES_COLLECTION,
+  ingredientAt,
+  liveRecipeData,
   recipeId as toRecipeId,
   recipeIdSchema,
   recipeSchema,
+  withoutBought,
   type RecipeId,
 } from "../recipes/recipe.ts";
 
@@ -32,7 +35,8 @@ export type SetIngredientLink = z.input<typeof setIngredientLinkSchema>;
 
 /**
  * Links one Ingredient of a live Recipe to an Item, marks it assumed, or unlinks it (an empty
- * `link`), leaving its other fields as stored. The input is validated by `setIngredientLinkSchema`
+ * `link`), leaving its other fields as stored; linking or assuming also clears `bought`, which only an
+ * unlinked Ingredient carries. The input is validated by `setIngredientLinkSchema`
  * (a `link` naming both an Item and Assumed is refused there) and the resulting Ingredients by the
  * Recipe schema's `ingredients` shape before anything is sent; a `ZodError` is thrown when either
  * is refused. An unknown or soft-deleted Recipe, or a position past its last Ingredient, throws an `Error`.
@@ -42,19 +46,14 @@ export async function setIngredientLink(db: Firestore, input: SetIngredientLink)
   const { recipeId, ingredient: position, link } = setIngredientLinkSchema.parse(input);
   const ref = doc(db, RECIPES_COLLECTION, recipeId);
   await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    const data = snapshot.data();
-    if (data === undefined || data.deletedAt !== undefined) {
-      throw new Error(`No live Recipe ${JSON.stringify(recipeId)}`);
-    }
-    const recipe = recipeSchema.parse(data);
-    const current = recipe.ingredients[position];
-    if (current === undefined) {
-      throw new Error(`Recipe ${JSON.stringify(recipeId)} has no Ingredient ${position}`);
-    }
-    const { itemId: _itemId, assumed: _assumed, ...rest } = current;
+    const id = toRecipeId(recipeId);
+    const recipe = recipeSchema.parse(liveRecipeData(await transaction.get(ref), id));
+    const current = ingredientAt(recipe, id, position);
+    const { itemId: _itemId, assumed: _assumed, ...unlinked } = current;
+    const rest = withoutBought(unlinked);
+    const base = "itemId" in link || "assumed" in link ? rest : unlinked;
     const ingredients = recipe.ingredients.map((existing, index) =>
-      index === position ? { ...rest, ...link } : existing,
+      index === position ? { ...base, ...link } : existing,
     );
     transaction.update(ref, { ingredients: recipeSchema.shape.ingredients.parse(ingredients) });
   });

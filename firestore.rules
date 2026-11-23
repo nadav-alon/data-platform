@@ -552,7 +552,12 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
-    /** Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`. */
+    /**
+     * Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`,
+     * `bought` only on an Ingredient that names no Item and is not assumed.
+     * `isValidIngredients` runs it on the first Ingredient only, so `bought` beside an `itemId` or
+     * `assumed` at a later position is refused by the schema but not by these rules.
+     */
     function isValidIngredient(ingredient) {
       return ingredient is map
         && isNonEmptyString(ingredient.name)
@@ -562,7 +567,9 @@ service cloud.firestore {
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
-        && (!('prepNote' in ingredient) || ingredient.prepNote is string);
+        && (!('prepNote' in ingredient) || ingredient.prepNote is string)
+        && (!('bought' in ingredient)
+          || (ingredient.bought == true && !('itemId' in ingredient) && !('assumed' in ingredient)));
     }
 
     /** Matches `z.array(ingredientSchema)`. Only the first element is checked: rules can't loop over a list. */
@@ -584,6 +591,7 @@ service cloud.firestore {
         && (!('servings' in data) || (data.servings is int && data.servings > 0))
         && (!('sourceUrl' in data) || data.sourceUrl is string)
         && (!('notes' in data) || data.notes is string)
+        && (!('wanted' in data) || data.wanted == true)
         && isValidDeletedAt(data);
     }
 

@@ -59,3 +59,18 @@ if (!(await isHouseholdMember(db, user.uid))) {
 signer the Owner of an unclaimed Household; `joinFromInvite` turns an Invite into Membership.
 `isRulesRefusal(error)` is true when a Firestore call failed because the rules denied it, rather than
 a network or programming error.
+
+## Wanted Recipes
+
+```ts
+import { setRecipeWanted, setIngredientBought } from "data-platform/client";
+
+await setRecipeWanted(db, recipeId, true);
+await setIngredientBought(db, recipeId, 0, true); // Ingredient 0 of the Recipe
+await setRecipeWanted(db, recipeId, false); // also clears every Ingredient's `bought`
+```
+
+`setRecipeWanted` sets or clears a live Recipe's `wanted`; not Wanted clears `bought` from every
+Ingredient in the same write. `setIngredientBought` sets or clears one Ingredient's `bought` by its
+0-based position, and throws on a Recipe that is not Wanted or an Ingredient that is Linked or
+Assumed. Both throw for an unknown or soft-deleted Recipe, and the rules refuse a non-Member.

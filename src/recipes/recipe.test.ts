@@ -119,3 +119,28 @@ test("RecipeId's guard, constructor and schema are reachable through recipes", (
   assert.equal(recipes.recipeId, recipeId);
   assert.equal(recipes.recipeIdSchema, recipeIdSchema);
 });
+
+test("accepts wanted: true on a Recipe, and absent means not wanted", () => {
+  assert.equal(recipeSchema.parse({ ...valid, wanted: true }).wanted, true);
+  assert.equal(recipeSchema.parse(valid).wanted, undefined);
+});
+
+test("rejects wanted: false on a Recipe", () => {
+  assert.ok(!recipeSchema.safeParse({ ...valid, wanted: false }).success);
+});
+
+test("accepts bought: true on an Unlinked Ingredient", () => {
+  assert.ok(recipeSchema.safeParse(withIngredient({ name: "Flour", bought: true })).success);
+});
+
+test("rejects bought on a Linked Ingredient", () => {
+  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Flour", itemId: "flour", bought: true })).success);
+});
+
+test("rejects bought on an Assumed Ingredient", () => {
+  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Salt", assumed: true, bought: true })).success);
+});
+
+test("rejects bought: false on an Ingredient", () => {
+  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Flour", bought: false })).success);
+});

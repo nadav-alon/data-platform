@@ -242,3 +242,53 @@ test("hard delete: a non-Owner Member cannot delete a Recipe", async () => {
   const firestore = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(firestore.doc(`${RECIPES_COLLECTION}/pancakes`).delete());
 });
+
+test("collection validation: a Wanted Recipe is accepted", async () => {
+  await assertMemberWrite("wanted", { ...validRecipe, wanted: true }, "accept");
+});
+
+test("collection validation: wanted: false is rejected", async () => {
+  await assertMemberWrite("wanted false", { ...validRecipe, wanted: false }, "reject");
+});
+
+test("collection validation: a bought Unlinked Ingredient is accepted", async () => {
+  await assertMemberWrite(
+    "bought unlinked",
+    { ...withIngredient({ name: "Flour", bought: true }), wanted: true },
+    "accept",
+  );
+});
+
+test("collection validation: a bought Linked Ingredient is rejected", async () => {
+  await assertMemberWrite(
+    "bought linked",
+    withIngredient({ name: "Flour", itemId: "flour", bought: true }),
+    "reject",
+  );
+});
+
+test("collection validation: a bought Assumed Ingredient is rejected", async () => {
+  await assertMemberWrite("bought assumed", withIngredient({ name: "Salt", assumed: true, bought: true }), "reject");
+});
+
+test("collection validation: bought: false is rejected", async () => {
+  await assertMemberWrite("bought false", withIngredient({ name: "Flour", bought: false }), "reject");
+});
+
+test("isMember() gate: a Member can set a Recipe Wanted and an Ingredient bought", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+
+  const recipe = rulesTestEnv.env.authenticatedContext(alice).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
+  await assertSucceeds(recipe.update({ wanted: true }));
+  await assertSucceeds(recipe.update({ ingredients: [{ name: "Flour", bought: true }] }));
+});
+
+test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient bought", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+
+  const recipe = rulesTestEnv.env.authenticatedContext(uid("mallory")).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
+  await assertFails(recipe.update({ wanted: true }));
+  await assertFails(recipe.update({ ingredients: [{ name: "Flour", bought: true }] }));
+});
