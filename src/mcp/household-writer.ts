@@ -9,7 +9,7 @@ import {
 import { ITEMS_COLLECTION, itemSchema, type ItemId } from "../core/item.ts";
 import type { State } from "../core/state.ts";
 import { stateHistoryCollectionPath } from "../core/state-history.ts";
-import { isLive } from "./household-reader.ts";
+import { isLive } from "../core/deleted-at.ts";
 
 /** Raised when a write is refused before it is sent: no live Item to write to, or an invalid Item. */
 export class SetItemStateError extends Error {}
