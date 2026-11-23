@@ -663,6 +663,24 @@ service cloud.firestore {
       allow get, list: if isMember();
     }
 
+    /** Matches `householdSettingsSchema`; whether the Shop it names is live is checked per write. */
+    function isValidHouseholdSettings(data) {
+      return !('recipeIngredientShopId' in data) || isNonEmptyString(data.recipeIngredientShopId);
+    }
+
+    /** Whether the settings name no Shop for Recipe Ingredients, or a live Shop of this Household. */
+    function settingsShopIsLive(data) {
+      return !('recipeIngredientShopId' in data) || isLiveAt(shopPath(data.recipeIngredientShopId));
+    }
+
+    /** A missing doc reads as no settings set; any Member sets or clears the Shop for Recipe Ingredients. */
+    match /meta/settings {
+      allow create, update: if isMember()
+        && isValidHouseholdSettings(request.resource.data)
+        && settingsShopIsLive(request.resource.data);
+      allow delete: if false;
+    }
+
     match /meta/household {
       /** A missing doc (unclaimed Household) reads as not-exists. */
       allow get: if isSignedIn();
