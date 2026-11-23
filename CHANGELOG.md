@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.18.0
 
 Redeploy `firestore.rules`: they now accept `wanted` and `bought`, and `meta/settings` is new. The
 MCP server code is not part of the published package's exports; the **Local** entry below is.
