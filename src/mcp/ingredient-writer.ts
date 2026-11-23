@@ -32,7 +32,8 @@ export type SetIngredientLink = z.input<typeof setIngredientLinkSchema>;
 
 /**
  * Links one Ingredient of a live Recipe to an Item, marks it assumed, or unlinks it (an empty
- * `link`), leaving its other fields as stored. The input is validated by `setIngredientLinkSchema`
+ * `link`), leaving its other fields as stored; linking or assuming also clears `bought`, which only an
+ * Unlinked Ingredient carries. The input is validated by `setIngredientLinkSchema`
  * (a `link` naming both an Item and Assumed is refused there) and the resulting Ingredients by the
  * Recipe schema's `ingredients` shape before anything is sent; a `ZodError` is thrown when either
  * is refused. An unknown or soft-deleted Recipe, or a position past its last Ingredient, throws an `Error`.
@@ -52,9 +53,11 @@ export async function setIngredientLink(db: Firestore, input: SetIngredientLink)
     if (current === undefined) {
       throw new Error(`Recipe ${JSON.stringify(recipeId)} has no Ingredient ${position}`);
     }
-    const { itemId: _itemId, assumed: _assumed, ...rest } = current;
+    const { itemId: _itemId, assumed: _assumed, ...unlinked } = current;
+    const { bought: _bought, ...rest } = unlinked;
+    const base = "itemId" in link || "assumed" in link ? rest : unlinked;
     const ingredients = recipe.ingredients.map((existing, index) =>
-      index === position ? { ...rest, ...link } : existing,
+      index === position ? { ...base, ...link } : existing,
     );
     transaction.update(ref, { ingredients: recipeSchema.shape.ingredients.parse(ingredients) });
   });

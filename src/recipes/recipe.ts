@@ -28,7 +28,8 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 /**
  * One line of a Recipe. `itemId` links it to a Core Item; `assumed` marks a staple taken as
  * already in the house, so it never names an Item. A `unit` only means something beside a
- * `quantity`.
+ * `quantity`. `bought` marks an Unlinked Ingredient (no Item, not assumed) of a Wanted Recipe as
+ * bought; absent means not bought.
  */
 export const ingredientSchema = z
   .looseObject({
@@ -38,6 +39,13 @@ export const ingredientSchema = z
     quantity: z.number().positive().optional(),
     unit: z.enum(INGREDIENT_UNITS).optional(),
     prepNote: z.string().optional(),
+    bought: z.literal(true).optional(),
+  })
+  .refine((ingredient) => !(ingredient.bought === true && ingredient.itemId !== undefined), {
+    message: "A Linked Ingredient is never bought: its Item is what gets bought",
+  })
+  .refine((ingredient) => !(ingredient.bought === true && ingredient.assumed === true), {
+    message: "An assumed Ingredient is never bought",
   })
   .refine((ingredient) => !(ingredient.assumed === true && ingredient.itemId !== undefined), {
     message: "An assumed Ingredient must not name an Item",
@@ -49,7 +57,8 @@ export const ingredientSchema = z
 export type Ingredient = z.infer<typeof ingredientSchema>;
 
 /**
- * One document with everything embedded. Never versioned and never hard-deleted, so its id stays
+ * One document with everything embedded. `wanted` says the Household wants to make it; absent
+ * means not wanted. Never versioned and never hard-deleted, so its id stays
  * stable for anything that points at it.
  */
 export const recipeSchema = z.looseObject({
@@ -60,6 +69,7 @@ export const recipeSchema = z.looseObject({
   servings: z.number().int().positive().optional(),
   sourceUrl: z.string().optional(),
   notes: z.string().optional(),
+  wanted: z.literal(true).optional(),
   deletedAt: deletedAtSchema,
 });
 
