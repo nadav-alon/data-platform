@@ -74,3 +74,16 @@ await setRecipeWanted(db, recipeId, false); // also clears every Ingredient's `b
 Ingredient in the same write. `setIngredientBought` sets or clears one Ingredient's `bought` by its
 0-based position, and throws on a Recipe that is not Wanted or an Ingredient that is Linked or
 Assumed. Both throw for an unknown or soft-deleted Recipe, and the rules refuse a non-Member.
+
+## The Shop for Recipe Ingredients
+
+```ts
+import { setRecipeIngredientShop, watchRecipeIngredientShop } from "data-platform/client";
+
+const stop = watchRecipeIngredientShop(db, (shopId) => render(shopId)); // undefined: unset
+await setRecipeIngredientShop(db, shopId("grocery"));
+await setRecipeIngredientShop(db, undefined); // clears it
+```
+
+The Household keeps it in `meta/settings` as `recipeIngredientShopId`. Any Member may set it; a Shop
+that is missing or soft-deleted rejects with `UnknownShopError`, and the rules refuse it too.
