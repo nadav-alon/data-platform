@@ -6,3 +6,8 @@ import { firestoreTimestampSchema } from "./timestamp.ts";
  * record.
  */
 export const deletedAtSchema = firestoreTimestampSchema.optional();
+
+/** Whether a stored document is live: it has no `deletedAt`. */
+export function isLive(data: Record<string, unknown>): boolean {
+  return data.deletedAt === undefined;
+}

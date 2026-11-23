@@ -1,4 +1,5 @@
 import { collection, getDocs, type Firestore } from "firebase/firestore";
+import { isLive } from "../core/deleted-at.ts";
 import { ITEMS_COLLECTION, itemId, itemSchema, type Item, type ItemId } from "../core/item.ts";
 import {
   RECIPES_COLLECTION,
@@ -12,10 +13,6 @@ import {
 /** An Item as stored, with its document id. Soft-deleted Items are never returned. */
 export type ItemRecord = Item & { readonly id: ItemId };
 
-/** Whether a stored document is live: it has no `deletedAt`. */
-export function isLive(data: Record<string, unknown>): boolean {
-  return data.deletedAt === undefined;
-}
 
 /**
  * Every live Item in the Household with its State, as stored. Raw data: no grouping or derived

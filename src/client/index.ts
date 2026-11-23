@@ -24,3 +24,8 @@ export {
 } from "./household.ts";
 export { isRulesRefusal } from "./rules-refusal.ts";
 export { setIngredientBought, setRecipeWanted } from "./recipe-wanted.ts";
+export {
+  setRecipeIngredientShop,
+  UnknownShopError,
+  watchRecipeIngredientShop,
+} from "./recipe-ingredient-shop.ts";

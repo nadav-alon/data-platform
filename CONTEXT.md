@@ -57,6 +57,9 @@ Every State change, timestamped by the server, append-only.
 **Shop**:
 A kind of place a CatalogueItem is bought at (pharmacy, grocery), not a specific store; see **Store**.
 
+**Shop for Recipe Ingredients**:
+The one Shop the Household buys the Ingredients of its Wanted Recipes at, kept in `meta/settings` (`recipeIngredientShopId`; absent means unset). Any Member sets or clears it. It is not a reference the Shop counts, so the Shop can be soft-deleted while it is set; the client then reports it as unset.
+
 **Category**:
 A grouping of CatalogueItems, carrying the default Shop they're bought at.
 
