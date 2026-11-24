@@ -927,7 +927,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /** Matches `kcalSchema`/`gramsSchema`: a finite number above zero (rules have no isInfinite, so bounded by 10^308). */
+    /**
+     * Matches `kcalTargetSchema`/`gramsTargetSchema` in `targets.ts`: a finite number above zero
+     * (rules have no isInfinite, so bounded by 10^308).
+     */
     function isPositiveTarget(value) {
       return value is number && value > 0 && value < math.pow(10, 308);
     }

@@ -30,6 +30,12 @@ test("COLLECTION_SCHEMAS merges every Core, Catalogue, Recipes and Nutrition col
     dataPlatform.COLLECTION_SCHEMAS[dataPlatform.nutrition.FOODS_COLLECTION],
     dataPlatform.nutrition.foodSchema,
   );
+  assert.equal(
+    dataPlatform.COLLECTION_SCHEMAS[
+      `${dataPlatform.nutrition.NUTRITION_LOGS_COLLECTION}/*/${dataPlatform.nutrition.LOG_ENTRIES_COLLECTION}`
+    ],
+    dataPlatform.nutrition.logEntrySchema,
+  );
 });
 
 test("COLLECTION_SCHEMAS has no key collision between Core, Catalogue, Recipes and Nutrition", () => {

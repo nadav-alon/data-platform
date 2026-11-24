@@ -108,17 +108,6 @@ client guarantee, not a schema invariant: `setIngredientBought` refuses a Recipe
 `setRecipeWanted` clears `bought` when it un-Wants, but the schema and rules accept `bought` on a Recipe
 that is not Wanted.
 
-**Nutrition**:
-The macros of some amount of food: `kcal`, `proteinG`, `carbsG` and `fatG`, each a number of at least 0.
-A value shape that other records embed, not a collection of its own; a Food's `perServing` is one.
-
-**Food**:
-A dish or product the Household has saved for the nutrition app that is not a Recipe, one document in
-`foods/{id}` shared by every Member: a name, optionally where it is eaten or bought (`place`), the
-Nutrition of one serving (`perServing`) with an optional label for it (`servingLabel`, "1 plate"), and
-`estimated` when the numbers are a guess rather than a label or source. Soft-deletable and never
-hard-deleted.
-
 **Soft delete**:
 Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store, Recipe, Food or Log Entry deleted with
 `deletedAt` rather than removing it, so its history survives. A record without `deletedAt` is
@@ -132,6 +121,17 @@ _Avoid_: archive
 How essential a CatalogueItem is: `essential` / `important` / `optional`.
 
 ### Nutrition entities
+
+**Nutrition**:
+The macros of some amount of food: `kcal`, `proteinG`, `carbsG` and `fatG`, each a number of at least 0.
+A value shape that other records embed, not a collection of its own; a Food's `perServing` is one.
+
+**Food**:
+A dish or product the Household has saved for the nutrition app that is not a Recipe, one document in
+`foods/{id}` shared by every Member: a name, optionally where it is eaten or bought (`place`), the
+Nutrition of one serving (`perServing`) with an optional label for it (`servingLabel`, "1 plate"), and
+`estimated` when the numbers are a guess rather than a label or source. Soft-deletable and never
+hard-deleted.
 
 **Targets**:
 A Member's daily nutrition goals: optional `kcal`, `proteinG`, `carbsG` and `fatG`, each a positive
