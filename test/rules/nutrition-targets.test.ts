@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { NUTRITION_TARGETS_COLLECTION } from "../../src/nutrition/targets.ts";
+import { NUTRITION_TARGETS_COLLECTION, TARGET_FIELDS } from "../../src/nutrition/targets.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold, seedMember } from "./seed.ts";
@@ -39,11 +39,12 @@ test("targets: an empty document is accepted", async () => {
   await assertOwnTargets("empty", {}, "accept");
 });
 
-test("targets: zero, negative and non-numeric values are rejected", async () => {
-  for (const field of ["kcal", "proteinG", "carbsG", "fatG"]) {
+test("targets: zero, negative, infinite and non-numeric values are rejected", async () => {
+  for (const field of TARGET_FIELDS) {
     await assertOwnTargets(`${field} zero`, { [field]: 0 }, "reject");
     await assertOwnTargets(`${field} negative`, { [field]: -5 }, "reject");
     await assertOwnTargets(`${field} string`, { [field]: "100" }, "reject");
+    await assertOwnTargets(`${field} infinity`, { [field]: Infinity }, "reject");
   }
 });
 
@@ -86,4 +87,15 @@ test("targets: a Member cannot write a Targets doc under another uid", async () 
   const db = rulesTestEnv.env.authenticatedContext(bob).firestore();
   await assertFails(db.doc(`${NUTRITION_TARGETS_COLLECTION}/${alice}`).set({ kcal: 2000 }));
   await assertSucceeds(db.doc(`${NUTRITION_TARGETS_COLLECTION}/${bob}`).set({ kcal: 2000 }));
+});
+
+test("targets: a signed-in non-Member cannot read, write or delete a doc under their own uid", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const doc = rulesTestEnv.env
+    .authenticatedContext(mallory)
+    .firestore()
+    .doc(`${NUTRITION_TARGETS_COLLECTION}/${mallory}`);
+  await assertFails(doc.get());
+  await assertFails(doc.set({ kcal: 2000 }));
+  await assertFails(doc.delete());
 });

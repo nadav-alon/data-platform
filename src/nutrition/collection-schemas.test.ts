@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NUTRITION_TARGETS_COLLECTION, targetsSchema } from "./targets.ts";
+import { NUTRITION_TARGETS_COLLECTION, TARGET_FIELDS, targetsSchema } from "./targets.ts";
 import { NUTRITION_COLLECTION_SCHEMAS } from "./collection-schemas.ts";
 
 test("Targets accept an empty document and any subset of the four", () => {
@@ -13,8 +13,8 @@ test("Targets accept an empty document and any subset of the four", () => {
 });
 
 test("Targets reject zero, negative and non-numeric values", () => {
-  for (const field of ["kcal", "proteinG", "carbsG", "fatG"]) {
-    for (const value of [0, -1, "100", null]) {
+  for (const field of TARGET_FIELDS) {
+    for (const value of [0, -1, Infinity, "100", null]) {
       assert.equal(targetsSchema.safeParse({ [field]: value }).success, false, `${field}=${value}`);
     }
   }

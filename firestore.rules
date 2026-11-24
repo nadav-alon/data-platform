@@ -884,12 +884,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /** Matches `targetsSchema`: each Target, where present, a positive number. */
+    /** Matches `kcalSchema`/`gramsSchema`: a finite number above zero (rules have no isInfinite, so bounded by 10^308). */
+    function isPositiveTarget(value) {
+      return value is number && value > 0 && value < math.pow(10, 308);
+    }
+
+    /** Matches `targetsSchema`: each Target, where present, a positive finite number. */
     function isValidTargets(data) {
-      return (!('kcal' in data) || (data.kcal is number && data.kcal > 0))
-        && (!('proteinG' in data) || (data.proteinG is number && data.proteinG > 0))
-        && (!('carbsG' in data) || (data.carbsG is number && data.carbsG > 0))
-        && (!('fatG' in data) || (data.fatG is number && data.fatG > 0));
+      return (!('kcal' in data) || isPositiveTarget(data.kcal))
+        && (!('proteinG' in data) || isPositiveTarget(data.proteinG))
+        && (!('carbsG' in data) || isPositiveTarget(data.carbsG))
+        && (!('fatG' in data) || isPositiveTarget(data.fatG));
     }
 
     /** A Member's Targets are private to them: no other Member reads or writes them. */
