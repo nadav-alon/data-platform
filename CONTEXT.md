@@ -120,11 +120,11 @@ Nutrition of one serving (`perServing`) with an optional label for it (`servingL
 hard-deleted.
 
 **Soft delete**:
-Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store, Recipe or Food deleted with
+Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store, Recipe, Food or Log Entry deleted with
 `deletedAt` rather than removing it, so its history survives. A record without `deletedAt` is
 _live_. A soft-deleted record holds no reference counts. Where a reference is unchecked, it can
 still point at one: an Ingredient's `itemId` is not checked, so a Recipe may name a soft-deleted
-Item. It is the only way an app deletes: the rules deny hard delete on all nine, and only the
+Item. It is the only way an app deletes: the rules deny hard delete on all ten, and only the
 Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
@@ -138,3 +138,12 @@ A Member's daily nutrition goals: optional `kcal`, `proteinG`, `carbsG` and `fat
 number, in one doc per Member (`nutritionTargets/{uid}`). What a day's intake is measured
 against. Per day, not per meal or per week, and independent of Google Health's own goals. Only the
 owning Member reads or writes them, not even another Member.
+
+**Log Entry**:
+One thing a Member ate, one document in `nutritionLogs/{uid}/entries/{id}` in that Member's own log:
+when (`eatenAt`), which `mealType` (`breakfast`, `lunch`, `dinner` or `snack`), its `source` (a saved
+Food by `foodId`, or `quick` for a one-off with no Food), a `name` and the `nutrition` totals for
+`servings` (a positive number, 1.5 allowed), both snapshotted so editing a Food later never rewrites
+history. `googleHealthId` is the data point it was pushed as; absent means not yet synced.
+Soft-deletable and never hard-deleted. Only the owning Member reads or writes it, not even another
+Member.
