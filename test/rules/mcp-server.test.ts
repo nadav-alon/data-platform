@@ -246,3 +246,13 @@ test("add_catalogue_item adds an Item that list_items then returns; a schema ref
   const { id } = added.json as { id: string };
   assert.ok((items.json as { id: string }[]).some((item) => item.id === id));
 });
+
+test("log_food of a quick entry with estimated: true stores the flag, and without it stores none", async () => {
+  const nutrition = { kcal: 200, proteinG: 5, carbsG: 30, fatG: 8 };
+  const flagged = await logAsOwner({ name: "Street corn", nutrition, estimated: true });
+  const plain = await logAsOwner({ name: "Street corn", nutrition });
+
+  assert.equal(flagged.isError, false);
+  assert.equal(flagged.entry?.estimated, true);
+  assert.equal("estimated" in (plain.entry ?? {}), false);
+});

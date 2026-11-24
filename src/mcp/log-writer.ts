@@ -19,7 +19,8 @@ import { nutritionSchema, scaleNutrition, type Nutrition } from "../nutrition/nu
 
 /**
  * What a caller supplies to log something eaten: a saved Food by `foodId`, or a quick one-off by
- * `name` and per-serving `nutrition`, never both. `servings` defaults to 1, `eatenAt` (an ISO 8601
+ * `name` and per-serving `nutrition`, never both. `estimated` flags a quick entry's numbers as a
+ * guess; with a `foodId` it is ignored and the entry takes the Food's own flag. `servings` defaults to 1, `eatenAt` (an ISO 8601
  * date-time; one with no offset is the machine's local time) to now, and `mealType` to a guess from
  * `eatenAt`'s clock time: the offset it
  * carries, or the machine's local time when it carries none.
@@ -32,6 +33,7 @@ export const logFoodInputSchema = z
     servings: logEntrySchema.shape.servings.optional(),
     mealType: mealTypeSchema.optional(),
     eatenAt: z.iso.datetime({ offset: true, local: true }).optional(),
+    estimated: logEntrySchema.shape.estimated,
   })
   .strict();
 
@@ -49,7 +51,7 @@ export async function logFood(
   input: LogFoodInput,
   now: Date = new Date(),
 ): Promise<LogEntryId> {
-  const { foodId, name, nutrition, servings = 1, mealType, eatenAt: eatenAtInput } =
+  const { foodId, name, nutrition, servings = 1, mealType, eatenAt: eatenAtInput, estimated } =
     logFoodInputSchema.parse(input);
   const currentUid = getAuth(db.app).currentUser?.uid;
   if (currentUid === undefined) throw new Error("Not signed in: there is no Member to log for.");
@@ -58,6 +60,7 @@ export async function logFood(
   let source: LogEntrySource;
   let entryName: string;
   let perServing: Nutrition;
+  let isEstimated: true | undefined;
   if (foodId !== undefined) {
     if (name !== undefined || nutrition !== undefined) {
       throw new Error("Give either a foodId or a name with nutrition, not both.");
@@ -77,6 +80,7 @@ export async function logFood(
     source = { kind: "quick" };
     entryName = name;
     perServing = nutrition;
+    isEstimated = estimated;
   }
 
   const eatenAt = eatenAtInput === undefined ? now : new Date(eatenAtInput);
@@ -87,6 +91,7 @@ export async function logFood(
     name: entryName,
     servings,
     nutrition: scaleNutrition(perServing, servings),
+    ...(isEstimated === undefined ? {} : { estimated: isEstimated }),
   });
   const created = await addDoc(
     collection(db, NUTRITION_LOGS_COLLECTION, owner, LOG_ENTRIES_COLLECTION),
