@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NUTRITION_TARGETS_COLLECTION, TARGET_FIELDS, targetsSchema } from "./targets.ts";
 import { NUTRITION_COLLECTION_SCHEMAS } from "./collection-schemas.ts";
+import { FOODS_COLLECTION, foodSchema } from "./food.ts";
 
 test("Targets accept an empty document and any subset of the four", () => {
   assert.equal(targetsSchema.safeParse({}).success, true);
@@ -22,4 +23,8 @@ test("Targets reject zero, negative and non-numeric values", () => {
 
 test("keys the Targets schema by its collection name", () => {
   assert.equal(NUTRITION_COLLECTION_SCHEMAS[NUTRITION_TARGETS_COLLECTION], targetsSchema);
+});
+
+test("keys the Food schema by its collection name", () => {
+  assert.equal(NUTRITION_COLLECTION_SCHEMAS[FOODS_COLLECTION], foodSchema);
 });
