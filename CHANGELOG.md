@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **MCP**: the household server gains `list_foods`, `add_food` and `log_food`, so Claude can save a Food
+  and log it to the signed-in Member's own log. An estimate is saved with `estimated: true`.
+
 ## v0.21.0
 
 Redeploy `firestore.rules`: they now accept `nutritionLogs/{uid}/entries`.

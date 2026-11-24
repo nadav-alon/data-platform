@@ -4,7 +4,9 @@ import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
 import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
-import { readItems, readRecipes } from "./household-reader.ts";
+import { readFoods, readItems, readRecipes } from "./household-reader.ts";
+import { addFood, newFoodSchema } from "./food-writer.ts";
+import { logFood, logFoodInputSchema } from "./log-writer.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
@@ -21,7 +23,7 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
+ * `add_catalogue_item`, `add_food`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
  * confirmation of their own: the client's tool permission prompt is the only one. Connect it to a
  * transport with `server.connect`.
  */
@@ -46,6 +48,15 @@ export function createHouseholdServer(db: Firestore): McpServer {
     async () => asJson(await readRecipes(db)),
   );
   server.registerTool(
+    "list_foods",
+    {
+      description:
+        "Every live Food the Household has saved, with its `place` and `perServing` Nutrition, so an existing Food can be reused instead of adding a duplicate. Soft-deleted Foods are left out.",
+      annotations: READ_ONLY,
+    },
+    async () => asJson(await readFoods(db)),
+  );
+  server.registerTool(
     "add_catalogue_item",
     {
       description:
@@ -62,6 +73,26 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: ADDS_ONLY,
     },
     async (input) => asJson({ id: await addCatalogueItem(db, input) }),
+  );
+  server.registerTool(
+    "add_food",
+    {
+      description:
+        "Add a Food to the Household: a dish or product that is not a Recipe. Check list_foods first and reuse an existing Food rather than adding a duplicate. `perServing` is the Nutrition (kcal, proteinG, carbsG, fatG) of one serving, which `servingLabel` may describe (\"1 plate\"); `place` is where it is eaten or bought. A guess from a photo or a description rather than a label or source MUST be saved with `estimated: true`; leave `estimated` out only for numbers taken from a label or source. Returns the new Food's id.",
+      inputSchema: newFoodSchema,
+      annotations: ADDS_ONLY,
+    },
+    async (food) => asJson({ id: await addFood(db, food) }),
+  );
+  server.registerTool(
+    "log_food",
+    {
+      description:
+        "Log something the signed-in Member ate, in their own private log. Give a `foodId` from list_foods (add_food first if it is not there), or, for a one-off, a `name` with per-serving `nutrition` and no `foodId`. The entry's totals are the per-serving Nutrition times `servings` (default 1, 1.5 allowed). `eatenAt` is an ISO 8601 date-time (default now); `mealType` is breakfast, lunch, dinner or snack, guessed from the clock time of `eatenAt` (in the offset you give it) when left out. Nutrition that is an estimate must be saved with `estimated: true` on its Food through add_food; prefer that over a quick entry for an estimated dish so the Food can be reused. Returns the new Log Entry's id.",
+      inputSchema: logFoodInputSchema,
+      annotations: ADDS_ONLY,
+    },
+    async (input) => asJson({ id: await logFood(db, input) }),
   );
   server.registerTool(
     "add_recipe",

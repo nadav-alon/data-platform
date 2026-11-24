@@ -13,7 +13,7 @@ Item or marks it Assumed. It signs in with Google as your own Member, through a 
 sign-in, so every read and write passes `firestore.rules`: no service account, no Admin SDK. A
 soft-deleted record is never returned. The read tools return raw data; Claude works out what is
 makeable or what to shop for.
-The writes are `add_catalogue_item`, `add_recipe`, `set_item_state` and `set_ingredient_link`;
+The writes are `add_catalogue_item`, `add_food`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`;
 each is validated by the domain zod schemas before it is sent. `add_recipe` takes a structured
 Recipe that Claude has read from a URL or pasted text (the server has no scraper). The server asks
 no confirmation of its own: Claude Code's tool-permission prompt is the only one.
@@ -23,6 +23,9 @@ It runs from a clone of this repo; the published package has no bin for it.
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list_items`          | every live Item, with its State                                                                                                                                                     |
 | `list_recipes`        | every live Recipe, with its Ingredients; each Ingredient's `item` is its linked live Item, or `null`                                                                                |
+| `list_foods`          | every live Food, with its `place` and `perServing`                                                                                                                                  |
+| `add_food`            | adds a Food from a name, optional place and serving label, per-serving Nutrition and `estimated` (true for a guess); returns its `id`                                              |
+| `log_food`            | logs a Log Entry for the signed-in Member from a `foodId`, or a quick name and Nutrition; totals are per-serving Nutrition × `servings` (default 1); `mealType` is guessed from `eatenAt`'s local time (before 11:00 breakfast, before 16:00 lunch, after 20:30 snack, else dinner); returns its `id` |
 | `add_catalogue_item`  | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first                                               |
 | `add_recipe`          | adds a live Recipe with its Ingredients from structured input; validated by the Recipe zod schema first; returns its `id`                                                           |
 | `set_item_state`      | sets one live Item's State and records it in State history, as the Catalogue app does                                                                                               |

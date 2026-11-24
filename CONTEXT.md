@@ -145,5 +145,6 @@ when (`eatenAt`), which `mealType` (`breakfast`, `lunch`, `dinner` or `snack`), 
 Food by `foodId`, or `quick` for a one-off with no Food), a `name` and the `nutrition` totals for
 `servings` (a positive number, 1.5 allowed), both snapshotted so editing a Food later never rewrites
 history. `googleHealthId` is the data point it was pushed as; absent means not yet synced.
+A quick entry's `nutrition` is given per serving and multiplied by `servings`, as a Food's is.
 Soft-deletable and never hard-deleted. Only the owning Member reads or writes it, not even another
 Member.
