@@ -7,7 +7,7 @@ import type { State } from "../core/state.ts";
 import { uid, type Uid } from "../core/uid.ts";
 import { recipeId, type Ingredient, type Recipe, type RecipeId } from "../recipes/recipe.ts";
 import { foodId, type Food, type FoodId } from "../nutrition/food.ts";
-import type { Nutrition } from "../nutrition/nutrition.ts";
+import { grams, kcal, type Nutrition } from "../nutrition/nutrition.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -95,6 +95,13 @@ const recipe = (
   collection: "recipes",
   id,
   data: { title, ingredients, prepSteps: [], steps: ["Cook"], ...optional },
+});
+
+const macros = (k: number, protein: number, carbs: number, fat: number): Nutrition => ({
+  kcal: kcal(k),
+  proteinG: grams(protein),
+  carbsG: grams(carbs),
+  fatG: grams(fat),
 });
 
 const food = (
@@ -228,19 +235,19 @@ export const SCENARIOS = {
       platformMetaFixture,
       householdMeta(owner.uid),
       memberDoc(owner),
-      food(foodId("schnitzel-plate"), "Chicken schnitzel plate", { kcal: 720, proteinG: 38, carbsG: 64, fatG: 33 }, {
+      food(foodId("schnitzel-plate"), "Chicken schnitzel plate", macros(720, 38, 64, 33), {
         place: "work canteen",
         servingLabel: "1 plate",
         estimated: true,
       }),
-      food(foodId("protein-bar"), "Protein bar", { kcal: 210, proteinG: 20, carbsG: 22, fatG: 7 }, {
+      food(foodId("protein-bar"), "Protein bar", macros(210, 20, 22, 7), {
         servingLabel: "1 bar",
       }),
-      food(foodId("falafel-pita"), "Falafel in a pita", { kcal: 560, proteinG: 18, carbsG: 74, fatG: 21 }, {
+      food(foodId("falafel-pita"), "Falafel in a pita", macros(560, 18, 74, 21), {
         place: "corner stand",
         estimated: true,
       }),
-      food(foodId("old-salad"), "Old canteen salad", { kcal: 180, proteinG: 6, carbsG: 14, fatG: 11 }, {
+      food(foodId("old-salad"), "Old canteen salad", macros(180, 6, 14, 11), {
         deletedAt: addedAt,
       }),
     ],
