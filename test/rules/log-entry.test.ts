@@ -56,6 +56,12 @@ test("collection validation: a valid food entry and a valid quick entry are acce
   await assertOwnEntry("synced entry", { ...foodEntry, googleHealthId: "gh-1" }, "accept");
 });
 
+test("collection validation: estimated: true is accepted; false and other values are rejected", async () => {
+  await assertOwnEntry("estimated quick entry", { ...quickEntry, estimated: true }, "accept");
+  await assertOwnEntry("estimated false", { ...quickEntry, estimated: false }, "reject");
+  await assertOwnEntry("estimated yes", { ...quickEntry, estimated: "yes" }, "reject");
+});
+
 test("collection validation: zero servings are rejected", async () => {
   await assertOwnEntry("zero servings", { ...foodEntry, servings: 0 }, "reject");
   await assertOwnEntry("infinite servings", { ...foodEntry, servings: Infinity }, "reject");
@@ -102,6 +108,8 @@ test("update: the owner reads, edits and syncs their entry", async () => {
   await assertSucceeds(doc.get());
   await assertSucceeds(doc.update({ servings: 2, googleHealthId: "gh-1" }));
   await assertFails(doc.update({ servings: 0 }));
+  await assertSucceeds(doc.update({ estimated: true }));
+  await assertFails(doc.update({ estimated: false }));
 });
 
 test("soft delete: the owner soft-deletes and restores an entry", async () => {

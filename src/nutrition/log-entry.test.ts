@@ -29,6 +29,12 @@ test("a food entry and a quick entry are valid", () => {
   assert.ok(logEntrySchema.safeParse(quick).success);
 });
 
+test("a quick entry may be marked estimated: true, and nothing else", () => {
+  assert.ok(logEntrySchema.safeParse({ ...quick, estimated: true }).success);
+  assert.ok(!logEntrySchema.safeParse({ ...quick, estimated: false }).success);
+  assert.ok(!logEntrySchema.safeParse({ ...quick, estimated: "yes" }).success);
+});
+
 test("eatenAt accepts a Date", () => {
   assert.ok(logEntrySchema.safeParse({ ...food, eatenAt: new Date() }).success);
 });
