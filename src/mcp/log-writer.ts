@@ -73,6 +73,7 @@ export async function logFood(
     source = { kind: "food", foodId };
     entryName = food.name;
     perServing = food.perServing;
+    isEstimated = food.estimated;
   } else {
     if (name === undefined || nutrition === undefined) {
       throw new Error("Give a foodId, or a name with nutrition for a quick entry.");
