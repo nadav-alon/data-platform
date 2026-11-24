@@ -605,6 +605,11 @@ service cloud.firestore {
         && data.fatG is number && data.fatG >= 0;
     }
 
+    /** An optional `estimated` flag: absent, or `true` (`false` is spelled as absence). */
+    function isValidEstimated(data) {
+      return !('estimated' in data) || data.estimated == true;
+    }
+
     /** Matches `foodSchema`: extra fields tolerate additive evolution. */
     function isValidFood(data) {
       return isNonEmptyString(data.name)
@@ -612,7 +617,7 @@ service cloud.firestore {
         && 'perServing' in data
         && isValidNutrition(data.perServing)
         && (!('servingLabel' in data) || data.servingLabel is string)
-        && (!('estimated' in data) || data.estimated == true)
+        && isValidEstimated(data)
         && isValidDeletedAt(data);
     }
 
@@ -635,7 +640,7 @@ service cloud.firestore {
         && 'nutrition' in data
         && isValidNutrition(data.nutrition)
         && (!('googleHealthId' in data) || isNonEmptyString(data.googleHealthId))
-        && (!('estimated' in data) || data.estimated == true)
+        && isValidEstimated(data)
         && isValidDeletedAt(data);
     }
 
