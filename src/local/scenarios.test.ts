@@ -10,6 +10,7 @@ import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
 import { stateSchema } from "../core/state.ts";
 import { recipeSchema, type Ingredient } from "../recipes/recipe.ts";
 import { foodSchema } from "../nutrition/food.ts";
+import { logEntrySchema } from "../nutrition/log-entry.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -187,4 +188,16 @@ test("owner-with-foods holds live Foods, one with every field, and a soft-delete
   assert.ok(foods.filter((f) => f.deletedAt === undefined).length >= 3, "a few live Foods");
   assert.ok(foods.some((f) => f.deletedAt !== undefined), "soft-deleted");
   assert.ok(foods.some((f) => f.place !== undefined && f.servingLabel !== undefined && f.estimated === true), "full-field");
+});
+
+test("owner-with-foods holds a day of the Owner's Log Entries: every meal, a synced one and a soft-deleted one", () => {
+  const [owner] = SCENARIOS["owner-with-foods"].users;
+  const entries = SCENARIOS["owner-with-foods"].fixtures
+    .filter((f) => f.collection === `nutritionLogs/${owner.uid}/entries`)
+    .map((f) => logEntrySchema.parse(f.data));
+  const live = entries.filter((e) => e.deletedAt === undefined);
+  assert.deepEqual(new Set(live.map((e) => e.mealType)), new Set(["breakfast", "lunch", "dinner", "snack"]));
+  assert.ok(live.some((e) => e.source.kind === "food") && live.some((e) => e.source.kind === "quick"));
+  assert.ok(live.some((e) => e.googleHealthId !== undefined) && live.some((e) => e.googleHealthId === undefined));
+  assert.ok(entries.some((e) => e.deletedAt !== undefined), "soft-deleted");
 });

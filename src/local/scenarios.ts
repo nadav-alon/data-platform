@@ -8,6 +8,7 @@ import { uid, type Uid } from "../core/uid.ts";
 import { recipeId, type Ingredient, type Recipe, type RecipeId } from "../recipes/recipe.ts";
 import { foodId, type Food, type FoodId } from "../nutrition/food.ts";
 import { grams, kcal, type Nutrition } from "../nutrition/nutrition.ts";
+import { googleHealthId, logEntryId, type LogEntry, type LogEntryId } from "../nutrition/log-entry.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -113,6 +114,23 @@ const food = (
   collection: "foods",
   id,
   data: { name, perServing, ...optional },
+});
+
+/** Midnight UTC on the day `addedAt` falls on; a Log Entry's `eatenAt` is an hour after it. */
+const dayStart = addedAt.seconds - (addedAt.seconds % 86_400);
+
+/** An hour of the day, 0 to 23. */
+type HourOfDay = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23;
+
+const logEntry = (
+  owner: ScenarioUser,
+  id: LogEntryId,
+  hour: HourOfDay,
+  entry: Omit<LogEntry, "eatenAt">,
+): Fixture => ({
+  collection: `nutritionLogs/${owner.uid}/entries`,
+  id,
+  data: { eatenAt: { seconds: dayStart + hour * 3600, nanoseconds: 0 }, ...entry },
 });
 
 /** A soft-deleted Item with its CatalogueItem: it holds no reference, so `pantry` does not count it. */
@@ -248,6 +266,43 @@ export const SCENARIOS = {
         estimated: true,
       }),
       food(foodId("old-salad"), "Old canteen salad", macros(180, 6, 14, 11), {
+        deletedAt: addedAt,
+      }),
+      logEntry(owner, logEntryId("breakfast"), 7, {
+        mealType: "breakfast",
+        source: { kind: "quick" },
+        name: "Yogurt and granola",
+        servings: 1,
+        nutrition: macros(320, 14, 45, 9),
+        googleHealthId: googleHealthId("gh-breakfast"),
+      }),
+      logEntry(owner, logEntryId("lunch"), 13, {
+        mealType: "lunch",
+        source: { kind: "food", foodId: foodId("schnitzel-plate") },
+        name: "Chicken schnitzel plate",
+        servings: 1.5,
+        nutrition: macros(1080, 57, 96, 49.5),
+      }),
+      logEntry(owner, logEntryId("snack"), 16, {
+        mealType: "snack",
+        source: { kind: "food", foodId: foodId("protein-bar") },
+        name: "Protein bar",
+        servings: 1,
+        nutrition: macros(210, 20, 22, 7),
+      }),
+      logEntry(owner, logEntryId("dinner"), 20, {
+        mealType: "dinner",
+        source: { kind: "food", foodId: foodId("falafel-pita") },
+        name: "Falafel in a pita",
+        servings: 1,
+        nutrition: macros(560, 18, 74, 21),
+      }),
+      logEntry(owner, logEntryId("mistake"), 21, {
+        mealType: "snack",
+        source: { kind: "quick" },
+        name: "Logged twice",
+        servings: 1,
+        nutrition: macros(100, 1, 20, 1),
         deletedAt: addedAt,
       }),
     ],

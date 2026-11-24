@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.21.0
+
+Redeploy `firestore.rules`: they now accept `nutritionLogs/{uid}/entries`.
+
+- **Nutrition**: a Member's Log Entries (`nutritionLogs/{uid}/entries/{id}`): `eatenAt`, `mealType`
+  (`breakfast` | `lunch` | `dinner` | `snack`), `source` (`{ kind: 'food', foodId }` or
+  `{ kind: 'quick' }`), `name`, positive `servings`, `nutrition` totals, optional `googleHealthId`
+  and `deletedAt`; `LogEntryId` is branded. Only the owning Member reads, creates, updates,
+  soft-deletes and restores them; hard delete is denied. The schema joins `COLLECTION_SCHEMAS`.
+- **Local**: `owner-with-foods` also seeds a day of the Owner's Log Entries.
+
 ## v0.20.0
 
 Redeploy `firestore.rules`: they now accept the `foods` collection.

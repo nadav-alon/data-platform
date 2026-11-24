@@ -82,7 +82,7 @@ service cloud.firestore {
 
     /**
      * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
-     * shops, tags, aisles, stores, recipes and foods all `allow delete: if false`; the console's admin access can still hard delete.
+     * shops, tags, aisles, stores, recipes, foods and nutritionLogs/{uid}/entries all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -615,6 +615,28 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    /** Matches `logEntrySourceSchema`: a saved Food (with its id), or a one-off `quick` entry. */
+    function isValidLogEntrySource(source) {
+      return source is map
+        && 'kind' in source
+        && ((source.kind == 'food' && 'foodId' in source && source.foodId is string && source.foodId.size() > 0)
+          || source.kind == 'quick');
+    }
+
+    /** Matches `logEntrySchema`: extra fields tolerate additive evolution. */
+    function isValidLogEntry(data) {
+      return data.eatenAt is timestamp
+        && data.mealType in ['breakfast', 'lunch', 'dinner', 'snack']
+        && 'source' in data
+        && isValidLogEntrySource(data.source)
+        && isNonEmptyString(data.name)
+        && data.servings is number && data.servings > 0 && data.servings < math.pow(10, 308) // finite, as in isPositiveTarget
+        && 'nutrition' in data
+        && isValidNutrition(data.nutrition)
+        && (!('googleHealthId' in data) || isNonEmptyString(data.googleHealthId))
+        && isValidDeletedAt(data);
+    }
+
     /**
      * Approximates `memberSchema`'s `email`: a non-empty string, not the full `z.email()`
      * format check, which `firestore.rules` can't express.
@@ -933,6 +955,20 @@ service cloud.firestore {
         && isCreatedLive(request.resource.data);
       allow update: if isMember()
         && isValidFood(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data);
+      allow delete: if false;
+    }
+
+    /** A Member's Log Entries are private to them, and soft-deleted rather than removed. */
+    match /nutritionLogs/{memberUid}/entries/{entryId} {
+      allow read: if isMember() && isSelf(memberUid);
+      allow create: if isMember()
+        && isSelf(memberUid)
+        && isValidLogEntry(request.resource.data)
+        && isCreatedLive(request.resource.data);
+      allow update: if isMember()
+        && isSelf(memberUid)
+        && isValidLogEntry(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data);
       allow delete: if false;
     }
