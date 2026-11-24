@@ -88,7 +88,7 @@ export function createHouseholdServer(db: Firestore): McpServer {
     "log_food",
     {
       description:
-        "Log something the signed-in Member ate, in their own private log. Give a `foodId` from list_foods (add_food first if it is not there), or, for a one-off, a `name` with per-serving `nutrition` and no `foodId`. The entry's totals are the per-serving Nutrition times `servings` (default 1, 1.5 allowed). `eatenAt` is an ISO 8601 date-time (default now); `mealType` is breakfast, lunch, dinner or snack, guessed from the clock time of `eatenAt` (in the offset you give it) when left out. Nutrition that is an estimate must be saved with `estimated: true` on its Food through add_food; prefer that over a quick entry for an estimated dish so the Food can be reused. Returns the new Log Entry's id.",
+        "Log something the signed-in Member ate, in their own private log. Give a `foodId` from list_foods (add_food first if it is not there), or, for a one-off, a `name` with per-serving `nutrition` and no `foodId`. The entry's totals are the per-serving Nutrition times `servings` (default 1, 1.5 allowed). `eatenAt` is an ISO 8601 date-time (default now); `mealType` is breakfast, lunch, dinner or snack, guessed from the clock time of `eatenAt` (in the offset you give it) when left out. A quick entry whose nutrition is an estimate (a guess rather than a label or source) must pass `estimated: true`; an entry from a `foodId` copies the Food's own flag and ignores `estimated`. Prefer saving an estimated dish as a Food through add_food (with `estimated: true`) so it can be reused. Returns the new Log Entry's id.",
       inputSchema: logFoodInputSchema,
       annotations: ADDS_ONLY,
     },

@@ -119,12 +119,15 @@ test("add_food's description tells Claude to save an estimate with estimated: tr
   }
 });
 
-test("log_food's description tells Claude an estimate needs estimated: true", async () => {
+test("log_food's description tells Claude a quick entry with estimated numbers must pass estimated: true", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
     const { tools } = await client.listTools();
-    assert.match(tools.find((tool) => tool.name === "log_food")?.description ?? "", /estimated: true/);
+    assert.match(
+      tools.find((tool) => tool.name === "log_food")?.description ?? "",
+      /quick entry whose nutrition is an estimate.*must pass `estimated: true`/,
+    );
   } finally {
     await closeMcp();
     await close();
