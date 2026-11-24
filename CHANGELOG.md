@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.0
+
+Redeploy `firestore.rules`: a Log Entry now accepts `estimated`.
+
+- **Nutrition**: a Log Entry can be marked `estimated: true` when its Nutrition is a guess rather than a
+  label or source; `false` is spelled as absence, as on a Food.
+
 ## v0.22.0
 
 - **MCP**: the household server gains `list_foods`, `add_food` and `log_food`, so Claude can save a Food
