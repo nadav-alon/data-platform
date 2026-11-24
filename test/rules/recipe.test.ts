@@ -308,3 +308,11 @@ test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient 
   await assertFails(recipe.update({ wanted: true }));
   await assertFails(recipe.update({ ingredients: [{ name: "Flour", bought: true }] }));
 });
+
+test("collection validation: the largest finite Ingredient quantity is accepted", async () => {
+  await assertMemberWrite(
+    "max quantity",
+    withIngredient({ name: "Flour", quantity: Number.MAX_VALUE, unit: "g" }),
+    "accept",
+  );
+});

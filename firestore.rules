@@ -563,8 +563,7 @@ service cloud.firestore {
         && isNonEmptyString(ingredient.name)
         && (!('itemId' in ingredient) || isNonEmptyString(ingredient.itemId))
         && (!('assumed' in ingredient) || (ingredient.assumed == true && !('itemId' in ingredient)))
-        && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0
-            && ingredient.quantity < ingredient.quantity * 2)) // the rules runtime has no math.isInfinite (function not found): only a finite positive number is below its double
+        && (!('quantity' in ingredient) || isFinitePositive(ingredient.quantity))
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
@@ -946,20 +945,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * Matches `kcalTargetSchema`/`gramsTargetSchema` in `targets.ts`: a finite number above zero
-     * (rules have no isInfinite, so bounded by 10^308).
-     */
-    function isPositiveTarget(value) {
-      return value is number && value > 0 && value < math.pow(10, 308);
-    }
-
     /** Matches `targetsSchema`: each Target, where present, a positive finite number. */
     function isValidTargets(data) {
-      return (!('kcal' in data) || isPositiveTarget(data.kcal))
-        && (!('proteinG' in data) || isPositiveTarget(data.proteinG))
-        && (!('carbsG' in data) || isPositiveTarget(data.carbsG))
-        && (!('fatG' in data) || isPositiveTarget(data.fatG));
+      return (!('kcal' in data) || isFinitePositive(data.kcal))
+        && (!('proteinG' in data) || isFinitePositive(data.proteinG))
+        && (!('carbsG' in data) || isFinitePositive(data.carbsG))
+        && (!('fatG' in data) || isFinitePositive(data.fatG));
     }
 
     /** A Member's Targets are private to them: no other Member reads or writes them. */

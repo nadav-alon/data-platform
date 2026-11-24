@@ -99,3 +99,9 @@ test("targets: a signed-in non-Member cannot read, write or delete a doc under t
   await assertFails(doc.set({ kcal: 2000 }));
   await assertFails(doc.delete());
 });
+
+test("targets: the largest finite value is accepted", async () => {
+  for (const field of TARGET_FIELDS) {
+    await assertOwnTargets(`${field} max`, { [field]: Number.MAX_VALUE }, "accept");
+  }
+});
