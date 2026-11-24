@@ -8,7 +8,7 @@ import { uid, type Uid } from "../core/uid.ts";
 import { recipeId, type Ingredient, type Recipe, type RecipeId } from "../recipes/recipe.ts";
 import { foodId, type Food, type FoodId } from "../nutrition/food.ts";
 import { grams, kcal, type Nutrition } from "../nutrition/nutrition.ts";
-import { logEntryId, type LogEntry, type LogEntryId, type LogEntrySource, type MealType } from "../nutrition/log-entry.ts";
+import { googleHealthId, logEntryId, type LogEntry, type LogEntryId, type LogEntrySource, type MealType } from "../nutrition/log-entry.ts";
 import { seedFixtures, type Fixture, type FixtureWriter } from "./seed.ts";
 
 /** A Google account a scenario expects the developer to sign in as through the Auth emulator. */
@@ -279,7 +279,7 @@ export const SCENARIOS = {
         deletedAt: addedAt,
       }),
       logEntry(owner, logEntryId("breakfast"), 7, "breakfast", { kind: "quick" }, "Yogurt and granola", 1, macros(320, 14, 45, 9), {
-        googleHealthId: "gh-breakfast",
+        googleHealthId: googleHealthId("gh-breakfast"),
       }),
       logEntry(owner, logEntryId("lunch"), 13, "lunch", { kind: "food", foodId: foodId("schnitzel-plate") }, "Chicken schnitzel plate", 1.5, macros(1080, 57, 96, 49.5)),
       logEntry(owner, logEntryId("snack"), 16, "snack", { kind: "food", foodId: foodId("protein-bar") }, "Protein bar", 1, macros(210, 20, 22, 7)),

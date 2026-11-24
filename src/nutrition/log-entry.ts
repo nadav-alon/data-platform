@@ -28,6 +28,26 @@ export function logEntryId(value: string): LogEntryId {
 
 export const logEntryIdSchema = z.string().refine(isLogEntryId, "LogEntryId must not be empty");
 
+declare const googleHealthIdBrand: unique symbol;
+
+/** The id Google Health gave the data point a Log Entry was pushed as. */
+export type GoogleHealthId = string & { readonly [googleHealthIdBrand]: true };
+
+/** The guard. */
+export function isGoogleHealthId(value: string): value is GoogleHealthId {
+  return value.length > 0;
+}
+
+/** The constructor: narrows, or throws naming the offending value. */
+export function googleHealthId(value: string): GoogleHealthId {
+  if (!isGoogleHealthId(value)) {
+    throw new Error(`GoogleHealthId must not be empty, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+const googleHealthIdSchema = z.string().refine(isGoogleHealthId, "GoogleHealthId must not be empty");
+
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 
 export const mealTypeSchema = z.enum(MEAL_TYPES);
@@ -55,7 +75,7 @@ export const logEntrySchema = z.looseObject({
   name: z.string().min(1),
   servings: z.number().positive(),
   nutrition: nutritionSchema,
-  googleHealthId: z.string().min(1).optional(),
+  googleHealthId: googleHealthIdSchema.optional(),
   deletedAt: deletedAtSchema,
 });
 
