@@ -64,3 +64,12 @@ test("FoodId rejects an empty string and its constructor throws", () => {
   assert.equal(foodId("schnitzel"), "schnitzel");
   assert.ok(!foodIdSchema.safeParse("").success);
 });
+
+test("rejects an infinite perServing macro", () => {
+  for (const field of Object.keys(perServing)) {
+    assert.ok(
+      !foodSchema.safeParse({ ...valid, perServing: { ...perServing, [field]: Infinity } }).success,
+      field,
+    );
+  }
+});

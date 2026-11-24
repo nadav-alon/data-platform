@@ -45,6 +45,19 @@ test("servings must be positive", () => {
   }
 });
 
+test("servings accepts the largest finite number", () => {
+  assert.ok(logEntrySchema.safeParse({ ...food, servings: Number.MAX_VALUE }).success);
+});
+
+test("nutrition rejects an infinite macro", () => {
+  for (const field of Object.keys(nutrition)) {
+    assert.ok(
+      !logEntrySchema.safeParse({ ...food, nutrition: { ...nutrition, [field]: Infinity } }).success,
+      field,
+    );
+  }
+});
+
 test("mealType is one of the four", () => {
   for (const mealType of ["breakfast", "lunch", "dinner", "snack"]) {
     assert.ok(logEntrySchema.safeParse({ ...food, mealType }).success, mealType);

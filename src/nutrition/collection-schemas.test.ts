@@ -21,6 +21,12 @@ test("Targets reject zero, negative and non-numeric values", () => {
   }
 });
 
+test("Targets accept the largest finite number", () => {
+  for (const field of TARGET_FIELDS) {
+    assert.equal(targetsSchema.safeParse({ [field]: Number.MAX_VALUE }).success, true, field);
+  }
+});
+
 test("keys the Targets schema by its collection name", () => {
   assert.equal(NUTRITION_COLLECTION_SCHEMAS[NUTRITION_TARGETS_COLLECTION], targetsSchema);
 });
