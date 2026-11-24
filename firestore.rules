@@ -82,7 +82,7 @@ service cloud.firestore {
 
     /**
      * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
-     * shops, tags, aisles, stores, recipes, foods and Log Entries all `allow delete: if false`; the console's admin access can still hard delete.
+     * shops, tags, aisles, stores, recipes, foods and nutritionLogs/*/entries all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
