@@ -6,7 +6,6 @@ import {
   aisleNameKey,
   type AisleId,
 } from "../../src/catalogue/aisle.ts";
-import { FOODS_COLLECTION } from "../../src/nutrition/food.ts";
 import { CATALOGUE_ITEMS_COLLECTION } from "../../src/catalogue/catalogue-item.ts";
 import { CATEGORIES_COLLECTION, type CategoryId } from "../../src/catalogue/category.ts";
 import { SHOPS_COLLECTION, type ShopId } from "../../src/catalogue/shop.ts";
@@ -18,6 +17,7 @@ import {
   type TagId,
 } from "../../src/catalogue/tag.ts";
 import { RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
+import { FOODS_COLLECTION, type FoodId } from "../../src/nutrition/food.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
@@ -223,7 +223,7 @@ export async function seedRecipe(
 /** Seeds a valid Food directly, bypassing rules; soft-deleted when `deleted` is set. */
 export async function seedFood(
   testEnv: RulesTestEnvironment,
-  id: string,
+  id: FoodId,
   { deleted = false }: { deleted?: boolean } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {

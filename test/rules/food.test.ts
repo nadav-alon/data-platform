@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { serverTimestamp } from "firebase/firestore";
-import { FOODS_COLLECTION } from "../../src/nutrition/food.ts";
+import { FOODS_COLLECTION, foodId } from "../../src/nutrition/food.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedFood, seedHousehold, seedMember } from "./seed.ts";
@@ -85,20 +85,21 @@ test("collection validation: a non-string place is rejected", async () => {
   await assertMemberWrite("numeric place", { ...validFood, place: 3 }, "reject");
 });
 
-test("isMember() gate: a signed-in non-member cannot create, read or update a Food", async () => {
+test("isMember() gate: a signed-in non-member cannot create, read, list or update a Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   const context = rulesTestEnv.env.authenticatedContext(uid("mallory"));
   await assertFails(foodDoc(context).set(validFood));
   await assertFails(foodDoc(context).get());
   await assertFails(foodDoc(context).update({ name: "Pizza" }));
   await assertFails(foodDoc(context).delete());
+  await assertFails(context.firestore().collection(FOODS_COLLECTION).get());
 });
 
 test("isMember() gate: an unauthenticated request cannot read, write or delete a Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   const firestore = rulesTestEnv.env.unauthenticatedContext().firestore();
   await assertFails(firestore.doc(`${FOODS_COLLECTION}/schnitzel`).get());
@@ -109,7 +110,7 @@ test("isMember() gate: an unauthenticated request cannot read, write or delete a
 test("read: a Member who is not the Owner can read a Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   await assertSucceeds(foodDoc(rulesTestEnv.env.authenticatedContext(bob)).get());
 });
@@ -117,21 +118,21 @@ test("read: a Member who is not the Owner can read a Food", async () => {
 test("update: a Member can edit a live Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   await assertSucceeds(foodDoc(rulesTestEnv.env.authenticatedContext(bob)).set({ ...validFood, name: "Pizza" }));
 });
 
 test("update: a Member updating a Food into an invalid one is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   await assertFails(foodDoc(rulesTestEnv.env.authenticatedContext(alice)).update({ name: "" }));
 });
 
 test("soft delete: a Member can soft-delete a Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   await assertSucceeds(
     foodDoc(rulesTestEnv.env.authenticatedContext(alice)).update({ deletedAt: serverTimestamp() }),
@@ -140,7 +141,7 @@ test("soft delete: a Member can soft-delete a Food", async () => {
 
 test("soft delete: a client-chosen deletedAt is denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel");
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
 
   await assertFails(foodDoc(rulesTestEnv.env.authenticatedContext(alice)).update({ deletedAt: new Date(0) }));
 });
@@ -155,7 +156,7 @@ test("soft delete: creating a Food that is already soft-deleted is denied", asyn
 
 test("soft delete: a soft-deleted Food can be restored", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedFood(rulesTestEnv.env, "schnitzel", { deleted: true });
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"), { deleted: true });
 
   await assertSucceeds(foodDoc(rulesTestEnv.env.authenticatedContext(alice)).set(validFood));
 });
@@ -163,8 +164,8 @@ test("soft delete: a soft-deleted Food can be restored", async () => {
 test("hard delete: no Member can delete a live or soft-deleted Food", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
-  await seedFood(rulesTestEnv.env, "schnitzel");
-  await seedFood(rulesTestEnv.env, "retired", { deleted: true });
+  await seedFood(rulesTestEnv.env, foodId("schnitzel"));
+  await seedFood(rulesTestEnv.env, foodId("retired"), { deleted: true });
 
   for (const member of [alice, bob]) {
     const firestore = rulesTestEnv.env.authenticatedContext(member).firestore();
