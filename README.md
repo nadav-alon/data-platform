@@ -7,8 +7,8 @@ kit (`docs/local-kit.md`). Standing a Household up is in `docs/household-setup.m
 ## MCP server: read and update the Household from Claude Code
 
 A local stdio MCP server answers questions about the Household (its Items with their
-State, its Recipes with their Ingredients and each Ingredient's linked Item) from a Claude Code
-conversation, adds to it, sets an Item's State ("mark milk out"), and links an Ingredient to an
+State, its Recipes with their Ingredients and each Ingredient's linked Item, its Foods) from a Claude Code
+conversation, adds to it (catalogue Items, Recipes and Foods), logs a Food you ate to your own nutrition log, sets an Item's State ("mark milk out"), and links an Ingredient to an
 Item or marks it Assumed. It signs in with Google as your own Member, through a one-time browser
 sign-in, so every read and write passes `firestore.rules`: no service account, no Admin SDK. A
 soft-deleted record is never returned. The read tools return raw data; Claude works out what is
