@@ -5,6 +5,7 @@ import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
 import { readFoods, readItems, readRecipes } from "./household-reader.ts";
+import { addFood, newFoodSchema } from "./food-writer.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
@@ -21,7 +22,7 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
+ * `add_catalogue_item`, `add_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
  * confirmation of their own: the client's tool permission prompt is the only one. Connect it to a
  * transport with `server.connect`.
  */
@@ -71,6 +72,16 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: ADDS_ONLY,
     },
     async (input) => asJson({ id: await addCatalogueItem(db, input) }),
+  );
+  server.registerTool(
+    "add_food",
+    {
+      description:
+        "Add a Food to the Household: a dish or product that is not a Recipe. Check list_foods first and reuse an existing Food rather than adding a duplicate. `perServing` is the Nutrition (kcal, proteinG, carbsG, fatG) of one serving, which `servingLabel` may describe (\"1 plate\"); `place` is where it is eaten or bought. A guess from a photo or a description rather than a label or source MUST be saved with `estimated: true`; leave `estimated` out only for numbers taken from a label or source. Returns the new Food's id.",
+      inputSchema: newFoodSchema,
+      annotations: ADDS_ONLY,
+    },
+    async (food) => asJson({ id: await addFood(db, food) }),
   );
   server.registerTool(
     "add_recipe",

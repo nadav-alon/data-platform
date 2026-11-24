@@ -21,13 +21,14 @@ async function callTool(
   }
 }
 
-test("the server lists the three read tools, read only, and the four write tools, which are not", async () => {
+test("the server lists the three read tools, read only, and the five write tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((tool) => tool.name).sort(), [
       "add_catalogue_item",
+      "add_food",
       "add_recipe",
       "list_foods",
       "list_items",
@@ -72,6 +73,46 @@ test("list_foods returns every live Food with its place and perServing, and leav
   const schnitzel = list.find((food) => food.id === "schnitzel-plate");
   assert.equal(schnitzel?.place, "work canteen");
   assert.equal(schnitzel?.perServing.kcal, 720);
+});
+
+test("add_food adds a Food that list_foods then returns, with estimated kept; a refusal is an error result", async () => {
+  await seedLocalHousehold("owner-with-foods");
+  const perServing = { kcal: 650, proteinG: 30, carbsG: 70, fatG: 25 };
+
+  const refused = await callTool("owner@example.com", "add_food", {
+    name: "Shawarma",
+    perServing: { ...perServing, kcal: -1 },
+  });
+  const added = await callTool("owner@example.com", "add_food", {
+    name: "Shawarma",
+    place: "night market",
+    servingLabel: "1 laffa",
+    perServing,
+    estimated: true,
+  });
+  const foods = await callTool("owner@example.com", "list_foods");
+
+  assert.equal(refused.isError, true);
+  assert.equal(added.isError, false);
+  const { id } = added.json as { id: string };
+  const saved = (foods.json as { id: string; place?: string; estimated?: true; perServing: unknown }[]).find(
+    (food) => food.id === id,
+  );
+  assert.equal(saved?.place, "night market");
+  assert.equal(saved?.estimated, true);
+  assert.deepEqual(saved?.perServing, perServing);
+});
+
+test("add_food's description tells Claude to save an estimate with estimated: true", async () => {
+  const { db, close } = await signedInClient("owner@example.com");
+  const { client, close: closeMcp } = await connectedMcpClient(db);
+  try {
+    const { tools } = await client.listTools();
+    assert.match(tools.find((tool) => tool.name === "add_food")?.description ?? "", /estimated: true/);
+  } finally {
+    await closeMcp();
+    await close();
+  }
 });
 
 test("a non-Member's tool call is an error result, with no records", async () => {
