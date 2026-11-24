@@ -268,3 +268,14 @@ test("log_food from an estimated Food copies the flag, and ignores an estimated 
   assert.equal(fromPlain.isError, false);
   assert.equal("estimated" in (fromPlain.entry ?? {}), false);
 });
+
+test("log_food ignores estimated: false, for a quick entry and for a Food", async () => {
+  const nutrition = { kcal: 200, proteinG: 5, carbsG: 30, fatG: 8 };
+  const quick = await logAsOwner({ name: "Label bar", nutrition, estimated: false });
+  const fromEstimated = await logAsOwner({ foodId: "schnitzel-plate", estimated: false });
+
+  assert.equal(quick.isError, false);
+  assert.equal("estimated" in (quick.entry ?? {}), false);
+  assert.equal(fromEstimated.isError, false);
+  assert.equal(fromEstimated.entry?.estimated, true);
+});

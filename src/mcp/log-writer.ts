@@ -33,7 +33,7 @@ export const logFoodInputSchema = z
     servings: logEntrySchema.shape.servings.optional(),
     mealType: mealTypeSchema.optional(),
     eatenAt: z.iso.datetime({ offset: true, local: true }).optional(),
-    estimated: logEntrySchema.shape.estimated,
+    estimated: z.boolean().optional(),
   })
   .strict();
 
@@ -81,7 +81,7 @@ export async function logFood(
     source = { kind: "quick" };
     entryName = name;
     perServing = nutrition;
-    isEstimated = estimated;
+    isEstimated = estimated === true ? true : undefined;
   }
 
   const eatenAt = eatenAtInput === undefined ? now : new Date(eatenAtInput);
