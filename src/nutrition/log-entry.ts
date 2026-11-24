@@ -66,7 +66,8 @@ export type LogEntrySource = z.infer<typeof logEntrySourceSchema>;
  * One thing a Member ate (see **Log Entry** in CONTEXT.md). `name` and `nutrition` are snapshots,
  * so editing a Food later never rewrites history; `nutrition` is the entry's totals, for all
  * `servings`. `googleHealthId` is the data point it was pushed as; absent means not yet synced.
- * `eatenAt` accepts a `Date` as well as a Firestore timestamp, as the client writes it.
+ * `estimated` says the nutrition is an estimate, not a label or source; as on a Food, `false` is
+ * spelled as absence. `eatenAt` accepts a `Date` as well as a Firestore timestamp, as the client writes it.
  */
 export const logEntrySchema = z.looseObject({
   eatenAt: z.union([z.date(), firestoreTimestampSchema]),
@@ -76,6 +77,7 @@ export const logEntrySchema = z.looseObject({
   servings: z.number().positive(),
   nutrition: nutritionSchema,
   googleHealthId: googleHealthIdSchema.optional(),
+  estimated: z.literal(true).optional(),
   deletedAt: deletedAtSchema,
 });
 
