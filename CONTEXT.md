@@ -108,12 +108,23 @@ client guarantee, not a schema invariant: `setIngredientBought` refuses a Recipe
 `setRecipeWanted` clears `bought` when it un-Wants, but the schema and rules accept `bought` on a Recipe
 that is not Wanted.
 
+**Nutrition**:
+The macros of some amount of food: `kcal`, `proteinG`, `carbsG` and `fatG`, each a number of at least 0.
+A value shape that other records embed, not a collection of its own; a Food's `perServing` is one.
+
+**Food**:
+A dish or product the Household has saved for the nutrition app that is not a Recipe, one document in
+`foods/{id}` shared by every Member: a name, optionally where it is eaten or bought (`place`), the
+Nutrition of one serving (`perServing`) with an optional label for it (`servingLabel`, "1 plate"), and
+`estimated` when the numbers are a guess rather than a label or source. Soft-deletable and never
+hard-deleted.
+
 **Soft delete**:
-Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store or Recipe deleted with
+Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store, Recipe or Food deleted with
 `deletedAt` rather than removing it, so its history survives. A record without `deletedAt` is
 _live_. A soft-deleted record holds no reference counts. Where a reference is unchecked, it can
 still point at one: an Ingredient's `itemId` is not checked, so a Recipe may name a soft-deleted
-Item. It is the only way an app deletes: the rules deny hard delete on all eight, and only the
+Item. It is the only way an app deletes: the rules deny hard delete on all nine, and only the
 Firebase console, as admin, can still remove one.
 _Avoid_: archive
 
