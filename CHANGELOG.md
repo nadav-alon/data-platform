@@ -8,6 +8,8 @@ Redeploy `firestore.rules`: they now accept the `foods` collection.
   `foods/{id}` (`name`, optional `place`, `perServing` Nutrition, optional `servingLabel`, optional
   `estimated: true`, `deletedAt`); `FoodId` is branded. Any Member creates, updates, soft-deletes and
   restores one; hard delete is denied. Its schemas join `COLLECTION_SCHEMAS`.
+- **Nutrition**: `kcal`/`grams` (and `isKcal`/`isGrams`) now accept 0: `Kcal` and `Grams` are
+  units, at least 0, shared by Nutrition and Targets. A Target still has to be above zero.
 - **Local**: an `owner-with-foods` scenario seeds a few Foods.
 
 ## v0.19.0
