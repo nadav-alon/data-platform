@@ -11,6 +11,7 @@ import {
   logEntrySchema,
   mealTypeSchema,
   type LogEntryId,
+  type LogEntrySource,
 } from "../nutrition/log-entry.ts";
 import { nutritionSchema, type Nutrition } from "../nutrition/nutrition.ts";
 import { guessMealType } from "./meal-type.ts";
@@ -24,9 +25,9 @@ import { guessMealType } from "./meal-type.ts";
 export const logFoodInputSchema = z
   .object({
     foodId: foodIdSchema.optional(),
-    name: z.string().min(1).optional(),
+    name: logEntrySchema.shape.name.optional(),
     nutrition: nutritionSchema.optional(),
-    servings: z.number().positive().optional(),
+    servings: logEntrySchema.shape.servings.optional(),
     mealType: mealTypeSchema.optional(),
     eatenAt: z.iso.datetime({ offset: true, local: true }).optional(),
   })
@@ -48,10 +49,11 @@ export async function logFood(
 ): Promise<LogEntryId> {
   const { foodId, name, nutrition, servings = 1, mealType, eatenAt: eatenAtInput } =
     logFoodInputSchema.parse(input);
-  const owner = getAuth(db.app).currentUser?.uid;
-  if (owner === undefined) throw new Error("Not signed in: there is no Member to log for.");
+  const currentUid = getAuth(db.app).currentUser?.uid;
+  if (currentUid === undefined) throw new Error("Not signed in: there is no Member to log for.");
+  const owner = uid(currentUid);
 
-  let source: { kind: "food"; foodId: string } | { kind: "quick" };
+  let source: LogEntrySource;
   let entryName: string;
   let perServing: Nutrition;
   if (foodId !== undefined) {
@@ -90,7 +92,7 @@ export async function logFood(
     },
   });
   const created = await addDoc(
-    collection(db, NUTRITION_LOGS_COLLECTION, uid(owner), LOG_ENTRIES_COLLECTION),
+    collection(db, NUTRITION_LOGS_COLLECTION, owner, LOG_ENTRIES_COLLECTION),
     entry,
   );
   return logEntryId(created.id);
