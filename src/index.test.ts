@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as dataPlatform from "./index.ts";
 
-test("re-exports the core, catalogue and recipes modules", () => {
+test("re-exports the core, catalogue, recipes and nutrition modules", () => {
   assert.equal(typeof dataPlatform.core, "object");
   assert.equal(typeof dataPlatform.catalogue, "object");
   assert.equal(typeof dataPlatform.recipes, "object");
@@ -25,6 +25,10 @@ test("COLLECTION_SCHEMAS merges every Core, Catalogue, Recipes and Nutrition col
   assert.equal(
     dataPlatform.COLLECTION_SCHEMAS[dataPlatform.nutrition.NUTRITION_TARGETS_COLLECTION],
     dataPlatform.nutrition.targetsSchema,
+  );
+  assert.equal(
+    dataPlatform.COLLECTION_SCHEMAS[dataPlatform.nutrition.FOODS_COLLECTION],
+    dataPlatform.nutrition.foodSchema,
   );
 });
 

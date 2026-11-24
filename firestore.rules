@@ -82,7 +82,7 @@ service cloud.firestore {
 
     /**
      * Soft delete (`deletedAt`) is the only way an app deletes, so items, catalogueItems, categories,
-     * shops, tags, aisles, stores and recipes all `allow delete: if false`; the console's admin access can still hard delete.
+     * shops, tags, aisles, stores, recipes and foods all `allow delete: if false`; the console's admin access can still hard delete.
      */
     function isDeleted(data) {
       return deletedAtOf(data) != null;
@@ -595,6 +595,26 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    /** Matches `nutritionSchema`: extra fields tolerate additive evolution. */
+    function isValidNutrition(data) {
+      return data is map
+        && data.kcal is number && data.kcal >= 0
+        && data.proteinG is number && data.proteinG >= 0
+        && data.carbsG is number && data.carbsG >= 0
+        && data.fatG is number && data.fatG >= 0;
+    }
+
+    /** Matches `foodSchema`: extra fields tolerate additive evolution. */
+    function isValidFood(data) {
+      return isNonEmptyString(data.name)
+        && (!('place' in data) || data.place is string)
+        && 'perServing' in data
+        && isValidNutrition(data.perServing)
+        && (!('servingLabel' in data) || data.servingLabel is string)
+        && (!('estimated' in data) || data.estimated == true)
+        && isValidDeletedAt(data);
+    }
+
     /**
      * Approximates `memberSchema`'s `email`: a non-empty string, not the full `z.email()`
      * format check, which `firestore.rules` can't express.
@@ -904,6 +924,17 @@ service cloud.firestore {
         && isSelf(memberUid)
         && isValidTargets(request.resource.data);
       allow delete: if isMember() && isSelf(memberUid);
+    }
+
+    match /foods/{foodId} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && isValidFood(request.resource.data)
+        && isCreatedLive(request.resource.data);
+      allow update: if isMember()
+        && isValidFood(request.resource.data)
+        && deletedAtUpdateValid(resource.data, request.resource.data);
+      allow delete: if false;
     }
 
     match /{document=**} {

@@ -3,41 +3,19 @@ import { z } from "zod";
 /** `nutritionTargets/{uid}`: one doc per Member, keyed by their uid. */
 export const NUTRITION_TARGETS_COLLECTION = "nutritionTargets";
 
-const kcalSchema = z.number().positive().brand<"Kcal">();
-const gramsSchema = z.number().positive().brand<"Grams">();
-
-/** A positive energy amount, in kilocalories. */
-export type Kcal = z.infer<typeof kcalSchema>;
-/** A positive mass, in grams. */
-export type Grams = z.infer<typeof gramsSchema>;
-
-export function isKcal(value: number): value is Kcal {
-  return kcalSchema.safeParse(value).success;
-}
-
-export function kcal(value: number): Kcal {
-  if (!isKcal(value)) throw new Error(`Not a Kcal: ${JSON.stringify(value)}`);
-  return value;
-}
-
-export function isGrams(value: number): value is Grams {
-  return gramsSchema.safeParse(value).success;
-}
-
-export function grams(value: number): Grams {
-  if (!isGrams(value)) throw new Error(`Not Grams: ${JSON.stringify(value)}`);
-  return value;
-}
+/** A Target is a Kcal or Grams (see nutrition.ts) that is also above zero: a Target of 0 means nothing. */
+const kcalTargetSchema = z.number().positive().brand<"Kcal">();
+const gramsTargetSchema = z.number().positive().brand<"Grams">();
 
 /**
  * A Member's daily Targets (see **Targets** in CONTEXT.md): what a day is measured against. Each is
  * optional; an absent one means no Target for it.
  */
 export const targetsSchema = z.looseObject({
-  kcal: kcalSchema.optional(),
-  proteinG: gramsSchema.optional(),
-  carbsG: gramsSchema.optional(),
-  fatG: gramsSchema.optional(),
+  kcal: kcalTargetSchema.optional(),
+  proteinG: gramsTargetSchema.optional(),
+  carbsG: gramsTargetSchema.optional(),
+  fatG: gramsTargetSchema.optional(),
 });
 
 export type Targets = z.infer<typeof targetsSchema>;

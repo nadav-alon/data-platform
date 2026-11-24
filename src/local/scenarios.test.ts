@@ -9,6 +9,7 @@ import { CATEGORIES_COLLECTION, categoryId } from "../catalogue/category.ts";
 import { SHOPS_COLLECTION, shopId } from "../catalogue/shop.ts";
 import { stateSchema } from "../core/state.ts";
 import { recipeSchema, type Ingredient } from "../recipes/recipe.ts";
+import { foodSchema } from "../nutrition/food.ts";
 
 const nullWriter: FixtureWriter = { async set() {} };
 
@@ -18,8 +19,8 @@ function recordingWriter(): { writer: FixtureWriter; written: Map<string, Record
   return { writer: { async set(path, data) { written.set(path, data); } }, written };
 }
 
-test("the known scenarios include empty, owner-with-items, invited-member and owner-with-recipes", () => {
-  for (const name of ["empty", "owner-with-items", "invited-member", "owner-with-recipes"]) {
+test("the known scenarios include empty, owner-with-items, invited-member, owner-with-recipes and owner-with-foods", () => {
+  for (const name of ["empty", "owner-with-items", "invited-member", "owner-with-recipes", "owner-with-foods"]) {
     assert.ok(SCENARIO_NAMES.includes(name as never), name);
   }
 });
@@ -177,4 +178,13 @@ test("owner-with-recipes seeds a Recipe with every optional field set", () => {
 test("owner-with-recipes seeds a soft-deleted Recipe", () => {
   const recipes = recipesOf(SCENARIOS["owner-with-recipes"]);
   assert.equal(recipes.filter((r) => r.deletedAt !== undefined).length, 1);
+});
+
+test("owner-with-foods holds live Foods, one with every field, and a soft-deleted one", () => {
+  const foods = SCENARIOS["owner-with-foods"].fixtures
+    .filter((f) => f.collection === "foods")
+    .map((f) => foodSchema.parse(f.data));
+  assert.ok(foods.filter((f) => f.deletedAt === undefined).length >= 3, "a few live Foods");
+  assert.ok(foods.some((f) => f.deletedAt !== undefined), "soft-deleted");
+  assert.ok(foods.some((f) => f.place !== undefined && f.servingLabel !== undefined && f.estimated === true), "full-field");
 });

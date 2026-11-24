@@ -17,6 +17,7 @@ import {
   type TagId,
 } from "../../src/catalogue/tag.ts";
 import { RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
+import { FOODS_COLLECTION, type FoodId } from "../../src/nutrition/food.ts";
 import { ITEMS_COLLECTION, type ItemId } from "../../src/core/item.ts";
 import { HOUSEHOLD_DOC_PATH } from "../../src/core/household.ts";
 import type { Email } from "../../src/core/email.ts";
@@ -214,6 +215,24 @@ export async function seedRecipe(
         ingredients: [{ name: "Flour" }],
         prepSteps: [],
         steps: ["Mix", "Fry"],
+        ...deletedFields(deleted),
+      });
+  });
+}
+
+/** Seeds a valid Food directly, bypassing rules; soft-deleted when `deleted` is set. */
+export async function seedFood(
+  testEnv: RulesTestEnvironment,
+  id: FoodId,
+  { deleted = false }: { deleted?: boolean } = {},
+): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context
+      .firestore()
+      .doc(`${FOODS_COLLECTION}/${id}`)
+      .set({
+        name: "Schnitzel plate",
+        perServing: { kcal: 650, proteinG: 30, carbsG: 70, fatG: 25 },
         ...deletedFields(deleted),
       });
   });
