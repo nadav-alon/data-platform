@@ -119,12 +119,15 @@ test("add_food's description tells Claude to save an estimate with estimated: tr
   }
 });
 
-test("log_food's description tells Claude an estimate needs estimated: true", async () => {
+test("log_food's description tells Claude a quick entry with estimated numbers must pass estimated: true", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
     const { tools } = await client.listTools();
-    assert.match(tools.find((tool) => tool.name === "log_food")?.description ?? "", /estimated: true/);
+    assert.match(
+      tools.find((tool) => tool.name === "log_food")?.description ?? "",
+      /quick entry whose nutrition is an estimate.*must pass `estimated: true`/,
+    );
   } finally {
     await closeMcp();
     await close();
@@ -245,4 +248,34 @@ test("add_catalogue_item adds an Item that list_items then returns; a schema ref
   assert.equal(added.isError, false);
   const { id } = added.json as { id: string };
   assert.ok((items.json as { id: string }[]).some((item) => item.id === id));
+});
+
+test("log_food of a quick entry with estimated: true stores the flag, and without it stores none", async () => {
+  const nutrition = { kcal: 200, proteinG: 5, carbsG: 30, fatG: 8 };
+  const flagged = await logAsOwner({ name: "Street corn", nutrition, estimated: true });
+  const plain = await logAsOwner({ name: "Street corn", nutrition });
+
+  assert.equal(flagged.isError, false);
+  assert.equal(flagged.entry?.estimated, true);
+  assert.equal("estimated" in (plain.entry ?? {}), false);
+});
+
+test("log_food from an estimated Food copies the flag, and ignores an estimated argument for a Food without it", async () => {
+  const fromEstimated = await logAsOwner({ foodId: "schnitzel-plate" });
+  const fromPlain = await logAsOwner({ foodId: "protein-bar", estimated: true });
+
+  assert.equal(fromEstimated.entry?.estimated, true);
+  assert.equal(fromPlain.isError, false);
+  assert.equal("estimated" in (fromPlain.entry ?? {}), false);
+});
+
+test("log_food ignores estimated: false, for a quick entry and for a Food", async () => {
+  const nutrition = { kcal: 200, proteinG: 5, carbsG: 30, fatG: 8 };
+  const quick = await logAsOwner({ name: "Label bar", nutrition, estimated: false });
+  const fromEstimated = await logAsOwner({ foodId: "schnitzel-plate", estimated: false });
+
+  assert.equal(quick.isError, false);
+  assert.equal("estimated" in (quick.entry ?? {}), false);
+  assert.equal(fromEstimated.isError, false);
+  assert.equal(fromEstimated.entry?.estimated, true);
 });
