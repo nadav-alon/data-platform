@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc, type Firestore } from "firebase/firestore";
+import { guessMealType } from "../../src/nutrition/meal-type.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
 /** Calls `tool` on a server over the signed-in Member's Firestore and parses its one JSON block. */
@@ -118,6 +119,18 @@ test("add_food's description tells Claude to save an estimate with estimated: tr
   }
 });
 
+test("log_food's description tells Claude an estimate needs estimated: true", async () => {
+  const { db, close } = await signedInClient("owner@example.com");
+  const { client, close: closeMcp } = await connectedMcpClient(db);
+  try {
+    const { tools } = await client.listTools();
+    assert.match(tools.find((tool) => tool.name === "log_food")?.description ?? "", /estimated: true/);
+  } finally {
+    await closeMcp();
+    await close();
+  }
+});
+
 /** The Log Entry `id` in the signed-in Member's own log, as stored. */
 async function storedEntry(db: Firestore, id: string): Promise<Record<string, any> | undefined> {
   const owner = getAuth(db.app).currentUser?.uid ?? "";
@@ -162,6 +175,18 @@ test("log_food defaults servings to 1 and eatenAt to now, and takes an explicit 
   assert.equal(entry?.servings, 1);
   assert.equal(entry?.mealType, "snack");
   assert.ok(entry?.eatenAt.toMillis() >= before - 1000 && entry?.eatenAt.toMillis() <= Date.now() + 1000);
+});
+
+test("log_food guesses the meal type from now when neither mealType nor eatenAt is given", async () => {
+  const { entry } = await logAsOwner({ foodId: "protein-bar" });
+
+  assert.equal(entry?.mealType, guessMealType(entry?.eatenAt.toDate()));
+});
+
+test("log_food guesses the meal type in the offset eatenAt carries", async () => {
+  const { entry } = await logAsOwner({ foodId: "protein-bar", eatenAt: "2026-11-24T08:00:00+09:00" });
+
+  assert.equal(entry?.mealType, "breakfast");
 });
 
 test("log_food of a quick name and Nutrition logs a quick entry", async () => {

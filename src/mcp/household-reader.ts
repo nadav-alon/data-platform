@@ -14,7 +14,6 @@ import {
 /** An Item as stored, with its document id. Soft-deleted Items are never returned. */
 export type ItemRecord = Item & { readonly id: ItemId };
 
-
 /**
  * Every live Item in the Household with its State, as stored. Raw data: no grouping or derived
  * fields. Rejects with Firestore's `permission-denied` when the signed-in user is not a Member.
