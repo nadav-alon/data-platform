@@ -8,7 +8,7 @@ Redeploy `firestore.rules`: they now accept the `foods` collection.
   `foods/{id}` (`name`, optional `place`, `perServing` Nutrition, optional `servingLabel`, optional
   `estimated: true`, `deletedAt`); `FoodId` is branded. Any Member creates, updates, soft-deletes and
   restores one; hard delete is denied. Its schemas join `COLLECTION_SCHEMAS`.
-- **Local**: a `owner-with-foods` scenario seeds a few Foods.
+- **Local**: an `owner-with-foods` scenario seeds a few Foods.
 
 ## v0.19.0
 
