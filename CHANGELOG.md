@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.19.0
+
+Redeploy `firestore.rules`: they now accept `nutritionTargets`.
+
+- **Nutrition**: a Member's daily Targets (`nutritionTargets/{uid}`): optional `kcal`, `proteinG`,
+  `carbsG` and `fatG`, each a positive number. The schema is `nutrition.targetsSchema`, merged into
+  `COLLECTION_SCHEMAS`. Only the owning Member reads or writes the doc.
+
 ## v0.18.0
 
 Redeploy `firestore.rules`: they now accept `wanted` and `bought`, and `meta/settings` is new. The

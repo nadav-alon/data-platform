@@ -119,3 +119,11 @@ _Avoid_: archive
 
 **Necessity**:
 How essential a CatalogueItem is: `essential` / `important` / `optional`.
+
+### Nutrition entities
+
+**Targets**:
+A Member's daily nutrition goals: optional `kcal`, `proteinG`, `carbsG` and `fatG`, each a positive
+number, in one doc per Member (`nutritionTargets/{uid}`). What a day's intake is measured
+against. Per day, not per meal or per week, and independent of Google Health's own goals. Only the
+owning Member reads or writes them, not even another Member.
