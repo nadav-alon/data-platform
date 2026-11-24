@@ -6,6 +6,7 @@ import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
 import { readFoods, readItems, readRecipes } from "./household-reader.ts";
 import { addFood, newFoodSchema } from "./food-writer.ts";
+import { logFood, logFoodInputSchema } from "./log-writer.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
@@ -22,7 +23,7 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item`, `add_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
+ * `add_catalogue_item`, `add_food`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
  * confirmation of their own: the client's tool permission prompt is the only one. Connect it to a
  * transport with `server.connect`.
  */
@@ -82,6 +83,16 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: ADDS_ONLY,
     },
     async (food) => asJson({ id: await addFood(db, food) }),
+  );
+  server.registerTool(
+    "log_food",
+    {
+      description:
+        "Log something the signed-in Member ate, in their own private log. Give a `foodId` from list_foods (add_food first if it is not there), or, for a one-off, a `name` with per-serving `nutrition` and no `foodId`. The entry's totals are the per-serving Nutrition times `servings` (default 1, 1.5 allowed). `eatenAt` is an ISO 8601 date-time (default now); `mealType` is breakfast, lunch, dinner or snack, guessed from `eatenAt`'s local time when left out. Nutrition that is an estimate must be saved with `estimated: true` on its Food through add_food; prefer that over a quick entry for an estimated dish so the Food can be reused. Returns the new Log Entry's id.",
+      inputSchema: logFoodInputSchema,
+      annotations: ADDS_ONLY,
+    },
+    async (input) => asJson({ id: await logFood(db, input) }),
   );
   server.registerTool(
     "add_recipe",
