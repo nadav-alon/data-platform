@@ -20,10 +20,11 @@ import { nutritionSchema, scaleNutrition, type Nutrition } from "../nutrition/nu
 /**
  * What a caller supplies to log something eaten: a saved Food by `foodId`, or a quick one-off by
  * `name` and per-serving `nutrition`, never both. `estimated` flags a quick entry's numbers as a
- * guess; with a `foodId` it is ignored and the entry takes the Food's own flag. `servings` defaults to 1, `eatenAt` (an ISO 8601
- * date-time; one with no offset is the machine's local time) to now, and `mealType` to a guess from
- * `eatenAt`'s clock time: the offset it
- * carries, or the machine's local time when it carries none.
+ * guess (only `true` is stored; `false` is the same as leaving it out); with a `foodId` it is
+ * ignored and the entry takes the Food's own flag. `servings` defaults to 1, `eatenAt` (an ISO
+ * 8601 date-time; one with no offset is the machine's local time) to now, and `mealType` to a
+ * guess from `eatenAt`'s clock time: the offset it carries, or the machine's local time when it
+ * carries none.
  */
 export const logFoodInputSchema = z
   .object({
@@ -60,7 +61,7 @@ export async function logFood(
   let source: LogEntrySource;
   let entryName: string;
   let perServing: Nutrition;
-  let isEstimated: true | undefined;
+  let entryEstimated: true | undefined;
   if (foodId !== undefined) {
     if (name !== undefined || nutrition !== undefined) {
       throw new Error("Give either a foodId or a name with nutrition, not both.");
@@ -73,7 +74,7 @@ export async function logFood(
     source = { kind: "food", foodId };
     entryName = food.name;
     perServing = food.perServing;
-    isEstimated = food.estimated;
+    entryEstimated = food.estimated;
   } else {
     if (name === undefined || nutrition === undefined) {
       throw new Error("Give a foodId, or a name with nutrition for a quick entry.");
@@ -81,7 +82,7 @@ export async function logFood(
     source = { kind: "quick" };
     entryName = name;
     perServing = nutrition;
-    isEstimated = estimated === true ? true : undefined;
+    entryEstimated = estimated === true ? true : undefined;
   }
 
   const eatenAt = eatenAtInput === undefined ? now : new Date(eatenAtInput);
@@ -92,7 +93,7 @@ export async function logFood(
     name: entryName,
     servings,
     nutrition: scaleNutrition(perServing, servings),
-    ...(isEstimated === undefined ? {} : { estimated: isEstimated }),
+    ...(entryEstimated === undefined ? {} : { estimated: entryEstimated }),
   });
   const created = await addDoc(
     collection(db, NUTRITION_LOGS_COLLECTION, owner, LOG_ENTRIES_COLLECTION),
