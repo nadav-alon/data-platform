@@ -596,13 +596,26 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    /**
+     * A finite number above zero. The rules runtime has no `math.isInfinite` (function not found),
+     * and only a finite positive number is below its double.
+     */
+    function isFinitePositive(value) {
+      return value is number && value > 0 && value < value * 2;
+    }
+
+    /** A finite number from zero up: `0 < 0 * 2` is false, so zero is matched explicitly. */
+    function isFiniteNonNegative(value) {
+      return value is number && (value == 0 || isFinitePositive(value));
+    }
+
     /** Matches `nutritionSchema`: extra fields tolerate additive evolution. */
     function isValidNutrition(data) {
       return data is map
-        && data.kcal is number && data.kcal >= 0
-        && data.proteinG is number && data.proteinG >= 0
-        && data.carbsG is number && data.carbsG >= 0
-        && data.fatG is number && data.fatG >= 0;
+        && isFiniteNonNegative(data.kcal)
+        && isFiniteNonNegative(data.proteinG)
+        && isFiniteNonNegative(data.carbsG)
+        && isFiniteNonNegative(data.fatG);
     }
 
     /** An optional `estimated` flag: absent, or `true` (`false` is spelled as absence). */
