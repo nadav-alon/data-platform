@@ -1,6 +1,7 @@
 import { collection, getDocs, type Firestore } from "firebase/firestore";
 import { isLive } from "../core/deleted-at.ts";
 import { ITEMS_COLLECTION, itemId, itemSchema, type Item, type ItemId } from "../core/item.ts";
+import { FOODS_COLLECTION, foodId, foodSchema, type Food, type FoodId } from "../nutrition/food.ts";
 import {
   RECIPES_COLLECTION,
   recipeId,
@@ -64,4 +65,18 @@ export async function readRecipes(db: Firestore): Promise<RecipeRecord[]> {
         })),
       };
     });
+}
+
+/** A Food as stored, with its document id. Soft-deleted Foods are never returned. */
+export type FoodRecord = Food & { readonly id: FoodId };
+
+/**
+ * Every live Food in the Household with its `place` and `perServing`, as stored. Raw data. Rejects
+ * with Firestore's `permission-denied` when the signed-in user is not a Member.
+ */
+export async function readFoods(db: Firestore): Promise<FoodRecord[]> {
+  const snapshot = await getDocs(collection(db, FOODS_COLLECTION));
+  return snapshot.docs
+    .filter((document) => isLive(document.data()))
+    .map((document) => ({ ...foodSchema.parse(document.data()), id: foodId(document.id) }));
 }

@@ -21,7 +21,7 @@ async function callTool(
   }
 }
 
-test("the server lists the two read tools, read only, and the four write tools, which are not", async () => {
+test("the server lists the three read tools, read only, and the four write tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
@@ -29,6 +29,7 @@ test("the server lists the two read tools, read only, and the four write tools, 
     assert.deepEqual(tools.map((tool) => tool.name).sort(), [
       "add_catalogue_item",
       "add_recipe",
+      "list_foods",
       "list_items",
       "list_recipes",
       "set_ingredient_link",
@@ -58,6 +59,19 @@ test("list_items and list_recipes return the raw live records as JSON", async ()
     (recipe) => recipe.id === "shortbread",
   );
   assert.equal(shortbread?.ingredients[1]?.item.state, "running low");
+});
+
+test("list_foods returns every live Food with its place and perServing, and leaves out a soft-deleted one", async () => {
+  await seedLocalHousehold("owner-with-foods");
+
+  const foods = await callTool("owner@example.com", "list_foods");
+
+  assert.equal(foods.isError, false);
+  const list = foods.json as { id: string; place?: string; perServing: { kcal: number } }[];
+  assert.deepEqual(list.map((food) => food.id).sort(), ["falafel-pita", "protein-bar", "schnitzel-plate"]);
+  const schnitzel = list.find((food) => food.id === "schnitzel-plate");
+  assert.equal(schnitzel?.place, "work canteen");
+  assert.equal(schnitzel?.perServing.kcal, 720);
 });
 
 test("a non-Member's tool call is an error result, with no records", async () => {

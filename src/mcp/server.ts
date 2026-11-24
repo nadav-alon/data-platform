@@ -4,7 +4,7 @@ import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
 import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
-import { readItems, readRecipes } from "./household-reader.ts";
+import { readFoods, readItems, readRecipes } from "./household-reader.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
 import { setItemState } from "./household-writer.ts";
@@ -44,6 +44,15 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: READ_ONLY,
     },
     async () => asJson(await readRecipes(db)),
+  );
+  server.registerTool(
+    "list_foods",
+    {
+      description:
+        "Every live Food the Household has saved, with its `place` and `perServing` Nutrition, so an existing Food can be reused instead of adding a duplicate. Soft-deleted Foods are left out.",
+      annotations: READ_ONLY,
+    },
+    async () => asJson(await readFoods(db)),
   );
   server.registerTool(
     "add_catalogue_item",
