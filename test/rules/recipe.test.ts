@@ -62,6 +62,14 @@ test("collection validation: an Ingredient both assumed and naming an Item is re
   );
 });
 
+test("collection validation: an Ingredient with an infinite quantity is rejected", async () => {
+  await assertMemberWrite(
+    "infinite quantity",
+    withIngredient({ name: "Flour", quantity: Infinity, unit: "g" }),
+    "reject",
+  );
+});
+
 test("collection validation: an Ingredient with a unit but no quantity is rejected", async () => {
   await assertMemberWrite("unit without quantity", withIngredient({ name: "Flour", unit: "g" }), "reject");
 });

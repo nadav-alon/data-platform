@@ -563,7 +563,8 @@ service cloud.firestore {
         && isNonEmptyString(ingredient.name)
         && (!('itemId' in ingredient) || isNonEmptyString(ingredient.itemId))
         && (!('assumed' in ingredient) || (ingredient.assumed == true && !('itemId' in ingredient)))
-        && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0))
+        && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0
+            && ingredient.quantity < ingredient.quantity * 2)) // rules have no isInfinite: only a finite positive number is below its double
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
