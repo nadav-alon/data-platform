@@ -1,6 +1,6 @@
 # data-platform
 
-One Firebase store for side-project PWAs: zod schemas and security rules for every app's collections, plus the `data-platform/client` helpers (usage in `docs/client.md`) and the `data-platform/local` kit, and an MCP server for Claude Code (reads the Household, adds catalogue Items, Recipes and Foods, and logs Foods) (setup in `README.md`)
+One Firebase store for side-project PWAs: zod schemas and security rules for every app's collections, plus the `data-platform/client` helpers (usage in `docs/client.md`) and the `data-platform/local` kit, and an MCP server for Claude Code (reads the Household, adds catalogue Items, Recipes and Foods, and logs what you ate) (setup in `README.md`)
 
 Instructions for agents working in this repo. The files below are the conventions this repo is written to; read the one that covers what you are about to do.
 
