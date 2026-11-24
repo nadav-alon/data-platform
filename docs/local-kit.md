@@ -21,6 +21,7 @@ npx data-platform-local owner-with-items
 | `empty`            | unclaimed, nothing seeded                                                                      | any new account                |
 | `owner-with-items` | claimed; a Shop, Category, two Items, each with its CatalogueItem                              | `owner@example.com`, the Owner |
 | `owner-with-recipes` | claimed; Items in every State plus a soft-deleted one, each with its CatalogueItem; a Recipe for every makeability case, a full-field one and a soft-deleted one | `owner@example.com`, the Owner |
+| `owner-with-foods` | claimed; a few Foods for the nutrition app, one with every field and a soft-deleted one | `owner@example.com`, the Owner |
 | `invited-member`   | claimed by another Owner; a Shop, Category, one Item with its CatalogueItem; no Invite pending | `member@example.com`, a Member |
 
 `owner-with-recipes` seeds Recipes that are Makeable, Almost makeable (one and two Missing Ingredients),
