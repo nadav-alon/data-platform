@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.22.0
 
 - **MCP**: the household server gains `list_foods`, `add_food` and `log_food`, so Claude can save a Food
   and log it to the signed-in Member's own log. An estimate is saved with `estimated: true`.
+- **Nutrition**: the `nutrition` namespace now exports `guessMealType`, `guessMealTypeAtClock` and
+  `scaleNutrition`. The meal-type guess: before 11:00 breakfast, before 16:00 lunch, after 21:30 snack
+  (21:30 itself is dinner), otherwise dinner.
 
 ## v0.21.0
 
