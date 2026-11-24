@@ -23,7 +23,7 @@ export const foodIdSchema = z.string().refine(isFoodId, "FoodId must not be empt
 
 /**
  * A dish or product the Household has saved that is not a Recipe, shared by the Household.
- * `perServing` is the Nutrition of one Serving, which `servingLabel` describes ("1 plate"); `place`
+ * `perServing` is the Nutrition of one serving, which `servingLabel` describes ("1 plate"); `place`
  * is where it is eaten or bought. `estimated` says the numbers are an estimate, not a label or
  * source; absent means they are not.
  */
