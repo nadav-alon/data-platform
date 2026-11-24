@@ -70,6 +70,14 @@ test("collection validation: an Ingredient with an infinite quantity is rejected
   );
 });
 
+test("collection validation: an Ingredient with the largest finite quantity is accepted", async () => {
+  await assertMemberWrite(
+    "largest finite quantity",
+    withIngredient({ name: "Flour", quantity: Number.MAX_VALUE, unit: "g" }),
+    "accept",
+  );
+});
+
 test("collection validation: an Ingredient with a unit but no quantity is rejected", async () => {
   await assertMemberWrite("unit without quantity", withIngredient({ name: "Flour", unit: "g" }), "reject");
 });

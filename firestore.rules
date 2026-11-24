@@ -554,9 +554,9 @@ service cloud.firestore {
 
     /**
      * Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`,
-     * `bought` only on an Ingredient that names no Item and is not assumed.
-     * `isValidIngredients` runs it on the first Ingredient only, so `bought` beside an `itemId` or
-     * `assumed` at a later position is refused by the schema but not by these rules.
+     * `bought` only on an Ingredient that names no Item and is not assumed, `quantity` a finite positive number.
+     * `isValidIngredients` runs it on the first Ingredient only, so `bought` beside an `itemId`,
+     * `assumed`, or an infinite `quantity` at a later position is refused by the schema but not by these rules.
      */
     function isValidIngredient(ingredient) {
       return ingredient is map
@@ -564,7 +564,7 @@ service cloud.firestore {
         && (!('itemId' in ingredient) || isNonEmptyString(ingredient.itemId))
         && (!('assumed' in ingredient) || (ingredient.assumed == true && !('itemId' in ingredient)))
         && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0
-            && ingredient.quantity < ingredient.quantity * 2)) // rules have no isInfinite: only a finite positive number is below its double
+            && ingredient.quantity < ingredient.quantity * 2)) // the rules runtime has no math.isInfinite (function not found): only a finite positive number is below its double
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
