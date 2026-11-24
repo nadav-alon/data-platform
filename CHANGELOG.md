@@ -2,7 +2,7 @@
 
 ## v0.23.0
 
-Redeploy `firestore.rules`: a Log Entry now accepts `estimated`.
+Redeploy `firestore.rules`: they now accept `estimated` on a Log Entry.
 
 - **Nutrition**: a Log Entry can be marked `estimated: true` when its Nutrition is a guess rather than a
   label or source; `false` is spelled as absence, as on a Food.
