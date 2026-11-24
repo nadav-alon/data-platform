@@ -884,6 +884,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /** Matches `targetsSchema`: each Target, where present, a positive number. */
+    function isValidTargets(data) {
+      return (!('kcal' in data) || (data.kcal is number && data.kcal > 0))
+        && (!('proteinG' in data) || (data.proteinG is number && data.proteinG > 0))
+        && (!('carbsG' in data) || (data.carbsG is number && data.carbsG > 0))
+        && (!('fatG' in data) || (data.fatG is number && data.fatG > 0));
+    }
+
+    /** A Member's Targets are private to them: no other Member reads or writes them. */
+    match /nutritionTargets/{memberUid} {
+      allow read: if isMember() && isSelf(memberUid);
+      allow create, update: if isMember()
+        && isSelf(memberUid)
+        && isValidTargets(request.resource.data);
+      allow delete: if isMember() && isSelf(memberUid);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
