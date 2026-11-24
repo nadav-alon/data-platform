@@ -43,3 +43,14 @@ export const nutritionSchema = z.looseObject({
 });
 
 export type Nutrition = z.infer<typeof nutritionSchema>;
+
+/** The Nutrition of `servings` servings of something whose one serving has `perServing`. */
+export function scaleNutrition(perServing: Nutrition, servings: number): Nutrition {
+  return {
+    ...perServing,
+    kcal: kcal(perServing.kcal * servings),
+    proteinG: grams(perServing.proteinG * servings),
+    carbsG: grams(perServing.carbsG * servings),
+    fatG: grams(perServing.fatG * servings),
+  };
+}

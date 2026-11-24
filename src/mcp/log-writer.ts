@@ -10,17 +10,19 @@ import {
   logEntryId,
   logEntrySchema,
   mealTypeSchema,
+  type MealType,
   type LogEntryId,
   type LogEntrySource,
 } from "../nutrition/log-entry.ts";
-import { nutritionSchema, type Nutrition } from "../nutrition/nutrition.ts";
-import { guessMealType } from "./meal-type.ts";
+import { guessMealType, guessMealTypeAtClock } from "../nutrition/meal-type.ts";
+import { nutritionSchema, scaleNutrition, type Nutrition } from "../nutrition/nutrition.ts";
 
 /**
  * What a caller supplies to log something eaten: a saved Food by `foodId`, or a quick one-off by
  * `name` and per-serving `nutrition`, never both. `servings` defaults to 1, `eatenAt` (an ISO 8601
  * date-time; one with no offset is the machine's local time) to now, and `mealType` to a guess from
- * `eatenAt`'s local time.
+ * `eatenAt`'s clock time: the offset it
+ * carries, or the machine's local time when it carries none.
  */
 export const logFoodInputSchema = z
   .object({
@@ -80,20 +82,23 @@ export async function logFood(
   const eatenAt = eatenAtInput === undefined ? now : new Date(eatenAtInput);
   const entry = logEntrySchema.parse({
     eatenAt,
-    mealType: mealType ?? guessMealType(eatenAt),
+    mealType: mealType ?? guessMealTypeOf(eatenAtInput, eatenAt),
     source,
     name: entryName,
     servings,
-    nutrition: {
-      kcal: perServing.kcal * servings,
-      proteinG: perServing.proteinG * servings,
-      carbsG: perServing.carbsG * servings,
-      fatG: perServing.fatG * servings,
-    },
+    nutrition: scaleNutrition(perServing, servings),
   });
   const created = await addDoc(
     collection(db, NUTRITION_LOGS_COLLECTION, owner, LOG_ENTRIES_COLLECTION),
     entry,
   );
   return logEntryId(created.id);
+}
+
+/** The meal by the clock time `eatenAtInput` itself states, so an offset the caller gave is kept; `eatenAt` when there is none. */
+function guessMealTypeOf(eatenAtInput: string | undefined, eatenAt: Date): MealType {
+  const clock = eatenAtInput?.match(/T(\d{2}):(\d{2})/);
+  return clock === null || clock === undefined
+    ? guessMealType(eatenAt)
+    : guessMealTypeAtClock(Number(clock[1]), Number(clock[2]));
 }
