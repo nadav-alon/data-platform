@@ -133,3 +133,13 @@ test("hard delete: the owner cannot delete a live or soft-deleted entry", async 
   await seedEntry(alice, { deletedAt: Timestamp.fromMillis(1_700_000_000_000) });
   await assertFails(entryDoc(rulesTestEnv.env.authenticatedContext(alice)).delete());
 });
+
+test("collection validation: an infinite nutrition macro is rejected", async () => {
+  for (const key of Object.keys(nutrition)) {
+    await assertOwnEntry(`infinite ${key}`, { ...foodEntry, nutrition: { ...nutrition, [key]: Infinity } }, "reject");
+  }
+});
+
+test("collection validation: the largest finite servings are accepted", async () => {
+  await assertOwnEntry("max servings", { ...foodEntry, servings: Number.MAX_VALUE }, "accept");
+});

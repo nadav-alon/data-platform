@@ -563,8 +563,7 @@ service cloud.firestore {
         && isNonEmptyString(ingredient.name)
         && (!('itemId' in ingredient) || isNonEmptyString(ingredient.itemId))
         && (!('assumed' in ingredient) || (ingredient.assumed == true && !('itemId' in ingredient)))
-        && (!('quantity' in ingredient) || (ingredient.quantity is number && ingredient.quantity > 0
-            && ingredient.quantity < ingredient.quantity * 2)) // the rules runtime has no math.isInfinite (function not found): only a finite positive number is below its double
+        && (!('quantity' in ingredient) || isFinitePositive(ingredient.quantity))
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
@@ -596,13 +595,26 @@ service cloud.firestore {
         && isValidDeletedAt(data);
     }
 
+    /**
+     * A finite number above zero. The rules runtime has no `math.isInfinite` (function not found),
+     * and only a finite positive number is below its double.
+     */
+    function isFinitePositive(value) {
+      return value is number && value > 0 && value < value * 2;
+    }
+
+    /** A finite number from zero up: `0 < 0 * 2` is false, so zero is matched explicitly. */
+    function isFiniteNonNegative(value) {
+      return value is number && (value == 0 || isFinitePositive(value));
+    }
+
     /** Matches `nutritionSchema`: extra fields tolerate additive evolution. */
     function isValidNutrition(data) {
       return data is map
-        && data.kcal is number && data.kcal >= 0
-        && data.proteinG is number && data.proteinG >= 0
-        && data.carbsG is number && data.carbsG >= 0
-        && data.fatG is number && data.fatG >= 0;
+        && isFiniteNonNegative(data.kcal)
+        && isFiniteNonNegative(data.proteinG)
+        && isFiniteNonNegative(data.carbsG)
+        && isFiniteNonNegative(data.fatG);
     }
 
     /** An optional `estimated` flag: absent, or `true` (`false` is spelled as absence). */
@@ -636,7 +648,7 @@ service cloud.firestore {
         && 'source' in data
         && isValidLogEntrySource(data.source)
         && isNonEmptyString(data.name)
-        && data.servings is number && data.servings > 0 && data.servings < math.pow(10, 308) // finite, as in isPositiveTarget
+        && isFinitePositive(data.servings)
         && 'nutrition' in data
         && isValidNutrition(data.nutrition)
         && (!('googleHealthId' in data) || isNonEmptyString(data.googleHealthId))
@@ -933,20 +945,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * Matches `kcalTargetSchema`/`gramsTargetSchema` in `targets.ts`: a finite number above zero
-     * (rules have no isInfinite, so bounded by 10^308).
-     */
-    function isPositiveTarget(value) {
-      return value is number && value > 0 && value < math.pow(10, 308);
-    }
-
     /** Matches `targetsSchema`: each Target, where present, a positive finite number. */
     function isValidTargets(data) {
-      return (!('kcal' in data) || isPositiveTarget(data.kcal))
-        && (!('proteinG' in data) || isPositiveTarget(data.proteinG))
-        && (!('carbsG' in data) || isPositiveTarget(data.carbsG))
-        && (!('fatG' in data) || isPositiveTarget(data.fatG));
+      return (!('kcal' in data) || isFinitePositive(data.kcal))
+        && (!('proteinG' in data) || isFinitePositive(data.proteinG))
+        && (!('carbsG' in data) || isFinitePositive(data.carbsG))
+        && (!('fatG' in data) || isFinitePositive(data.fatG));
     }
 
     /** A Member's Targets are private to them: no other Member reads or writes them. */

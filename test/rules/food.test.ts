@@ -173,3 +173,9 @@ test("hard delete: no Member can delete a live or soft-deleted Food", async () =
     await assertFails(firestore.doc(`${FOODS_COLLECTION}/retired`).delete());
   }
 });
+
+test("collection validation: a Food with an infinite macro is rejected", async () => {
+  for (const key of Object.keys(perServing)) {
+    await assertMemberWrite(`infinite ${key}`, { ...validFood, perServing: { ...perServing, [key]: Infinity } }, "reject");
+  }
+});
