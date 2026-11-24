@@ -3,7 +3,7 @@ import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { Timestamp, serverTimestamp } from "firebase/firestore";
 import { foodId } from "../../src/nutrition/food.ts";
 import { LOG_ENTRIES_COLLECTION, NUTRITION_LOGS_COLLECTION } from "../../src/nutrition/log-entry.ts";
-import { uid } from "../../src/core/uid.ts";
+import { uid, type Uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
 import { seedHousehold, seedMember } from "./seed.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
@@ -14,7 +14,7 @@ const mallory = uid("mallory");
 
 const rulesTestEnv = setupRulesTestEnv();
 
-const entriesOf = (owner: string) => `${NUTRITION_LOGS_COLLECTION}/${owner}/${LOG_ENTRIES_COLLECTION}`;
+const entriesOf = (owner: Uid) => `${NUTRITION_LOGS_COLLECTION}/${owner}/${LOG_ENTRIES_COLLECTION}`;
 
 const nutrition = { kcal: 975, proteinG: 45, carbsG: 105, fatG: 37.5 };
 
@@ -41,7 +41,7 @@ async function assertOwnEntry(
   );
 }
 
-async function seedEntry(owner: string, extra: Record<string, unknown> = {}): Promise<void> {
+async function seedEntry(owner: Uid, extra: Record<string, unknown> = {}): Promise<void> {
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc(`${entriesOf(owner)}/e1`).set({ ...foodEntry, ...extra });
   });
@@ -58,6 +58,7 @@ test("collection validation: a valid food entry and a valid quick entry are acce
 
 test("collection validation: zero servings are rejected", async () => {
   await assertOwnEntry("zero servings", { ...foodEntry, servings: 0 }, "reject");
+  await assertOwnEntry("infinite servings", { ...foodEntry, servings: Infinity }, "reject");
 });
 
 test("collection validation: an unknown mealType is rejected", async () => {
