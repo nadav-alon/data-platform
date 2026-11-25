@@ -8,16 +8,15 @@ import { linkIngredientToItemWith, type RecipeIngredientLinkDeps } from "./recip
 const db = { name: "fake-db" } as unknown as Firestore;
 const id = recipeId("pancakes");
 
-/** Deps over one stored Recipe `data` (or none); `updates` collects what the transaction wrote. */
+/** Deps over one stored Recipe `data` (or none); `updates` collects what was written. */
 function fakeStore(data: Record<string, unknown> | undefined) {
   const updates: Record<string, unknown>[] = [];
   const deps = {
     doc: ((_db: Firestore, ...path: string[]) => ({ path: path.join("/") })) as unknown as RecipeIngredientLinkDeps["doc"],
-    runTransaction: (async (_db: Firestore, body: (t: unknown) => Promise<void>) =>
-      body({
-        get: async () => ({ data: () => data }),
-        update: (_ref: unknown, fields: Record<string, unknown>) => updates.push(fields),
-      })) as unknown as RecipeIngredientLinkDeps["runTransaction"],
+    getDoc: (async () => ({ data: () => data })) as unknown as RecipeIngredientLinkDeps["getDoc"],
+    updateDoc: (async (_ref: unknown, fields: Record<string, unknown>) => {
+      updates.push(fields);
+    }) as unknown as RecipeIngredientLinkDeps["updateDoc"],
   } as RecipeIngredientLinkDeps;
   return { deps, updates };
 }

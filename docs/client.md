@@ -98,6 +98,13 @@ position no longer holds an Ingredient of that name or the Ingredient is already
 Assumed. Only the name is compared, so a swap of two same-named Ingredients, or an edit that keeps
 the name, is not detected. It also throws for an unknown or soft-deleted Recipe.
 
+It reads the Recipe (the cache when offline) and writes the Ingredients in one field write, not a
+transaction: offline the link applies to the local cache at once and reaches the server on
+reconnect, and the returned promise settles only once the server has answered. Those checks run
+against what was read, so an edit to the Recipe made in between is overwritten. The rules cannot
+repeat them; they refuse a write that leaves the Recipe's first Ingredient Linked or Assumed
+while it is still Bought.
+
 ## The Shop for Recipe Ingredients
 
 ```ts
