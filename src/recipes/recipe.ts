@@ -28,7 +28,7 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 /**
  * One line of a Recipe. `itemId` links it to a Core Item; `assumed` marks a staple taken as
  * already in the house, so it never names an Item. A `unit` only means something beside a
- * `quantity`. Whether it is bought lives on the Recipe (`boughtIngredients`), not here.
+ * `quantity`. Bought: see `Recipe.boughtIngredients`.
  */
 export const ingredientSchema = z
   .looseObject({
@@ -58,6 +58,14 @@ export type Ingredient = z.infer<typeof ingredientSchema>;
  * for anything that points at it. `recipeObjectSchema` is its shape without the cross-field checks,
  * for deriving a schema with `.omit` or `.shape`, which a refined schema does not allow.
  */
+/** The Recipe field holding every Bought, keyed by Ingredient name. */
+export const BOUGHT_FIELD = "boughtIngredients";
+
+/** Whether an Ingredient names neither an Item nor Assumed: the only kind that can be bought. */
+export function isUnlinked(ingredient: Ingredient): boolean {
+  return ingredient.itemId === undefined && ingredient.assumed !== true;
+}
+
 export const recipeObjectSchema = z.looseObject({
   title: z.string().min(1),
   ingredients: z.array(ingredientSchema),
@@ -67,7 +75,7 @@ export const recipeObjectSchema = z.looseObject({
   sourceUrl: z.string().optional(),
   notes: z.string().optional(),
   wanted: z.literal(true).optional(),
-  boughtIngredients: z.record(z.string().min(1), z.literal(true)).optional(),
+  [BOUGHT_FIELD]: z.record(z.string().min(1), z.literal(true)).optional(),
   deletedAt: deletedAtSchema,
 });
 

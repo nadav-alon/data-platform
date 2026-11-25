@@ -6,9 +6,7 @@ import {
   updateDoc,
   type Firestore,
 } from "firebase/firestore";
-import { RECIPES_COLLECTION, liveRecipeData, recipeSchema, type RecipeId } from "../recipes/recipe.ts";
-
-const BOUGHT_FIELD = "boughtIngredients";
+import { BOUGHT_FIELD, RECIPES_COLLECTION, liveRecipeData, recipeSchema, type RecipeId } from "../recipes/recipe.ts";
 
 /** The Firestore calls the Wanted functions make, injectable so a test can observe them. */
 export type RecipeWantedDeps = {

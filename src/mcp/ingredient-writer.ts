@@ -2,8 +2,10 @@ import { deleteField, doc, runTransaction, type Firestore } from "firebase/fires
 import { z } from "zod";
 import { itemIdSchema } from "../core/item.ts";
 import {
+  BOUGHT_FIELD,
   RECIPES_COLLECTION,
   ingredientAt,
+  isUnlinked,
   liveRecipeData,
   recipeId as toRecipeId,
   recipeIdSchema,
@@ -53,12 +55,12 @@ export async function setIngredientLink(db: Firestore, input: SetIngredientLink)
     const ingredients = recipe.ingredients.map((existing, index) =>
       index === position ? { ...unlinked, ...link } : existing,
     );
-    const stillUnlinked = (name: string) =>
-      ingredients.some((i) => i.name === name && i.itemId === undefined && i.assumed !== true);
-    const bought = Object.keys(recipe.boughtIngredients ?? {}).filter(stillUnlinked);
+    const stillUnlinked = (name: string) => ingredients.some((i) => i.name === name && isUnlinked(i));
+    const boughtBefore = Object.keys(recipe.boughtIngredients ?? {});
+    const bought = boughtBefore.filter(stillUnlinked);
     const update: Record<string, unknown> = { ingredients: recipeObjectSchema.shape.ingredients.parse(ingredients) };
-    if (bought.length !== Object.keys(recipe.boughtIngredients ?? {}).length) {
-      update.boughtIngredients =
+    if (bought.length !== boughtBefore.length) {
+      update[BOUGHT_FIELD] =
         bought.length === 0 ? deleteField() : Object.fromEntries(bought.map((name) => [name, true]));
     }
     transaction.update(ref, update);
