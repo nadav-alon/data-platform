@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.26.0
+
+No rules change to redeploy.
+
+- **Client (breaking)**: `linkIngredientToItem` is no longer a transaction: it reads the Recipe (the cache
+  when offline) and writes the Ingredients, and drops the linked Ingredient's Bought, in one field
+  write. Offline the link applies to the local cache at once and reaches the server on reconnect; the
+  promise settles once the server has answered. It still throws for a stale position and name or an
+  Ingredient that is Linked or Assumed, judged against what it read, so an edit to the Recipe made in
+  between is overwritten. The rules cannot repeat that check; they refuse a link that leaves the first
+  Ingredient Linked or Assumed while still Bought, and so a write that keeps that Bought.
+
 ## v0.25.0
 
 Redeploy `firestore.rules`: they now accept `boughtIngredients` on a Recipe, and no longer look at
