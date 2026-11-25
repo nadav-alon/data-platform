@@ -151,10 +151,10 @@ test("rejects boughtIngredients on a Recipe that is not Wanted", () => {
   assert.ok(!recipeSchema.safeParse(notWanted).success);
 });
 
-test("rejects a bought name of a Linked or Assumed Ingredient, or of none", () => {
-  assert.ok(!recipeSchema.safeParse(wantedWith({ Flour: true }, [{ name: "Flour", itemId: "flour" }])).success);
-  assert.ok(!recipeSchema.safeParse(wantedWith({ Salt: true }, [{ name: "Salt", assumed: true }])).success);
-  assert.ok(!recipeSchema.safeParse(wantedWith({ Ghost: true }, [{ name: "Flour" }])).success);
+test("tolerates a bought name of a Linked or Assumed Ingredient, or of none, so the Recipe stays readable", () => {
+  assert.ok(recipeSchema.safeParse(wantedWith({ Flour: true }, [{ name: "Flour", itemId: "flour" }])).success);
+  assert.ok(recipeSchema.safeParse(wantedWith({ Salt: true }, [{ name: "Salt", assumed: true }])).success);
+  assert.ok(recipeSchema.safeParse(wantedWith({ Ghost: true }, [{ name: "Flour" }])).success);
 });
 
 test("rejects a boughtIngredients value that is not true", () => {

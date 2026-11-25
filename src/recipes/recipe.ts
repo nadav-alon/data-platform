@@ -52,8 +52,9 @@ export type Ingredient = z.infer<typeof ingredientSchema>;
  * One document with everything embedded. `wanted` says the Household wants to make it; absent
  * means not wanted. `boughtIngredients` holds the name of each Ingredient marked bought, keyed by
  * name so a reorder of `ingredients` cannot move the mark to another Ingredient and one field can
- * be written without reading the Recipe; absent or empty means none is bought. Only an unlinked Ingredient
- * of a Wanted Recipe can be bought. Never versioned and never hard-deleted, so its id stays stable
+ * be written without reading the Recipe; absent or empty means none is bought. Only a Wanted Recipe
+ * has any. A name matching no unlinked Ingredient is tolerated on read, since an offline tick or another app's edit can
+ * store one and it must not make the Recipe unreadable; `setIngredientLink` prunes it. Never versioned and never hard-deleted, so its id stays stable
  * for anything that points at it. `recipeObjectSchema` is its shape without the cross-field checks,
  * for deriving a schema with `.omit` or `.shape`, which a refined schema does not allow.
  */
@@ -71,15 +72,8 @@ export const recipeObjectSchema = z.looseObject({
 });
 
 export const recipeSchema = recipeObjectSchema.superRefine((recipe, context) => {
-  const bought = Object.keys(recipe.boughtIngredients ?? {});
-  if (bought.length > 0 && recipe.wanted !== true) {
+  if (Object.keys(recipe.boughtIngredients ?? {}).length > 0 && recipe.wanted !== true) {
     context.addIssue({ code: "custom", message: "Nothing is bought on a Recipe that is not Wanted" });
-  }
-  for (const name of bought) {
-    const named = recipe.ingredients.filter((ingredient) => ingredient.name === name);
-    if (named.every((ingredient) => ingredient.itemId !== undefined || ingredient.assumed === true)) {
-      context.addIssue({ code: "custom", message: `${JSON.stringify(name)} names no unlinked Ingredient` });
-    }
   }
 });
 

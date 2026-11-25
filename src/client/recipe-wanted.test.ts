@@ -106,3 +106,9 @@ test("setIngredientBought refuses an empty name, writing nothing", async () => {
   await assert.rejects(setIngredientBoughtWith(deps, db, id, "", true), /name must not be empty/);
   assert.deepEqual(calls, []);
 });
+
+test("setRecipeWanted(false) still clears a Bought whose name matches no unlinked Ingredient", async () => {
+  const { deps, updates } = fakeStore(recipe({ wanted: true, boughtIngredients: { Ghost: true, Milk: true } }));
+  await setRecipeWantedWith(deps, db, id, false);
+  assert.deepEqual(updates, [{ wanted: DELETE, boughtIngredients: DELETE }]);
+});
