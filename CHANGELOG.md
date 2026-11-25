@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.24.0
+
+- **Client**: `linkIngredientToItem(db, recipeId, { position, name }, itemId)` links one Unlinked
+  Ingredient of a Recipe to an Item and clears its `bought`. It names the Ingredient by the position and
+  name the caller saw, and throws, writing nothing, when that position no longer holds that name or
+  the Ingredient is already Linked or Assumed.
+
 ## v0.23.0
 
 Redeploy `firestore.rules`: they now accept `estimated` on a Log Entry.
