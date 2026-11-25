@@ -286,12 +286,22 @@ test("collection validation: an empty boughtIngredients on a Recipe that is not 
   await assertMemberWrite("no bought", { ...withIngredient(flour), boughtIngredients: {} }, "accept");
 });
 
-test("collection validation: a bought Linked Ingredient is rejected", async () => {
-  await assertMemberWrite("bought linked", wantedBought({ Flour: true }, { name: "Flour", itemId: "flour" }), "reject");
+/**
+ * Rules only: `recipeSchema` deliberately accepts a Bought name that matches no unlinked Ingredient, so a
+ * stale one cannot make a Recipe unreadable, which a drift fixture (zod and rules agreeing) cannot express.
+ */
+async function assertMemberCreateRefused(data: Record<string, unknown>): Promise<void> {
+  await seedHousehold(rulesTestEnv.env, alice);
+  const recipe = rulesTestEnv.env.authenticatedContext(alice).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
+  await assertFails(recipe.set(data));
+}
+
+test("collection validation: a bought Linked first Ingredient is rejected by the rules", async () => {
+  await assertMemberCreateRefused(wantedBought({ Flour: true }, { name: "Flour", itemId: "flour" }));
 });
 
-test("collection validation: a bought Assumed Ingredient is rejected", async () => {
-  await assertMemberWrite("bought assumed", wantedBought({ Salt: true }, { name: "Salt", assumed: true }), "reject");
+test("collection validation: a bought Assumed first Ingredient is rejected by the rules", async () => {
+  await assertMemberCreateRefused(wantedBought({ Salt: true }, { name: "Salt", assumed: true }));
 });
 
 test("collection validation: a boughtIngredients value that is not true is rejected", async () => {
