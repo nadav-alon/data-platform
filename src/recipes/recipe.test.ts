@@ -129,18 +129,34 @@ test("rejects wanted: false on a Recipe", () => {
   assert.ok(!recipeSchema.safeParse({ ...valid, wanted: false }).success);
 });
 
-test("accepts bought: true on an Unlinked Ingredient", () => {
-  assert.ok(recipeSchema.safeParse(withIngredient({ name: "Flour", bought: true })).success);
+const wantedWith = (boughtIngredients: unknown, ingredients: Record<string, unknown>[]) => ({
+  ...valid,
+  ingredients,
+  wanted: true,
+  boughtIngredients,
 });
 
-test("rejects bought on a Linked Ingredient", () => {
-  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Flour", itemId: "flour", bought: true })).success);
+test("accepts an Unlinked Ingredient's name in boughtIngredients on a Wanted Recipe", () => {
+  assert.ok(recipeSchema.safeParse(wantedWith({ Flour: true }, [{ name: "Flour" }])).success);
 });
 
-test("rejects bought on an Assumed Ingredient", () => {
-  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Salt", assumed: true, bought: true })).success);
+test("boughtIngredients names the Ingredient, so reordering the Ingredients keeps the mark", () => {
+  const bought = { Flour: true };
+  assert.ok(recipeSchema.safeParse(wantedWith(bought, [{ name: "Milk" }, { name: "Flour" }])).success);
+  assert.ok(recipeSchema.safeParse(wantedWith(bought, [{ name: "Flour" }, { name: "Milk" }])).success);
 });
 
-test("rejects bought: false on an Ingredient", () => {
-  assert.ok(!recipeSchema.safeParse(withIngredient({ name: "Flour", bought: false })).success);
+test("rejects boughtIngredients on a Recipe that is not Wanted", () => {
+  const notWanted = { ...valid, ingredients: [{ name: "Flour" }], boughtIngredients: { Flour: true } };
+  assert.ok(!recipeSchema.safeParse(notWanted).success);
+});
+
+test("rejects a bought name of a Linked or Assumed Ingredient, or of none", () => {
+  assert.ok(!recipeSchema.safeParse(wantedWith({ Flour: true }, [{ name: "Flour", itemId: "flour" }])).success);
+  assert.ok(!recipeSchema.safeParse(wantedWith({ Salt: true }, [{ name: "Salt", assumed: true }])).success);
+  assert.ok(!recipeSchema.safeParse(wantedWith({ Ghost: true }, [{ name: "Flour" }])).success);
+});
+
+test("rejects a boughtIngredients value that is not true", () => {
+  assert.ok(!recipeSchema.safeParse(wantedWith({ Flour: false }, [{ name: "Flour" }])).success);
 });
