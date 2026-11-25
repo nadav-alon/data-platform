@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { serverTimestamp } from "firebase/firestore";
+import { deleteField, serverTimestamp } from "firebase/firestore";
 import { INGREDIENT_UNITS, RECIPES_COLLECTION } from "../../src/recipes/recipe.ts";
 import { uid } from "../../src/core/uid.ts";
 import { assertFixture, type RulesFixture } from "./fixture.ts";
@@ -324,4 +324,16 @@ test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient 
   const recipe = rulesTestEnv.env.authenticatedContext(uid("mallory")).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
   await assertFails(recipe.update({ wanted: true }));
   await assertFails(recipe.update({ wanted: true, "boughtIngredients.Flour": true }));
+});
+
+test("update: a link write on a Bought first Ingredient is accepted when it drops the Bought and refused when it keeps it", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).set(wantedBought({ Flour: true }));
+  });
+
+  const recipe = rulesTestEnv.env.authenticatedContext(alice).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
+  const linked = [{ name: "Flour", itemId: "flour" }];
+  await assertFails(recipe.update({ ingredients: linked }));
+  await assertSucceeds(recipe.update({ ingredients: linked, boughtIngredients: deleteField() }));
 });

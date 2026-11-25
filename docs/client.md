@@ -98,6 +98,16 @@ position no longer holds an Ingredient of that name or the Ingredient is already
 Assumed. Only the name is compared, so a swap of two same-named Ingredients, or an edit that keeps
 the name, is not detected. It also throws for an unknown or soft-deleted Recipe.
 
+It reads the Recipe (the cache when offline) and writes the Ingredients in one field write, not a
+transaction: offline the link applies to the local cache at once and reaches the server on
+reconnect, and the returned promise settles only once the server has answered. Do not wait on the
+promise to update the screen: offline it does not settle until reconnect. Offline, the read rejects
+with code `unavailable` when the Recipe is not in the local cache, and nothing is queued. Those
+checks run against what was read, so an edit to the Recipe made in between is overwritten, and a
+Recipe soft-deleted in between is still linked: the rules accept an `ingredients` change on a
+soft-deleted Recipe. The rules cannot repeat the checks; the existing first-Ingredient rule still
+refuses a link write that does not drop that Ingredient's Bought.
+
 ## The Shop for Recipe Ingredients
 
 ```ts
