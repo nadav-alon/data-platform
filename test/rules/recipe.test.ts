@@ -326,20 +326,10 @@ test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient 
   await assertFails(recipe.update({ wanted: true, "boughtIngredients.Flour": true }));
 });
 
-test("a link write on a Bought first Ingredient is accepted when it drops the Bought and refused when it keeps it", async () => {
+test("update: a link write on a Bought first Ingredient is accepted when it drops the Bought and refused when it keeps it", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await rulesTestEnv.env.withSecurityRulesDisabled(async (context) => {
-    await context
-      .firestore()
-      .doc(`${RECIPES_COLLECTION}/pancakes`)
-      .set({
-        title: "Pancakes",
-        ingredients: [{ name: "Flour" }],
-        prepSteps: [],
-        steps: ["Mix"],
-        wanted: true,
-        boughtIngredients: { Flour: true },
-      });
+    await context.firestore().doc(`${RECIPES_COLLECTION}/pancakes`).set(wantedBought({ Flour: true }));
   });
 
   const recipe = rulesTestEnv.env.authenticatedContext(alice).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);

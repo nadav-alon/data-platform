@@ -37,10 +37,12 @@ export type SeenIngredient = {
  *
  * It reads the Recipe (the cache when offline), then writes the Ingredients in one field write, not
  * a transaction, so the write applies to the local cache at once and, offline, reaches the server
- * when the connection returns; the returned promise settles only once the server has answered. The
- * checks above are made against what was read, so an edit that landed in between is overwritten.
- * `firestore.rules` check the write as the signed-in Member, rejecting with `permission-denied`
- * once online; they cannot repeat the position and name check.
+ * when the connection returns; the returned promise settles only once the server has answered, so
+ * do not wait on it to update the screen. Offline, the read rejects with code `unavailable` when the
+ * Recipe is not in the local cache, and nothing is queued. The checks above are made against what
+ * was read, so an edit that landed in between is overwritten, and a Recipe soft-deleted in between
+ * is still linked. `firestore.rules` check the write as the signed-in Member, rejecting with
+ * `permission-denied` once online; they cannot repeat the position and name check.
  */
 export function linkIngredientToItem(
   db: Firestore,

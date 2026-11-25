@@ -12,9 +12,10 @@ import {
   getFirestore,
   type Firestore,
 } from "firebase/firestore";
-import { setIngredientBought, setRecipeWanted } from "../../src/client/index.ts";
+import { linkIngredientToItem, setIngredientBought, setRecipeWanted } from "../../src/client/index.ts";
 import { RECIPES_COLLECTION, recipeId } from "../../src/recipes/recipe.ts";
 import { seedHousehold, seedMember, seedRecipe } from "./seed.ts";
+import { itemId } from "../../src/core/item.ts";
 import { uid } from "../../src/core/uid.ts";
 import { setupRulesTestEnv } from "./test-env.ts";
 
@@ -97,5 +98,31 @@ test("offline, a tick applies to the local cache at once and reaches the server 
     const server = await getDocFromServer(doc(db, RECIPES_COLLECTION, pancakes));
     assert.equal(server.metadata.hasPendingWrites, false);
     assert.deepEqual(server.data()?.boughtIngredients, { Flour: true });
+  });
+});
+
+test("offline, a link applies to the local cache at once and reaches the server when the connection returns", async () => {
+  await seedHousehold(rulesTestEnv.env, uid("alice"));
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+  await asUser("member@example.com", async (db, me) => {
+    await seedMember(rulesTestEnv.env, uid(me));
+    await getDoc(doc(db, RECIPES_COLLECTION, pancakes));
+
+    await disableNetwork(db);
+    const pending = linkIngredientToItem(db, pancakes, { position: 0, name: "Flour" }, itemId("flour"));
+    // The link reads the Recipe before it writes, so the write reaches the cache a moment after the call.
+    let cached = await getDoc(doc(db, RECIPES_COLLECTION, pancakes));
+    for (let attempt = 0; attempt < 50 && !cached.metadata.hasPendingWrites; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      cached = await getDoc(doc(db, RECIPES_COLLECTION, pancakes));
+    }
+    assert.equal(cached.metadata.hasPendingWrites, true);
+    assert.equal(cached.data()?.ingredients[0].itemId, "flour");
+
+    await enableNetwork(db);
+    await pending;
+    const server = await getDocFromServer(doc(db, RECIPES_COLLECTION, pancakes));
+    assert.equal(server.metadata.hasPendingWrites, false);
+    assert.equal(server.data()?.ingredients[0].itemId, "flour");
   });
 });

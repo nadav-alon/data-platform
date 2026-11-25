@@ -7,10 +7,12 @@ No rules change to redeploy.
 - **Client (breaking)**: `linkIngredientToItem` is no longer a transaction: it reads the Recipe (the cache
   when offline) and writes the Ingredients, and drops the linked Ingredient's Bought, in one field
   write. Offline the link applies to the local cache at once and reaches the server on reconnect; the
-  promise settles once the server has answered. It still throws for a stale position and name or an
+  promise settles once the server has answered, so do not wait on it to update the screen. Offline,
+  it rejects with code `unavailable` when the Recipe is not in the local cache. It still throws for a stale position and name or an
   Ingredient that is Linked or Assumed, judged against what it read, so an edit to the Recipe made in
-  between is overwritten. The rules cannot repeat that check; they refuse a link that leaves the first
-  Ingredient Linked or Assumed while still Bought, and so a write that keeps that Bought.
+  between is overwritten, and a Recipe soft-deleted in between is still linked (the rules accept an
+  `ingredients` change on a soft-deleted Recipe). The rules cannot repeat those checks. The existing
+  first-Ingredient rule still refuses a link write that does not drop that Ingredient's Bought.
 
 ## v0.25.0
 
