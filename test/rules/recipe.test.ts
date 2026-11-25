@@ -267,28 +267,35 @@ test("collection validation: wanted: false is rejected", async () => {
   await assertMemberWrite("wanted false", { ...validRecipe, wanted: false }, "reject");
 });
 
-test("collection validation: a bought Unlinked Ingredient is accepted", async () => {
-  await assertMemberWrite(
-    "bought unlinked",
-    { ...withIngredient({ name: "Flour", bought: true }), wanted: true },
-    "accept",
-  );
+const flour = { name: "Flour" };
+const wantedBought = (bought: unknown, ingredient: Record<string, unknown> = flour) => ({
+  ...withIngredient(ingredient),
+  wanted: true,
+  boughtIngredients: bought,
+});
+
+test("collection validation: a bought Unlinked Ingredient of a Wanted Recipe is accepted", async () => {
+  await assertMemberWrite("bought unlinked", wantedBought({ Flour: true }), "accept");
+});
+
+test("collection validation: a Bought on a Recipe that is not Wanted is rejected", async () => {
+  await assertMemberWrite("bought not wanted", { ...withIngredient(flour), boughtIngredients: { Flour: true } }, "reject");
+});
+
+test("collection validation: an empty boughtIngredients on a Recipe that is not Wanted is accepted", async () => {
+  await assertMemberWrite("no bought", { ...withIngredient(flour), boughtIngredients: {} }, "accept");
 });
 
 test("collection validation: a bought Linked Ingredient is rejected", async () => {
-  await assertMemberWrite(
-    "bought linked",
-    withIngredient({ name: "Flour", itemId: "flour", bought: true }),
-    "reject",
-  );
+  await assertMemberWrite("bought linked", wantedBought({ Flour: true }, { name: "Flour", itemId: "flour" }), "reject");
 });
 
 test("collection validation: a bought Assumed Ingredient is rejected", async () => {
-  await assertMemberWrite("bought assumed", withIngredient({ name: "Salt", assumed: true, bought: true }), "reject");
+  await assertMemberWrite("bought assumed", wantedBought({ Salt: true }, { name: "Salt", assumed: true }), "reject");
 });
 
-test("collection validation: bought: false is rejected", async () => {
-  await assertMemberWrite("bought false", withIngredient({ name: "Flour", bought: false }), "reject");
+test("collection validation: a boughtIngredients value that is not true is rejected", async () => {
+  await assertMemberWrite("bought false", wantedBought({ Flour: false }), "reject");
 });
 
 test("isMember() gate: a Member can set a Recipe Wanted and an Ingredient bought", async () => {
@@ -297,7 +304,7 @@ test("isMember() gate: a Member can set a Recipe Wanted and an Ingredient bought
 
   const recipe = rulesTestEnv.env.authenticatedContext(alice).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
   await assertSucceeds(recipe.update({ wanted: true }));
-  await assertSucceeds(recipe.update({ ingredients: [{ name: "Flour", bought: true }] }));
+  await assertSucceeds(recipe.update({ "boughtIngredients.Flour": true }));
 });
 
 test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient bought", async () => {
@@ -306,5 +313,5 @@ test("isMember() gate: a non-member cannot set a Recipe Wanted or an Ingredient 
 
   const recipe = rulesTestEnv.env.authenticatedContext(uid("mallory")).firestore().doc(`${RECIPES_COLLECTION}/pancakes`);
   await assertFails(recipe.update({ wanted: true }));
-  await assertFails(recipe.update({ ingredients: [{ name: "Flour", bought: true }] }));
+  await assertFails(recipe.update({ wanted: true, "boughtIngredients.Flour": true }));
 });
