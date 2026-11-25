@@ -75,6 +75,19 @@ Ingredient in the same write. `setIngredientBought` sets or clears one Ingredien
 0-based position, and throws on a Recipe that is not Wanted or an Ingredient that is Linked or
 Assumed. Both throw for an unknown or soft-deleted Recipe, and the rules refuse a non-Member.
 
+## Linking an Ingredient to an Item
+
+```ts
+import { linkIngredientToItem } from "data-platform/client";
+
+await linkIngredientToItem(db, recipeId, { position: 2, name: "Flour" }, itemId);
+```
+
+`linkIngredientToItem` links one Unlinked Ingredient to an Item and clears its `bought`. The caller
+names the Ingredient by the position and name it saw; it throws, changing nothing, when that
+position no longer holds an Ingredient of that name (the Recipe was reordered or edited) or the
+Ingredient is already Linked or Assumed. It also throws for an unknown or soft-deleted Recipe.
+
 ## The Shop for Recipe Ingredients
 
 ```ts
