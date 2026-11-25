@@ -1,12 +1,12 @@
 import { addDoc, collection, type Firestore } from "firebase/firestore";
 import { z } from "zod";
-import { RECIPES_COLLECTION, recipeId, recipeSchema, type RecipeId } from "../recipes/recipe.ts";
+import { RECIPES_COLLECTION, recipeId, recipeObjectSchema, type RecipeId } from "../recipes/recipe.ts";
 
 /**
- * What a caller supplies to add a Recipe: a live Recipe, so never a `deletedAt`, and no key the
+ * What a caller supplies to add a Recipe: a live Recipe, so never a `deletedAt` or a Bought, and no key the
  * schema does not name (the stored Recipe schema is loose; this input is strict).
  */
-export const newRecipeSchema = recipeSchema.omit({ deletedAt: true }).strict();
+export const newRecipeSchema = recipeObjectSchema.omit({ deletedAt: true, boughtIngredients: true }).strict();
 
 export type NewRecipe = z.input<typeof newRecipeSchema>;
 

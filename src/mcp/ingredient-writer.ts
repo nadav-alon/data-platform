@@ -1,14 +1,16 @@
-import { doc, runTransaction, type Firestore } from "firebase/firestore";
+import { deleteField, doc, runTransaction, type Firestore } from "firebase/firestore";
 import { z } from "zod";
 import { itemIdSchema } from "../core/item.ts";
 import {
+  BOUGHT_FIELD,
   RECIPES_COLLECTION,
   ingredientAt,
+  isUnlinked,
   liveRecipeData,
   recipeId as toRecipeId,
   recipeIdSchema,
+  recipeObjectSchema,
   recipeSchema,
-  withoutBought,
   type RecipeId,
 } from "../recipes/recipe.ts";
 
@@ -35,7 +37,7 @@ export type SetIngredientLink = z.input<typeof setIngredientLinkSchema>;
 
 /**
  * Links one Ingredient of a live Recipe to an Item, marks it assumed, or unlinks it (an empty
- * `link`), leaving its other fields as stored; linking or assuming also clears `bought`, which only an
+ * `link`), leaving its other fields as stored; linking or assuming also clears its Bought (`boughtIngredients`), which only an
  * unlinked Ingredient carries. The input is validated by `setIngredientLinkSchema`
  * (a `link` naming both an Item and Assumed is refused there) and the resulting Ingredients by the
  * Recipe schema's `ingredients` shape before anything is sent; a `ZodError` is thrown when either
@@ -50,12 +52,18 @@ export async function setIngredientLink(db: Firestore, input: SetIngredientLink)
     const recipe = recipeSchema.parse(liveRecipeData(await transaction.get(ref), id));
     const current = ingredientAt(recipe, id, position);
     const { itemId: _itemId, assumed: _assumed, ...unlinked } = current;
-    const rest = withoutBought(unlinked);
-    const base = "itemId" in link || "assumed" in link ? rest : unlinked;
     const ingredients = recipe.ingredients.map((existing, index) =>
-      index === position ? { ...base, ...link } : existing,
+      index === position ? { ...unlinked, ...link } : existing,
     );
-    transaction.update(ref, { ingredients: recipeSchema.shape.ingredients.parse(ingredients) });
+    const stillUnlinked = (name: string) => ingredients.some((i) => i.name === name && isUnlinked(i));
+    const boughtBefore = Object.keys(recipe.boughtIngredients ?? {});
+    const bought = boughtBefore.filter(stillUnlinked);
+    const update: Record<string, unknown> = { ingredients: recipeObjectSchema.shape.ingredients.parse(ingredients) };
+    if (bought.length !== boughtBefore.length) {
+      update[BOUGHT_FIELD] =
+        bought.length === 0 ? deleteField() : Object.fromEntries(bought.map((name) => [name, true]));
+    }
+    transaction.update(ref, update);
   });
   return toRecipeId(recipeId);
 }

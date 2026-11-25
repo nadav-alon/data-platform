@@ -28,8 +28,7 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 /**
  * One line of a Recipe. `itemId` links it to a Core Item; `assumed` marks a staple taken as
  * already in the house, so it never names an Item. A `unit` only means something beside a
- * `quantity`. `bought` marks an unlinked Ingredient (no Item, not assumed) of a Wanted Recipe as
- * bought; absent means not bought.
+ * `quantity`. Bought: see `Recipe.boughtIngredients`.
  */
 export const ingredientSchema = z
   .looseObject({
@@ -39,13 +38,6 @@ export const ingredientSchema = z
     quantity: z.number().positive().optional(),
     unit: z.enum(INGREDIENT_UNITS).optional(),
     prepNote: z.string().optional(),
-    bought: z.literal(true).optional(),
-  })
-  .refine((ingredient) => !(ingredient.bought === true && ingredient.itemId !== undefined), {
-    message: "An Ingredient that names an Item is never bought: its Item is what gets bought",
-  })
-  .refine((ingredient) => !(ingredient.bought === true && ingredient.assumed === true), {
-    message: "An assumed Ingredient is never bought",
   })
   .refine((ingredient) => !(ingredient.assumed === true && ingredient.itemId !== undefined), {
     message: "An assumed Ingredient must not name an Item",
@@ -58,10 +50,23 @@ export type Ingredient = z.infer<typeof ingredientSchema>;
 
 /**
  * One document with everything embedded. `wanted` says the Household wants to make it; absent
- * means not wanted. Never versioned and never hard-deleted, so its id stays
- * stable for anything that points at it.
+ * means not wanted. `boughtIngredients` holds the name of each Ingredient marked bought, keyed by
+ * name so a reorder of `ingredients` cannot move the mark to another Ingredient and one field can
+ * be written without reading the Recipe; absent or empty means none is bought. Only a Wanted Recipe
+ * has any. A name matching no unlinked Ingredient is tolerated on read, since an offline tick or another app's edit can
+ * store one and it must not make the Recipe unreadable; `setIngredientLink` prunes it. Never versioned and never hard-deleted, so its id stays stable
+ * for anything that points at it. `recipeObjectSchema` is its shape without the cross-field checks,
+ * for deriving a schema with `.omit` or `.shape`, which a refined schema does not allow.
  */
-export const recipeSchema = z.looseObject({
+/** The Recipe field holding every Bought, keyed by Ingredient name. */
+export const BOUGHT_FIELD = "boughtIngredients";
+
+/** Whether an Ingredient names neither an Item nor Assumed: the only kind that can be bought. */
+export function isUnlinked(ingredient: Ingredient): boolean {
+  return ingredient.itemId === undefined && ingredient.assumed !== true;
+}
+
+export const recipeObjectSchema = z.looseObject({
   title: z.string().min(1),
   ingredients: z.array(ingredientSchema),
   prepSteps: z.array(z.string().min(1)),
@@ -70,16 +75,17 @@ export const recipeSchema = z.looseObject({
   sourceUrl: z.string().optional(),
   notes: z.string().optional(),
   wanted: z.literal(true).optional(),
+  [BOUGHT_FIELD]: z.record(z.string().min(1), z.literal(true)).optional(),
   deletedAt: deletedAtSchema,
 });
 
-export type Recipe = z.infer<typeof recipeSchema>;
+export const recipeSchema = recipeObjectSchema.superRefine((recipe, context) => {
+  if (Object.keys(recipe.boughtIngredients ?? {}).length > 0 && recipe.wanted !== true) {
+    context.addIssue({ code: "custom", message: "Nothing is bought on a Recipe that is not Wanted" });
+  }
+});
 
-/** An Ingredient without its `bought`: what clearing it, or giving the Ingredient an Item or Assumed, leaves. */
-export function withoutBought<T extends { bought?: unknown }>(ingredient: T): Omit<T, "bought"> {
-  const { bought: _bought, ...rest } = ingredient;
-  return rest;
-}
+export type Recipe = z.infer<typeof recipeSchema>;
 
 /** A Recipe snapshot's data when it is live; throws an `Error` for an unknown or soft-deleted Recipe. */
 export function liveRecipeData(snapshot: { data(): unknown }, id: RecipeId): unknown {

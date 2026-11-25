@@ -2,7 +2,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import { connectAuthEmulator, getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { connectFirestoreEmulator, doc, getDoc, getFirestore, type Firestore } from "firebase/firestore";
+import {
+  connectFirestoreEmulator,
+  disableNetwork,
+  doc,
+  enableNetwork,
+  getDoc,
+  getDocFromServer,
+  getFirestore,
+  type Firestore,
+} from "firebase/firestore";
 import { setIngredientBought, setRecipeWanted } from "../../src/client/index.ts";
 import { RECIPES_COLLECTION, recipeId } from "../../src/recipes/recipe.ts";
 import { seedHousehold, seedMember, seedRecipe } from "./seed.ts";
@@ -44,19 +53,19 @@ test("a Member sets a Recipe Wanted, buys an Unlinked Ingredient, and un-Wanting
   await asUser("member@example.com", async (db, me) => {
     await seedMember(rulesTestEnv.env, uid(me));
 
-    await assert.rejects(setIngredientBought(db, pancakes, 0, true), /not Wanted/);
+    await assert.rejects(setIngredientBought(db, pancakes, "Flour", true), { code: "permission-denied" });
     await setRecipeWanted(db, pancakes, true);
-    await setIngredientBought(db, pancakes, 0, true);
-    assert.deepEqual(await stored(db).then((d) => [d?.wanted, d?.ingredients[0]]), [true, { name: "Flour", bought: true }]);
+    await setIngredientBought(db, pancakes, "Flour", true);
+    assert.deepEqual(await stored(db).then((d) => [d?.wanted, d?.boughtIngredients]), [true, { Flour: true }]);
 
-    await setIngredientBought(db, pancakes, 0, false);
-    assert.deepEqual((await stored(db))?.ingredients[0], { name: "Flour" });
+    await setIngredientBought(db, pancakes, "Flour", false);
+    assert.deepEqual((await stored(db))?.boughtIngredients, {});
 
-    await setIngredientBought(db, pancakes, 0, true);
+    await setIngredientBought(db, pancakes, "Flour", true);
     await setRecipeWanted(db, pancakes, false);
     const after = await stored(db);
     assert.equal("wanted" in (after ?? {}), false);
-    assert.deepEqual(after?.ingredients[0], { name: "Flour" });
+    assert.equal("boughtIngredients" in (after ?? {}), false);
   });
 });
 
@@ -65,6 +74,28 @@ test("a non-Member's Wanted and bought writes are refused by the rules", async (
   await seedRecipe(rulesTestEnv.env, "pancakes");
   await asUser("mallory@example.com", async (db) => {
     await assert.rejects(setRecipeWanted(db, pancakes, true), { code: "permission-denied" });
-    await assert.rejects(setIngredientBought(db, pancakes, 0, true), { code: "permission-denied" });
+    await assert.rejects(setIngredientBought(db, pancakes, "Flour", true), { code: "permission-denied" });
+  });
+});
+
+test("offline, a tick applies to the local cache at once and reaches the server when the connection returns", async () => {
+  await seedHousehold(rulesTestEnv.env, uid("alice"));
+  await seedRecipe(rulesTestEnv.env, "pancakes");
+  await asUser("member@example.com", async (db, me) => {
+    await seedMember(rulesTestEnv.env, uid(me));
+    await setRecipeWanted(db, pancakes, true);
+    await getDoc(doc(db, RECIPES_COLLECTION, pancakes));
+
+    await disableNetwork(db);
+    const pending = setIngredientBought(db, pancakes, "Flour", true);
+    const cached = await getDoc(doc(db, RECIPES_COLLECTION, pancakes));
+    assert.equal(cached.metadata.hasPendingWrites, true);
+    assert.deepEqual(cached.data()?.boughtIngredients, { Flour: true });
+
+    await enableNetwork(db);
+    await pending;
+    const server = await getDocFromServer(doc(db, RECIPES_COLLECTION, pancakes));
+    assert.equal(server.metadata.hasPendingWrites, false);
+    assert.deepEqual(server.data()?.boughtIngredients, { Flour: true });
   });
 });

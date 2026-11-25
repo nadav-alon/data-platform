@@ -554,9 +554,9 @@ service cloud.firestore {
 
     /**
      * Matches `ingredientSchema`: `assumed` never beside `itemId`, `unit` only beside `quantity`,
-     * `bought` only on an Ingredient that names no Item and is not assumed, `quantity` a finite positive number.
-     * `isValidIngredients` runs it on the first Ingredient only, so `bought` beside an `itemId`,
-     * `assumed`, or an infinite `quantity` at a later position is refused by the schema but not by these rules.
+     * `quantity` a finite positive number.
+     * `isValidIngredients` runs it on the first Ingredient only, so an infinite `quantity` at a later
+     * position is refused by the schema but not by these rules.
      */
     function isValidIngredient(ingredient) {
       return ingredient is map
@@ -567,9 +567,7 @@ service cloud.firestore {
         && (!('unit' in ingredient)
           || (ingredient.unit in ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'piece']
             && 'quantity' in ingredient))
-        && (!('prepNote' in ingredient) || ingredient.prepNote is string)
-        && (!('bought' in ingredient)
-          || (ingredient.bought == true && !('itemId' in ingredient) && !('assumed' in ingredient)));
+        && (!('prepNote' in ingredient) || ingredient.prepNote is string);
     }
 
     /** Matches `z.array(ingredientSchema)`. Only the first element is checked: rules can't loop over a list. */
@@ -582,6 +580,24 @@ service cloud.firestore {
       return value is list && (value.size() == 0 || isNonEmptyString(value[0]));
     }
 
+    /**
+     * Matches `recipeSchema`'s `boughtIngredients`: every value `true`, and none at all unless the
+     * Recipe is Wanted. A name is refused when it is the first Ingredient's and that Ingredient names an
+     * Item or is assumed; rules can't loop over the list, so a later Ingredient's name is not checked
+     * (the schema checks it).
+     */
+    function isValidBought(data) {
+      return !('boughtIngredients' in data)
+        || (data.boughtIngredients is map
+          && data.boughtIngredients.values().hasOnly([true])
+          && (data.boughtIngredients.size() == 0 || ('wanted' in data && data.wanted == true))
+          && !(data.ingredients is list
+            && data.ingredients.size() > 0
+            && data.ingredients[0] is map
+            && ('itemId' in data.ingredients[0] || 'assumed' in data.ingredients[0])
+            && data.boughtIngredients.keys().hasAny([data.ingredients[0].name])));
+    }
+
     /** Matches `recipeSchema`: extra fields tolerate additive evolution. */
     function isValidRecipe(data) {
       return isNonEmptyString(data.title)
@@ -592,6 +608,7 @@ service cloud.firestore {
         && (!('sourceUrl' in data) || data.sourceUrl is string)
         && (!('notes' in data) || data.notes is string)
         && (!('wanted' in data) || data.wanted == true)
+        && isValidBought(data)
         && isValidDeletedAt(data);
     }
 
