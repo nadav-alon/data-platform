@@ -91,7 +91,8 @@ import { linkIngredientToItem } from "data-platform/client";
 await linkIngredientToItem(db, recipeId, { position: 2, name: "Flour" }, itemId);
 ```
 
-`linkIngredientToItem` links one Unlinked Ingredient to an Item and clears its `bought`. The caller
+`linkIngredientToItem` links one Unlinked Ingredient to an Item and drops its name from the Recipe's
+`boughtIngredients` unless another Unlinked Ingredient of that name remains. The caller
 names the Ingredient by the position and name it saw; it throws, changing nothing, when that
 position no longer holds an Ingredient of that name or the Ingredient is already Linked or
 Assumed. Only the name is compared, so a swap of two same-named Ingredients, or an edit that keeps

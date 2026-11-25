@@ -1,11 +1,13 @@
-import { doc, runTransaction, type Firestore } from "firebase/firestore";
+import { deleteField, doc, runTransaction, type Firestore } from "firebase/firestore";
 import type { ItemId } from "../core/item.ts";
 import {
+  BOUGHT_FIELD,
   RECIPES_COLLECTION,
   ingredientAt,
+  isUnlinked,
   liveRecipeData,
+  recipeObjectSchema,
   recipeSchema,
-  withoutBought,
   type RecipeId,
 } from "../recipes/recipe.ts";
 
@@ -24,8 +26,8 @@ export type SeenIngredient = {
 };
 
 /**
- * Links one Unlinked Ingredient of a live Recipe to an Item, clearing its `bought`, which only an
- * Unlinked Ingredient carries. The Ingredient is named by the position and name the caller saw;
+ * Links one Unlinked Ingredient of a live Recipe to an Item, clearing its Bought (`boughtIngredients`)
+ * when no other Unlinked Ingredient of that name remains, since only an Unlinked Ingredient carries one. The Ingredient is named by the position and name the caller saw;
  * it throws, writing nothing, when that position no longer holds an Ingredient of that name or when the Ingredient there is already Linked or
  * Assumed. Only the name at the position is compared: a swap of two same-named Ingredients, or an
  * edit that keeps the name, is not detected. Also throws for an unknown or soft-deleted Recipe or a position that is not a
@@ -63,11 +65,17 @@ export async function linkIngredientToItemWith(
     if (current.itemId !== undefined || current.assumed === true) {
       throw new Error(`Ingredient ${seen.position} of Recipe ${JSON.stringify(id)} is not unlinked`);
     }
-    const ingredients = recipeSchema.shape.ingredients.parse(
-      recipe.ingredients.map((existing, index) =>
-        index === seen.position ? { ...withoutBought(existing), itemId } : existing,
-      ),
+    const ingredients = recipeObjectSchema.shape.ingredients.parse(
+      recipe.ingredients.map((existing, index) => (index === seen.position ? { ...existing, itemId } : existing)),
     );
-    transaction.update(ref, { ingredients });
+    const stillUnlinked = (name: string) => ingredients.some((i) => i.name === name && isUnlinked(i));
+    const boughtBefore = Object.keys(recipe.boughtIngredients ?? {});
+    const bought = boughtBefore.filter(stillUnlinked);
+    const update: Record<string, unknown> = { ingredients };
+    if (bought.length !== boughtBefore.length) {
+      update[BOUGHT_FIELD] =
+        bought.length === 0 ? deleteField() : Object.fromEntries(bought.map((name) => [name, true]));
+    }
+    transaction.update(ref, update);
   });
 }

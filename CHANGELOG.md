@@ -16,6 +16,8 @@ Redeploy `firestore.rules`: they now accept `boughtIngredients` on a Recipe, and
   local cache at once and reaches the server when the connection returns offline. It no longer throws
   for a Recipe that is not Wanted or an Ingredient that is Linked or Assumed; the rules refuse those.
   `setRecipeWanted` stays a transaction and clears `boughtIngredients` when it un-Wants.
+- **Client**: `linkIngredientToItem` drops the linked Ingredient's name from `boughtIngredients`
+  instead of clearing `bought` on the Ingredient.
 - **MCP**: `set_ingredient_link` drops the Ingredient's Bought when it links or assumes it.
 
 ## v0.24.0

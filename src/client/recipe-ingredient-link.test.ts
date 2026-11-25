@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Firestore } from "firebase/firestore";
+import { deleteField, type Firestore } from "firebase/firestore";
 import { itemId } from "../core/item.ts";
 import { recipeId } from "../recipes/recipe.ts";
 import { linkIngredientToItemWith, type RecipeIngredientLinkDeps } from "./recipe-ingredient-link.ts";
@@ -25,7 +25,7 @@ function fakeStore(data: Record<string, unknown> | undefined) {
 const recipe = (extra: Record<string, unknown> = {}) => ({
   title: "Pancakes",
   ingredients: [
-    { name: "Flour", quantity: 200, bought: true },
+    { name: "Flour", quantity: 200 },
     { name: "Milk", itemId: "milk" },
     { name: "Salt", assumed: true },
   ],
@@ -34,7 +34,7 @@ const recipe = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-test("linkIngredientToItem links the seen Unlinked Ingredient, clearing bought, and leaves the others", async () => {
+test("linkIngredientToItem links the seen Unlinked Ingredient and leaves the others", async () => {
   const { deps, updates } = fakeStore(recipe());
   await linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, itemId("flour"));
   assert.deepEqual(updates, [
@@ -46,6 +46,34 @@ test("linkIngredientToItem links the seen Unlinked Ingredient, clearing bought, 
       ],
     },
   ]);
+});
+
+test("linkIngredientToItem drops the linked Ingredient's Bought and keeps the others", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({
+      wanted: true,
+      ingredients: [{ name: "Flour" }, { name: "Sugar" }],
+      boughtIngredients: { Flour: true, Sugar: true },
+    }),
+  );
+  await linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, itemId("flour"));
+  assert.deepEqual(updates[0]?.boughtIngredients, { Sugar: true });
+});
+
+test("linkIngredientToItem deletes boughtIngredients when it held only the linked Ingredient", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({ wanted: true, ingredients: [{ name: "Flour" }], boughtIngredients: { Flour: true } }),
+  );
+  await linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, itemId("flour"));
+  assert.deepEqual(updates[0]?.boughtIngredients, deleteField());
+});
+
+test("linkIngredientToItem keeps a Bought another Unlinked Ingredient of the same name still carries", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({ wanted: true, ingredients: [{ name: "Flour" }, { name: "Flour" }], boughtIngredients: { Flour: true } }),
+  );
+  await linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, itemId("flour"));
+  assert.equal("boughtIngredients" in (updates[0] ?? {}), false);
 });
 
 test("linkIngredientToItem refuses a Linked and an Assumed Ingredient, changing nothing", async () => {
