@@ -18,6 +18,10 @@ function fakeStore(data: Record<string, unknown> | undefined) {
   const deps = {
     doc: ((_db: Firestore, ...path: string[]) => ({ path: path.join("/") })) as unknown as RecipeWantedDeps["doc"],
     deleteField: (() => DELETE) as unknown as RecipeWantedDeps["deleteField"],
+    updateDoc: (async () => {
+      throw new Error("no updateDoc expected");
+    }) as unknown as RecipeWantedDeps["updateDoc"],
+    FieldPath: class {} as unknown as RecipeWantedDeps["FieldPath"],
     runTransaction: (async (_db: Firestore, body: (t: unknown) => Promise<void>) =>
       body({
         get: async () => ({ data: () => data }),
@@ -27,13 +31,35 @@ function fakeStore(data: Record<string, unknown> | undefined) {
   return { deps, updates };
 }
 
-const recipe = (extra: Record<string, unknown> = {}, flourBought = true) => ({
+/** Deps whose `updateDoc` records the field path and value it was given, never touching a transaction. */
+function fakeFieldWrites() {
+  const calls: { path: string; field: string[]; value: unknown }[] = [];
+  const deps = {
+    doc: ((_db: Firestore, ...path: string[]) => ({ path: path.join("/") })) as unknown as RecipeWantedDeps["doc"],
+    deleteField: (() => DELETE) as unknown as RecipeWantedDeps["deleteField"],
+    FieldPath: class {
+      readonly segments: string[];
+      constructor(...segments: string[]) {
+        this.segments = segments;
+      }
+    } as unknown as RecipeWantedDeps["FieldPath"],
+    updateDoc: (async (ref: { path: string }, field: { segments: string[] }, value: unknown) => {
+      calls.push({ path: ref.path, field: field.segments, value });
+    }) as unknown as RecipeWantedDeps["updateDoc"],
+    runTransaction: (async () => {
+      throw new Error("no transaction expected");
+    }) as unknown as RecipeWantedDeps["runTransaction"],
+  } as RecipeWantedDeps;
+  return { deps, calls };
+}
+
+const recipe = (extra: Record<string, unknown> = {}) => ({
   title: "Pancakes",
   ingredients: [
-    flourBought ? { name: "Flour", bought: true } : { name: "Flour" },
+    { name: "Flour" },
     { name: "Milk", itemId: "milk" },
     { name: "Salt", assumed: true },
-    { name: "Eggs", quantity: 2, bought: true },
+    { name: "Eggs", quantity: 2 },
   ],
   prepSteps: [],
   steps: ["Mix"],
@@ -46,20 +72,10 @@ test("setRecipeWanted(true) sets wanted and nothing else", async () => {
   assert.deepEqual(updates, [{ wanted: true }]);
 });
 
-test("setRecipeWanted(false) clears wanted and every Ingredient's bought in the same write", async () => {
-  const { deps, updates } = fakeStore(recipe({ wanted: true }));
+test("setRecipeWanted(false) clears wanted and every Bought in the same write", async () => {
+  const { deps, updates } = fakeStore(recipe({ wanted: true, boughtIngredients: { Flour: true, Eggs: true } }));
   await setRecipeWantedWith(deps, db, id, false);
-  assert.deepEqual(updates, [
-    {
-      wanted: DELETE,
-      ingredients: [
-        { name: "Flour" },
-        { name: "Milk", itemId: "milk" },
-        { name: "Salt", assumed: true },
-        { name: "Eggs", quantity: 2 },
-      ],
-    },
-  ]);
+  assert.deepEqual(updates, [{ wanted: DELETE, boughtIngredients: DELETE }]);
 });
 
 test("setRecipeWanted refuses an unknown and a soft-deleted Recipe", async () => {
@@ -69,49 +85,24 @@ test("setRecipeWanted refuses an unknown and a soft-deleted Recipe", async () =>
   assert.deepEqual(deleted.updates, []);
 });
 
-test("setIngredientBought sets one Unlinked Ingredient bought on a Wanted Recipe", async () => {
-  const { deps, updates } = fakeStore(recipe({ wanted: true }, false));
-  await setIngredientBoughtWith(deps, db, id, 0, true);
-  assert.deepEqual(updates, [
-    {
-      ingredients: [
-        { name: "Flour", bought: true },
-        { name: "Milk", itemId: "milk" },
-        { name: "Salt", assumed: true },
-        { name: "Eggs", quantity: 2, bought: true },
-      ],
-    },
+test("setIngredientBought writes the one boughtIngredients field by name, with no transaction", async () => {
+  const { deps, calls } = fakeFieldWrites();
+  await setIngredientBoughtWith(deps, db, id, "Flour", true);
+  await setIngredientBoughtWith(deps, db, id, "Flour", false);
+  assert.deepEqual(calls, [
+    { path: "recipes/pancakes", field: ["boughtIngredients", "Flour"], value: true },
+    { path: "recipes/pancakes", field: ["boughtIngredients", "Flour"], value: DELETE },
   ]);
 });
 
-test("setIngredientBought clears one Ingredient's bought and leaves the others", async () => {
-  const { deps, updates } = fakeStore(recipe({ wanted: true }));
-  await setIngredientBoughtWith(deps, db, id, 3, false);
-  assert.deepEqual(updates[0]?.ingredients, [
-    { name: "Flour", bought: true },
-    { name: "Milk", itemId: "milk" },
-    { name: "Salt", assumed: true },
-    { name: "Eggs", quantity: 2 },
-  ]);
+test("setIngredientBought keeps a dotted name as one key", async () => {
+  const { deps, calls } = fakeFieldWrites();
+  await setIngredientBoughtWith(deps, db, id, "Salt, 1.5 tsp", true);
+  assert.deepEqual(calls[0]?.field, ["boughtIngredients", "Salt, 1.5 tsp"]);
 });
 
-test("setIngredientBought refuses on a Recipe that is not Wanted", async () => {
-  const { deps, updates } = fakeStore(recipe());
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 0, true), /not Wanted/);
-  assert.deepEqual(updates, []);
-});
-
-test("setIngredientBought refuses a Linked Ingredient, an Assumed one and a missing position", async () => {
-  const { deps, updates } = fakeStore(recipe({ wanted: true }));
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 1, true), /not unlinked/);
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 2, true), /not unlinked/);
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 9, true), /no Ingredient 9/);
-  assert.deepEqual(updates, []);
-});
-
-test("setIngredientBought refuses a position that is not a non-negative integer, touching nothing", async () => {
-  const { deps, updates } = fakeStore(recipe({ wanted: true }));
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, -1, true), /non-negative integer/);
-  await assert.rejects(setIngredientBoughtWith(deps, db, id, 0.5, true), /non-negative integer/);
-  assert.deepEqual(updates, []);
+test("setIngredientBought refuses an empty name, writing nothing", async () => {
+  const { deps, calls } = fakeFieldWrites();
+  await assert.rejects(setIngredientBoughtWith(deps, db, id, "", true), /name must not be empty/);
+  assert.deepEqual(calls, []);
 });

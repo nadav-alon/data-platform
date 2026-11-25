@@ -44,19 +44,19 @@ test("a Member sets a Recipe Wanted, buys an Unlinked Ingredient, and un-Wanting
   await asUser("member@example.com", async (db, me) => {
     await seedMember(rulesTestEnv.env, uid(me));
 
-    await assert.rejects(setIngredientBought(db, pancakes, 0, true), /not Wanted/);
+    await assert.rejects(setIngredientBought(db, pancakes, "Flour", true), { code: "permission-denied" });
     await setRecipeWanted(db, pancakes, true);
-    await setIngredientBought(db, pancakes, 0, true);
-    assert.deepEqual(await stored(db).then((d) => [d?.wanted, d?.ingredients[0]]), [true, { name: "Flour", bought: true }]);
+    await setIngredientBought(db, pancakes, "Flour", true);
+    assert.deepEqual(await stored(db).then((d) => [d?.wanted, d?.boughtIngredients]), [true, { Flour: true }]);
 
-    await setIngredientBought(db, pancakes, 0, false);
-    assert.deepEqual((await stored(db))?.ingredients[0], { name: "Flour" });
+    await setIngredientBought(db, pancakes, "Flour", false);
+    assert.deepEqual((await stored(db))?.boughtIngredients, {});
 
-    await setIngredientBought(db, pancakes, 0, true);
+    await setIngredientBought(db, pancakes, "Flour", true);
     await setRecipeWanted(db, pancakes, false);
     const after = await stored(db);
     assert.equal("wanted" in (after ?? {}), false);
-    assert.deepEqual(after?.ingredients[0], { name: "Flour" });
+    assert.equal("boughtIngredients" in (after ?? {}), false);
   });
 });
 
@@ -65,6 +65,6 @@ test("a non-Member's Wanted and bought writes are refused by the rules", async (
   await seedRecipe(rulesTestEnv.env, "pancakes");
   await asUser("mallory@example.com", async (db) => {
     await assert.rejects(setRecipeWanted(db, pancakes, true), { code: "permission-denied" });
-    await assert.rejects(setIngredientBought(db, pancakes, 0, true), { code: "permission-denied" });
+    await assert.rejects(setIngredientBought(db, pancakes, "Flour", true), { code: "permission-denied" });
   });
 });
