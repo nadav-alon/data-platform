@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { ZodError } from "zod";
 import { readRecipes } from "../../src/mcp/household-reader.ts";
 import { setIngredientBought, setRecipeWanted } from "../../src/client/index.ts";
-import { recipeId } from "../../src/recipes/recipe.ts";
+import { doc, getDoc } from "firebase/firestore";
+import { RECIPES_COLLECTION, recipeId } from "../../src/recipes/recipe.ts";
 import { setIngredientLink, type IngredientLink } from "../../src/mcp/ingredient-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
@@ -127,10 +128,26 @@ test("the set_ingredient_link tool updates an Ingredient, and returns an error r
   }
 });
 
+async function boughtOf(db: Parameters<typeof readRecipes>[0], id: string) {
+  const data = (await getDoc(doc(db, RECIPES_COLLECTION, id))).data();
+  return data?.boughtIngredients as Record<string, true> | undefined;
+}
+
+async function nameOfFirst(db: Parameters<typeof readRecipes>[0]): Promise<string> {
+  const name = (await ingredientsOf(db, "banana-bread"))?.[0]?.name;
+  assert.equal(typeof name, "string");
+  return name as string;
+}
+
+async function isBought(db: Parameters<typeof readRecipes>[0]): Promise<boolean> {
+  const name = await nameOfFirst(db);
+  return (await boughtOf(db, "banana-bread"))?.[name] === true;
+}
+
 async function boughtBananaBread(db: Parameters<typeof readRecipes>[0]) {
   await setRecipeWanted(db, recipeId("banana-bread"), true);
-  await setIngredientBought(db, recipeId("banana-bread"), 0, true);
-  assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, true);
+  await setIngredientBought(db, recipeId("banana-bread"), await nameOfFirst(db), true);
+  assert.equal(await isBought(db), true);
 }
 
 test("setIngredientLink drops bought when it links or assumes a bought Ingredient", async () => {
@@ -139,14 +156,14 @@ test("setIngredientLink drops bought when it links or assumes a bought Ingredien
   try {
     await boughtBananaBread(db);
     await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: { itemId: "milk" } });
-    assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, undefined);
+    assert.equal(await isBought(db), false);
 
     await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: {} });
     await boughtBananaBread(db);
     await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: { assumed: true } });
     const assumed = (await ingredientsOf(db, "banana-bread"))?.[0];
     assert.equal(assumed?.assumed, true);
-    assert.equal(assumed?.bought, undefined);
+    assert.equal(await isBought(db), false);
   } finally {
     await close();
   }
@@ -158,7 +175,7 @@ test("setIngredientLink keeps bought when it unlinks an Ingredient", async () =>
   try {
     await boughtBananaBread(db);
     await setIngredientLink(db, { recipeId: "banana-bread", ingredient: 0, link: {} });
-    assert.equal((await ingredientsOf(db, "banana-bread"))?.[0]?.bought, true);
+    assert.equal(await isBought(db), true);
   } finally {
     await close();
   }
