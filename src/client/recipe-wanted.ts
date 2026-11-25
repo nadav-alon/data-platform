@@ -51,9 +51,10 @@ export async function setRecipeWantedWith(
  * can be reordered between a snapshot and the tick without moving the mark. It is one
  * field write, not a transaction, so it applies to the local cache at once and, offline, reaches
  * the server when the connection returns; the returned promise settles only once the server has
- * answered. Nothing is read first, so a Recipe that is not Wanted, or an Ingredient that is linked,
- * assumed or missing, is not refused here: `firestore.rules` refuse it, rejecting with
- * `permission-denied` once online.
+ * answered. Nothing is read first, so nothing is refused here: `firestore.rules` refuse a Bought on a
+ * Recipe that is not Wanted, and on the Recipe's first Ingredient when that one is linked or assumed,
+ * rejecting with `permission-denied` once online. They do not check a later Ingredient, nor that `name`
+ * names an Ingredient at all, so a stale name can be stored; reading tolerates it.
  */
 export function setIngredientBought(
   db: Firestore,
