@@ -103,10 +103,14 @@ URL and notes. It is _Wanted_ when the Household wants to make it (`wanted`). So
 One line of a Recipe: a name, optionally the Item it names (`itemId`), a quantity with an optional
 unit (a unit needs a quantity), and a prep note. It is _assumed_ when the Recipe takes it for granted
 (`assumed`, like salt): an assumed Ingredient never names an Item. An Ingredient that names no Item and is not assumed
-is _unlinked_, and only an unlinked Ingredient can be _bought_ (`bought`). The Wanted part is a
-client guarantee, not a schema invariant: `setIngredientBought` refuses a Recipe that is not Wanted and
-`setRecipeWanted` clears `bought` when it un-Wants, but the schema and rules accept `bought` on a Recipe
-that is not Wanted.
+is _unlinked_, and only an unlinked Ingredient of a Wanted Recipe can be _bought_. Bought lives on the
+Recipe, not the Ingredient: `boughtIngredients` maps the bought Ingredient's name to `true`, so reordering
+a Recipe's Ingredients never moves it, and `setIngredientBought` writes it as one field, with no read, so
+it works offline. The rules refuse a Bought on a Recipe that is not Wanted, and on the first Ingredient when
+it names an Item or is assumed; they cannot loop over a later Ingredient, so the schema, `setIngredientLink`
+and the client's callers keep that part. `setRecipeWanted` clears every Bought when it un-Wants. Two
+Ingredients with one name are bought together. A `bought` flag stored on an Ingredient by an earlier
+version is ignored: it reads as not bought.
 
 **Soft delete**:
 Marking an Item, CatalogueItem, Category, Shop, Tag, Aisle, Store, Recipe, Food or Log Entry deleted with

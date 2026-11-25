@@ -66,14 +66,22 @@ a network or programming error.
 import { setRecipeWanted, setIngredientBought } from "data-platform/client";
 
 await setRecipeWanted(db, recipeId, true);
-await setIngredientBought(db, recipeId, 0, true); // Ingredient 0 of the Recipe
-await setRecipeWanted(db, recipeId, false); // also clears every Ingredient's `bought`
+await setIngredientBought(db, recipeId, "Flour", true); // the Ingredient named "Flour"
+await setRecipeWanted(db, recipeId, false); // also clears every Bought
 ```
 
-`setRecipeWanted` sets or clears a live Recipe's `wanted`; not Wanted clears `bought` from every
-Ingredient in the same write. `setIngredientBought` sets or clears one Ingredient's `bought` by its
-0-based position, and throws on a Recipe that is not Wanted or an Ingredient that is Linked or
-Assumed. Both throw for an unknown or soft-deleted Recipe, and the rules refuse a non-Member.
+`setRecipeWanted` is a transaction: it sets or clears a live Recipe's `wanted`, and not Wanted clears
+`boughtIngredients` in the same write. It throws for an unknown or soft-deleted Recipe.
+
+`setIngredientBought` sets or clears one Ingredient's Bought, keyed by the Ingredient's name in the
+Recipe's `boughtIngredients` map, so a reorder of the Recipe's Ingredients cannot move it. It is one
+field write with no read, so it works offline: the local cache changes at once and the write reaches
+the server when the connection returns. Do not wait on the promise to update the screen; it settles
+only once the server answers. Because nothing is read, the client does not refuse a Recipe that is not
+Wanted or an Ingredient that is Linked or Assumed: the rules do, and the write rejects with
+`permission-denied` when it reaches the server. The rules can check only the first Ingredient for
+Linked or Assumed, so a caller should tick Unlinked Ingredients only. Clearing the last Bought leaves
+an empty `boughtIngredients`, which reads as none. The rules refuse a non-Member.
 
 ## Linking an Ingredient to an Item
 

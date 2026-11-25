@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.25.0
+
+Redeploy `firestore.rules`: they now accept `boughtIngredients` on a Recipe, and no longer look at
+`bought` on an Ingredient.
+
+- **Recipes (breaking)**: an Ingredient's Bought moves from `bought: true` on the Ingredient to the
+  Recipe's `boughtIngredients`, a map from the Ingredient's name to `true`, so a reorder of the
+  Ingredients cannot mark another one. `bought` on an Ingredient is no longer part of the schema; one
+  already stored is ignored (the Ingredient reads as not bought) and nothing is migrated. The rules
+  refuse a Bought on a Recipe that is not Wanted, and on the first Ingredient when it names an Item or
+  is assumed.
+- **Client (breaking)**: `setIngredientBought(db, recipeId, name, bought)` takes the Ingredient's name
+  instead of its position, and is one field write rather than a transaction, so it applies to the
+  local cache at once and reaches the server when the connection returns offline. It no longer throws
+  for a Recipe that is not Wanted or an Ingredient that is Linked or Assumed; the rules refuse those.
+  `setRecipeWanted` stays a transaction and clears `boughtIngredients` when it un-Wants.
+- **MCP**: `set_ingredient_link` drops the Ingredient's Bought when it links or assumes it.
+
 ## v0.24.0
 
 - **Client**: `linkIngredientToItem(db, recipeId, { position, name }, itemId)` links one Unlinked
