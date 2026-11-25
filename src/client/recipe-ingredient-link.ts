@@ -26,9 +26,9 @@ export type SeenIngredient = {
 /**
  * Links one Unlinked Ingredient of a live Recipe to an Item, clearing its `bought`, which only an
  * Unlinked Ingredient carries. The Ingredient is named by the position and name the caller saw;
- * it throws, writing nothing, when that position no longer holds an Ingredient of that name (the
- * Recipe's Ingredients were reordered or edited) or when the Ingredient there is already Linked or
- * Assumed. Also throws for an unknown or soft-deleted Recipe or a position that is not a
+ * it throws, writing nothing, when that position no longer holds an Ingredient of that name or when the Ingredient there is already Linked or
+ * Assumed. Only the name at the position is compared: a swap of two same-named Ingredients, or an
+ * edit that keeps the name, is not detected. Also throws for an unknown or soft-deleted Recipe or a position that is not a
  * non-negative integer. The write is checked by `firestore.rules` as the signed-in Member.
  */
 export function linkIngredientToItem(
@@ -63,8 +63,10 @@ export async function linkIngredientToItemWith(
     if (current.itemId !== undefined || current.assumed === true) {
       throw new Error(`Ingredient ${seen.position} of Recipe ${JSON.stringify(id)} is not unlinked`);
     }
-    const ingredients = recipe.ingredients.map((existing, index) =>
-      index === seen.position ? { ...withoutBought(existing), itemId } : existing,
+    const ingredients = recipeSchema.shape.ingredients.parse(
+      recipe.ingredients.map((existing, index) =>
+        index === seen.position ? { ...withoutBought(existing), itemId } : existing,
+      ),
     );
     transaction.update(ref, { ingredients });
   });

@@ -85,8 +85,9 @@ await linkIngredientToItem(db, recipeId, { position: 2, name: "Flour" }, itemId)
 
 `linkIngredientToItem` links one Unlinked Ingredient to an Item and clears its `bought`. The caller
 names the Ingredient by the position and name it saw; it throws, changing nothing, when that
-position no longer holds an Ingredient of that name (the Recipe was reordered or edited) or the
-Ingredient is already Linked or Assumed. It also throws for an unknown or soft-deleted Recipe.
+position no longer holds an Ingredient of that name or the Ingredient is already Linked or
+Assumed. Only the name is compared, so a swap of two same-named Ingredients, or an edit that keeps
+the name, is not detected. It also throws for an unknown or soft-deleted Recipe.
 
 ## The Shop for Recipe Ingredients
 

@@ -91,3 +91,30 @@ test("linkIngredientToItem refuses a bad position, an unknown and a soft-deleted
   );
   assert.deepEqual([...updates, ...deleted.updates], []);
 });
+
+test("linkIngredientToItem compares only the name: a swap of two same-named Ingredients is not detected", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({
+      ingredients: [
+        { name: "Flour", quantity: 500, prepNote: "topping" },
+        { name: "Sugar" },
+        { name: "Flour", quantity: 200, prepNote: "dough" },
+      ],
+    }),
+  );
+  // The caller saw the dough Flour at position 0; the two Flours have since swapped.
+  await linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, itemId("flour"));
+  assert.deepEqual(updates[0]?.ingredients, [
+    { name: "Flour", quantity: 500, prepNote: "topping", itemId: "flour" },
+    { name: "Sugar" },
+    { name: "Flour", quantity: 200, prepNote: "dough" },
+  ]);
+});
+
+test("linkIngredientToItem refuses an Item id that is not a valid ItemId, writing nothing", async () => {
+  const { deps, updates } = fakeStore(recipe());
+  await assert.rejects(
+    linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, "" as ReturnType<typeof itemId>),
+  );
+  assert.deepEqual(updates, []);
+});
