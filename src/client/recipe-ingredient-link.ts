@@ -65,18 +65,24 @@ export async function linkIngredientToItemWith(
   if (!Number.isInteger(seen.position) || seen.position < 0) {
     throw new Error(`Ingredient position must be a non-negative integer, got ${seen.position}`);
   }
-  const ref = deps.doc(db, RECIPES_COLLECTION, id);
-  const recipe = recipeSchema.parse(liveRecipeData(await deps.getDoc(ref), id));
+  const { ref, recipe } = await readLiveRecipe(deps, db, id);
   const current = ingredientAt(recipe, id, seen.position);
   if (current.name !== seen.name) {
     throw new Error(
       `Ingredient ${seen.position} of Recipe ${JSON.stringify(id)} is no longer ${JSON.stringify(seen.name)}`,
     );
   }
-  if (current.itemId !== undefined || current.assumed === true) {
+  if (!isUnlinked(current)) {
     throw new Error(`Ingredient ${seen.position} of Recipe ${JSON.stringify(id)} is not unlinked`);
   }
   await deps.updateDoc(ref, linkUpdate(recipe, [seen.position], itemId));
+}
+
+/** The reference to a Recipe and its live data; throws for an unknown or soft-deleted Recipe. */
+async function readLiveRecipe(deps: RecipeIngredientLinkDeps, db: Firestore, id: RecipeId) {
+  const ref = deps.doc(db, RECIPES_COLLECTION, id);
+  const recipe = recipeSchema.parse(liveRecipeData(await deps.getDoc(ref), id));
+  return { ref, recipe };
 }
 
 /**
@@ -104,8 +110,10 @@ function linkUpdate(recipe: Recipe, positions: readonly number[], itemId: ItemId
  * named by the position and name the caller saw. It throws, writing nothing, naming every stale
  * position: one that no longer holds an Ingredient of that name, or whose Ingredient is already
  * Linked or Assumed. It also throws for a position repeated or not a non-negative integer, and for
- * an unknown or soft-deleted Recipe. An empty list writes nothing. Reading, offline behaviour and
- * the checks the write cannot make are those of `linkIngredientToItem`.
+ * an unknown or soft-deleted Recipe. An empty list writes nothing. Only the name at each position
+ * is compared: a swap of two same-named Ingredients, or an edit that keeps the name, is not
+ * detected, which matters here because same-named Ingredients are what it is for. Reading, offline
+ * behaviour and the checks the write cannot make are those of `linkIngredientToItem`.
  */
 export function linkIngredientsToItem(
   db: Firestore,
@@ -134,8 +142,7 @@ export async function linkIngredientsToItemWith(
     throw new Error(`Ingredient positions must be distinct, got ${positions.join(", ")}`);
   }
   if (seen.length === 0) return;
-  const ref = deps.doc(db, RECIPES_COLLECTION, id);
-  const recipe = recipeSchema.parse(liveRecipeData(await deps.getDoc(ref), id));
+  const { ref, recipe } = await readLiveRecipe(deps, db, id);
   const stale = seen.filter((s) => {
     const current = recipe.ingredients[s.position];
     return current === undefined || current.name !== s.name || !isUnlinked(current);

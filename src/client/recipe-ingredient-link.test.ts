@@ -224,3 +224,50 @@ test("linkIngredientsToItem refuses a repeated or bad position and a missing Rec
   await linkIngredientsToItemWith(deps, db, id, [], itemId("f"));
   assert.deepEqual(updates, []);
 });
+
+test("linkIngredientsToItem refuses a soft-deleted Recipe, writing nothing", async () => {
+  const deleted = fakeStore(recipe({ deletedAt: new Date() }));
+  await assert.rejects(
+    linkIngredientsToItemWith(deleted.deps, db, id, [{ position: 0, name: "Flour" }], itemId("f")),
+    /No live Recipe/,
+  );
+  assert.deepEqual(deleted.updates, []);
+});
+
+test("linkIngredientsToItem refuses an Item id that is not a valid ItemId, writing nothing", async () => {
+  const { deps, updates } = fakeStore(recipe());
+  await assert.rejects(
+    linkIngredientsToItemWith(deps, db, id, [{ position: 0, name: "Flour" }], "" as ReturnType<typeof itemId>),
+  );
+  assert.deepEqual(updates, []);
+});
+
+test("linkIngredientsToItem deletes boughtIngredients when every Bought name gets linked", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({ wanted: true, ingredients: [{ name: "Flour" }, { name: "Flour" }], boughtIngredients: { Flour: true } }),
+  );
+  await linkIngredientsToItemWith(
+    deps,
+    db,
+    id,
+    [
+      { position: 0, name: "Flour" },
+      { position: 1, name: "Flour" },
+    ],
+    itemId("flour"),
+  );
+  assert.deepEqual(updates[0]?.boughtIngredients, deleteField());
+});
+
+test("linkIngredientsToItem counts a Linked and an Assumed Ingredient each as stale", async () => {
+  const { deps, updates } = fakeStore(recipe());
+  await assert.rejects(
+    linkIngredientsToItemWith(deps, db, id, [{ position: 1, name: "Milk" }], itemId("x")),
+    /stale Ingredient positions: 1$/,
+  );
+  await assert.rejects(
+    linkIngredientsToItemWith(deps, db, id, [{ position: 2, name: "Salt" }], itemId("x")),
+    /stale Ingredient positions: 2$/,
+  );
+  assert.deepEqual(updates, []);
+});

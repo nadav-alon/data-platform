@@ -132,8 +132,16 @@ whose Ingredient is already Linked or Assumed. It also throws for a repeated or 
 for an unknown or soft-deleted Recipe; an empty list writes nothing. The offline behaviour is that of
 `linkIngredientToItem`: one read of the Recipe (the cache when offline, `unavailable` when it is not
 cached), then one write that applies to the local cache at once and settles only once the server has
-answered, so do not wait on it to update the screen. The checks run against what was read, so an
-edit made in between is overwritten.
+answered, so do not wait on it to update the screen. If the read rejects with `unavailable`,
+nothing is queued. The checks run against what was read, so an edit made in between is overwritten,
+and a Recipe soft-deleted in between is still linked: the rules accept an `ingredients` change on a
+soft-deleted Recipe. The rules cannot repeat the position and name checks, and only the
+first-Ingredient rule still refuses a write that keeps that Ingredient's Bought.
+
+Only the name at each position is compared, so a swap of two same-named Ingredients, or an edit
+that keeps the name, is not detected. This matters more here than for `linkIngredientToItem`,
+because linking same-named Ingredients is what this function is for: if a concurrent reorder swaps
+two `Flour` rows, they still pass the stale check.
 
 ## The Shop for Recipe Ingredients
 
