@@ -8,6 +8,7 @@ import {
   liveRecipeData,
   recipeObjectSchema,
   recipeSchema,
+  type Recipe,
   type RecipeId,
 } from "../recipes/recipe.ts";
 
@@ -75,8 +76,16 @@ export async function linkIngredientToItemWith(
   if (current.itemId !== undefined || current.assumed === true) {
     throw new Error(`Ingredient ${seen.position} of Recipe ${JSON.stringify(id)} is not unlinked`);
   }
+  await deps.updateDoc(ref, linkUpdate(recipe, [seen.position], itemId));
+}
+
+/**
+ * The field write that links the Ingredients at `positions` to `itemId`, dropping the Bought
+ * (`boughtIngredients`) of every name that no longer has an Unlinked Ingredient.
+ */
+function linkUpdate(recipe: Recipe, positions: readonly number[], itemId: ItemId): Record<string, unknown> {
   const ingredients = recipeObjectSchema.shape.ingredients.parse(
-    recipe.ingredients.map((existing, index) => (index === seen.position ? { ...existing, itemId } : existing)),
+    recipe.ingredients.map((existing, index) => (positions.includes(index) ? { ...existing, itemId } : existing)),
   );
   const stillUnlinked = (name: string) => ingredients.some((i) => i.name === name && isUnlinked(i));
   const boughtBefore = Object.keys(recipe.boughtIngredients ?? {});
@@ -86,5 +95,55 @@ export async function linkIngredientToItemWith(
     update[BOUGHT_FIELD] =
       bought.length === 0 ? deleteField() : Object.fromEntries(bought.map((name) => [name, true]));
   }
-  await deps.updateDoc(ref, update);
+  return update;
+}
+
+/**
+ * Links several Unlinked Ingredients of one live Recipe to an Item in a single field write, all or
+ * nothing, with the Bought of each name dropped as `linkIngredientToItem` does. Each Ingredient is
+ * named by the position and name the caller saw. It throws, writing nothing, naming every stale
+ * position: one that no longer holds an Ingredient of that name, or whose Ingredient is already
+ * Linked or Assumed. It also throws for a position repeated or not a non-negative integer, and for
+ * an unknown or soft-deleted Recipe. An empty list writes nothing. Reading, offline behaviour and
+ * the checks the write cannot make are those of `linkIngredientToItem`.
+ */
+export function linkIngredientsToItem(
+  db: Firestore,
+  id: RecipeId,
+  seen: readonly SeenIngredient[],
+  itemId: ItemId,
+): Promise<void> {
+  return linkIngredientsToItemWith(RECIPE_INGREDIENT_LINK_DEPS, db, id, seen, itemId);
+}
+
+/** `linkIngredientsToItem` with the calls injected; `index.ts` does not export it. */
+export async function linkIngredientsToItemWith(
+  deps: RecipeIngredientLinkDeps,
+  db: Firestore,
+  id: RecipeId,
+  seen: readonly SeenIngredient[],
+  itemId: ItemId,
+): Promise<void> {
+  const positions = seen.map((s) => s.position);
+  for (const position of positions) {
+    if (!Number.isInteger(position) || position < 0) {
+      throw new Error(`Ingredient position must be a non-negative integer, got ${position}`);
+    }
+  }
+  if (new Set(positions).size !== positions.length) {
+    throw new Error(`Ingredient positions must be distinct, got ${positions.join(", ")}`);
+  }
+  if (seen.length === 0) return;
+  const ref = deps.doc(db, RECIPES_COLLECTION, id);
+  const recipe = recipeSchema.parse(liveRecipeData(await deps.getDoc(ref), id));
+  const stale = seen.filter((s) => {
+    const current = recipe.ingredients[s.position];
+    return current === undefined || current.name !== s.name || !isUnlinked(current);
+  });
+  if (stale.length > 0) {
+    throw new Error(
+      `Recipe ${JSON.stringify(id)} has stale Ingredient positions: ${stale.map((s) => s.position).join(", ")}`,
+    );
+  }
+  await deps.updateDoc(ref, linkUpdate(recipe, positions, itemId));
 }

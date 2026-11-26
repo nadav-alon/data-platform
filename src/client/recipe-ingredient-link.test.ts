@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { deleteField, type Firestore } from "firebase/firestore";
 import { itemId } from "../core/item.ts";
 import { recipeId } from "../recipes/recipe.ts";
-import { linkIngredientToItemWith, type RecipeIngredientLinkDeps } from "./recipe-ingredient-link.ts";
+import { linkIngredientToItemWith, linkIngredientsToItemWith, type RecipeIngredientLinkDeps } from "./recipe-ingredient-link.ts";
 
 const db = { name: "fake-db" } as unknown as Firestore;
 const id = recipeId("pancakes");
@@ -144,4 +144,43 @@ test("linkIngredientToItem refuses an Item id that is not a valid ItemId, writin
     linkIngredientToItemWith(deps, db, id, { position: 0, name: "Flour" }, "" as ReturnType<typeof itemId>),
   );
   assert.deepEqual(updates, []);
+});
+
+test("linkIngredientsToItem links every given Ingredient in one write and drops the Bought of each name", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({
+      wanted: true,
+      ingredients: [{ name: "Flour" }, { name: "Sugar" }, { name: "Flour" }, { name: "Salt" }],
+      boughtIngredients: { Flour: true, Sugar: true },
+    }),
+  );
+  await linkIngredientsToItemWith(
+    deps,
+    db,
+    id,
+    [
+      { position: 0, name: "Flour" },
+      { position: 2, name: "Flour" },
+    ],
+    itemId("flour"),
+  );
+  assert.deepEqual(updates, [
+    {
+      ingredients: [
+        { name: "Flour", itemId: "flour" },
+        { name: "Sugar" },
+        { name: "Flour", itemId: "flour" },
+        { name: "Salt" },
+      ],
+      boughtIngredients: { Sugar: true },
+    },
+  ]);
+});
+
+test("linkIngredientsToItem keeps a Bought while a same-named Ingredient stays Unlinked", async () => {
+  const { deps, updates } = fakeStore(
+    recipe({ wanted: true, ingredients: [{ name: "Flour" }, { name: "Flour" }], boughtIngredients: { Flour: true } }),
+  );
+  await linkIngredientsToItemWith(deps, db, id, [{ position: 0, name: "Flour" }], itemId("flour"));
+  assert.equal("boughtIngredients" in (updates[0] ?? {}), false);
 });
