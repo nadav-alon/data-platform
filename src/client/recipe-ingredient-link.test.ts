@@ -184,3 +184,43 @@ test("linkIngredientsToItem keeps a Bought while a same-named Ingredient stays U
   await linkIngredientsToItemWith(deps, db, id, [{ position: 0, name: "Flour" }], itemId("flour"));
   assert.equal("boughtIngredients" in (updates[0] ?? {}), false);
 });
+
+test("linkIngredientsToItem is all or nothing: it names every stale position and writes nothing", async () => {
+  const { deps, updates } = fakeStore(recipe());
+  await assert.rejects(
+    linkIngredientsToItemWith(
+      deps,
+      db,
+      id,
+      [
+        { position: 0, name: "Flour" },
+        { position: 1, name: "Milk" },
+        { position: 2, name: "Salt" },
+        { position: 7, name: "Gone" },
+      ],
+      itemId("x"),
+    ),
+    /stale Ingredient positions: 1, 2, 7/,
+  );
+  await assert.rejects(
+    linkIngredientsToItemWith(deps, db, id, [{ position: 0, name: "Sugar" }], itemId("x")),
+    /stale Ingredient positions: 0/,
+  );
+  assert.deepEqual(updates, []);
+});
+
+test("linkIngredientsToItem refuses a repeated or bad position and a missing Recipe, and writes nothing for an empty list", async () => {
+  const { deps, updates } = fakeStore(recipe());
+  const flour = { position: 0, name: "Flour" };
+  await assert.rejects(linkIngredientsToItemWith(deps, db, id, [flour, flour], itemId("f")), /distinct/);
+  await assert.rejects(
+    linkIngredientsToItemWith(deps, db, id, [{ position: -1, name: "Flour" }], itemId("f")),
+    /non-negative integer/,
+  );
+  await assert.rejects(
+    linkIngredientsToItemWith(fakeStore(undefined).deps, db, id, [flour], itemId("f")),
+    /No live Recipe/,
+  );
+  await linkIngredientsToItemWith(deps, db, id, [], itemId("f"));
+  assert.deepEqual(updates, []);
+});
