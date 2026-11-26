@@ -204,7 +204,10 @@ export async function seedStore(
 export async function seedRecipe(
   testEnv: RulesTestEnvironment,
   id: string,
-  { deleted = false }: { deleted?: boolean } = {},
+  {
+    deleted = false,
+    ingredients = [{ name: "Flour" }],
+  }: { deleted?: boolean; ingredients?: readonly { name: string }[] } = {},
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await context
@@ -212,7 +215,7 @@ export async function seedRecipe(
       .doc(`${RECIPES_COLLECTION}/${id}`)
       .set({
         title: "Pancakes",
-        ingredients: [{ name: "Flour" }],
+        ingredients,
         prepSteps: [],
         steps: ["Mix", "Fry"],
         ...deletedFields(deleted),

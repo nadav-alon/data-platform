@@ -29,5 +29,5 @@ export {
   UnknownShopError,
   watchRecipeIngredientShop,
 } from "./recipe-ingredient-shop.ts";
-export { linkIngredientToItem } from "./recipe-ingredient-link.ts";
+export { linkIngredientToItem, linkIngredientsToItem } from "./recipe-ingredient-link.ts";
 export type { SeenIngredient } from "./recipe-ingredient-link.ts";

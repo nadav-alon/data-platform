@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+No rules change to redeploy.
+
+- **Client**: `linkIngredientsToItem(db, recipeId, [{ position, name }, …], itemId)` links several
+  Ingredients of one Recipe to an Item in one field write, all or nothing, throwing and naming every
+  stale position. Offline behaviour is that of `linkIngredientToItem`.
+
 ## v0.26.0
 
 No rules change to redeploy.
