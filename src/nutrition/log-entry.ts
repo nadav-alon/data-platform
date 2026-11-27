@@ -74,17 +74,17 @@ export type LogEntrySource = z.infer<typeof logEntrySourceSchema>;
  */
 export const logEntrySchema = z
   .looseObject({
-  eatenAt: z.union([z.date(), firestoreTimestampSchema]),
-  mealType: mealTypeSchema,
-  source: logEntrySourceSchema,
-  name: z.string().min(1),
-  servings: z.number().positive(),
-  nutrition: nutritionSchema,
-  googleHealthId: googleHealthIdSchema.optional(),
-  googleHealthStale: z.literal(true).optional(),
-  estimated: z.literal(true).optional(),
-  deletedAt: deletedAtSchema,
-})
+    eatenAt: z.union([z.date(), firestoreTimestampSchema]),
+    mealType: mealTypeSchema,
+    source: logEntrySourceSchema,
+    name: z.string().min(1),
+    servings: z.number().positive(),
+    nutrition: nutritionSchema,
+    googleHealthId: googleHealthIdSchema.optional(),
+    googleHealthStale: z.literal(true).optional(),
+    estimated: z.literal(true).optional(),
+    deletedAt: deletedAtSchema,
+  })
   .refine((entry) => entry.googleHealthStale === undefined || entry.googleHealthId !== undefined, {
     message: "googleHealthStale is only valid alongside googleHealthId",
     path: ["googleHealthStale"],
