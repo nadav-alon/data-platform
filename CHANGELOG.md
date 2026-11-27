@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.27.0
 
 No rules change to redeploy.
 
 - **Client**: `linkIngredientsToItem(db, recipeId, [{ position, name }, …], itemId)` links several
   Ingredients of one Recipe to an Item in one field write, all or nothing, throwing and naming every
-  stale position. Offline behaviour is that of `linkIngredientToItem`.
+  stale position. Offline behaviour is that of `linkIngredientToItem`. Only the name at each position is
+  checked, so a concurrent swap of two same-named Ingredients, or an edit that keeps the name, goes
+  undetected.
 
 ## v0.26.0
 
