@@ -127,9 +127,10 @@ test("soft delete: the owner soft-deletes and restores an entry", async () => {
   await assertSucceeds(doc.set(foodEntry));
 });
 
+// The update cases use bare assertSucceeds/assertFails rather than assertFixture: the drift guard
+// checks one document against zod, and zod cannot see an old-to-new transition.
 test("soft delete: the owner sets and clears the Google Health sync state on a deleted entry, and changes nothing else", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
-  await seedMember(rulesTestEnv.env, bob);
   const deletedAt = Timestamp.fromMillis(1_700_000_000_000);
   await seedEntry(alice, { deletedAt, googleHealthId: "gh-1" });
   const doc = entryDoc(rulesTestEnv.env.authenticatedContext(alice));
@@ -137,11 +138,25 @@ test("soft delete: the owner sets and clears the Google Health sync state on a d
   await assertSucceeds(doc.update({ googleHealthStale: deleteField() }));
   await assertFails(doc.update({ servings: 2 }));
   await assertFails(doc.update({ name: "Pizza" }));
-  await assertFails(doc.update({ googleHealthId: "gh-1", servings: 2 }));
+  await assertFails(doc.update({ googleHealthId: "gh-2", servings: 2 }));
   await assertSucceeds(doc.update({ googleHealthId: deleteField() }));
-  await assertFails(entryDoc(rulesTestEnv.env.authenticatedContext(bob)).update({ googleHealthId: deleteField() }));
-  await seedEntry(alice, { deletedAt, googleHealthId: "gh-1" });
-  await assertFails(entryDoc(rulesTestEnv.env.authenticatedContext(bob)).update({ googleHealthStale: true }));
+});
+
+test("soft delete: the owner sets googleHealthId on a deleted entry that has none", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedEntry(alice, { deletedAt: Timestamp.fromMillis(1_700_000_000_000) });
+  const doc = entryDoc(rulesTestEnv.env.authenticatedContext(alice));
+  await assertSucceeds(doc.update({ googleHealthId: "gh-1" }));
+  await assertSucceeds(doc.update({ googleHealthId: "gh-2" }));
+});
+
+test("soft delete: another Member cannot change the sync state of a deleted entry", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedMember(rulesTestEnv.env, bob);
+  await seedEntry(alice, { deletedAt: Timestamp.fromMillis(1_700_000_000_000), googleHealthId: "gh-1" });
+  const asBob = entryDoc(rulesTestEnv.env.authenticatedContext(bob));
+  await assertFails(asBob.update({ googleHealthId: deleteField() }));
+  await assertFails(asBob.update({ googleHealthStale: true }));
 });
 
 test("soft delete: creating an already soft-deleted entry is denied", async () => {
