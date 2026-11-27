@@ -143,6 +143,12 @@ number, in one doc per Member (`nutritionTargets/{uid}`). What a day's intake is
 against. Per day, not per meal or per week, and independent of Google Health's own goals. Only the
 owning Member reads or writes them, not even another Member.
 
+**Nutrition Settings**:
+A Member's private switches for their nutrition, one doc per Member (`nutritionSettings/{uid}`).
+Today one: `googleHealthSync`, `true` when the Member pushes their own Log Entries to Google Health;
+off is spelled as the field's absence, never `false`. Only the owning Member reads, creates or updates
+it, not even another Member, and it is never hard-deleted.
+
 **Log Entry**:
 One thing a Member ate, one document in `nutritionLogs/{uid}/entries/{id}` in that Member's own log:
 when (`eatenAt`), which `mealType` (`breakfast`, `lunch`, `dinner` or `snack`), its `source` (a saved

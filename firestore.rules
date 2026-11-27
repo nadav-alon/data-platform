@@ -980,6 +980,21 @@ service cloud.firestore {
       allow delete: if isMember() && isSelf(memberUid);
     }
 
+    /** Matches `nutritionSettingsSchema`: `googleHealthSync` only, and only ever `true`. */
+    function isValidNutritionSettings(data) {
+      return data.keys().hasOnly(['googleHealthSync'])
+        && (!('googleHealthSync' in data) || data.googleHealthSync == true);
+    }
+
+    /** A Member's Nutrition Settings are private to them, and never hard-deleted. */
+    match /nutritionSettings/{memberUid} {
+      allow read: if isMember() && isSelf(memberUid);
+      allow create, update: if isMember()
+        && isSelf(memberUid)
+        && isValidNutritionSettings(request.resource.data);
+      allow delete: if false;
+    }
+
     match /foods/{foodId} {
       allow read: if isMember();
       allow create: if isMember()

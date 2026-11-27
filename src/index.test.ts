@@ -27,6 +27,10 @@ test("COLLECTION_SCHEMAS merges every Core, Catalogue, Recipes and Nutrition col
     dataPlatform.nutrition.targetsSchema,
   );
   assert.equal(
+    dataPlatform.COLLECTION_SCHEMAS[dataPlatform.nutrition.NUTRITION_SETTINGS_COLLECTION],
+    dataPlatform.nutrition.nutritionSettingsSchema,
+  );
+  assert.equal(
     dataPlatform.COLLECTION_SCHEMAS[dataPlatform.nutrition.FOODS_COLLECTION],
     dataPlatform.nutrition.foodSchema,
   );

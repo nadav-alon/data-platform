@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.29.0
+
+Redeploy `firestore.rules`: they now accept a Member's own `nutritionSettings/{uid}` doc.
+
+- **Nutrition**: `nutritionSettingsSchema` (`googleHealthSync: true`, or absent for off) in
+  `COLLECTION_SCHEMAS`. Only the owning Member reads, creates or updates it; hard delete is denied.
+- **Local kit**: `owner-with-foods` holds the Owner's Nutrition Settings with the switch on.
+
 ## v0.28.0
 
 Redeploy the rules.
