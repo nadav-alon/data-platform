@@ -996,7 +996,7 @@ service cloud.firestore {
      * (`googleHealthId`, `googleHealthStale`): a deleted entry still carrying `googleHealthId` is
      * a pending removal there, and the push clears it once done. A live entry, or a restore, is free.
      */
-    function logEntryUpdateValid(oldData, newData) {
+    function deletedLogEntryChangesOnlySyncState(oldData, newData) {
       return !isDeleted(oldData)
         || !isDeleted(newData)
         || newData.diff(oldData).affectedKeys().hasOnly(['googleHealthId', 'googleHealthStale']);
@@ -1013,7 +1013,7 @@ service cloud.firestore {
         && isSelf(memberUid)
         && isValidLogEntry(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
-        && logEntryUpdateValid(resource.data, request.resource.data);
+        && deletedLogEntryChangesOnlySyncState(resource.data, request.resource.data);
       allow delete: if false;
     }
 
