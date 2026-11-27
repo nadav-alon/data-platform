@@ -190,6 +190,15 @@ test("owner-with-foods holds live Foods, one with every field, and a soft-delete
   assert.ok(foods.some((f) => f.place !== undefined && f.servingLabel !== undefined && f.estimated === true), "full-field");
 });
 
+test("owner-with-foods holds the Owner's Nutrition Settings with the Google Health switch on", () => {
+  const [owner] = SCENARIOS["owner-with-foods"].users;
+  const settings = SCENARIOS["owner-with-foods"].fixtures.filter((f) => f.collection === "nutritionSettings");
+  assert.deepEqual(
+    settings.map((f) => ({ id: f.id, data: f.data })),
+    [{ id: owner.uid, data: { googleHealthSync: true } }],
+  );
+});
+
 test("owner-with-foods holds a day of the Owner's Log Entries: every meal, a synced one and a soft-deleted one", () => {
   const [owner] = SCENARIOS["owner-with-foods"].users;
   const entries = SCENARIOS["owner-with-foods"].fixtures

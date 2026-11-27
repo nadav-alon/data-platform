@@ -253,6 +253,7 @@ export const SCENARIOS = {
       platformMetaFixture,
       householdMeta(owner.uid),
       memberDoc(owner),
+      { collection: "nutritionSettings", id: owner.uid, data: { googleHealthSync: true } },
       food(foodId("schnitzel-plate"), "Chicken schnitzel plate", macros(720, 38, 64, 33), {
         place: "work canteen",
         servingLabel: "1 plate",
