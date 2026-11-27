@@ -7,7 +7,7 @@ kit (`docs/local-kit.md`). Standing a Household up is in `docs/household-setup.m
 ## MCP server: read and update the Household from Claude Code
 
 A local stdio MCP server answers questions about the Household (its Items with their
-State, its Recipes with their Ingredients and each Ingredient's linked Item, its Foods) from a
+State, its Recipes with their Ingredients and each Ingredient's linked Item, its Foods, its Categories) from a
 Claude Code conversation, adds to it (catalogue Items, Recipes and Foods), logs what you ate to
 your own nutrition log, sets an Item's State ("mark milk out"), and links an Ingredient to an
 Item or marks it Assumed. It signs in with Google as your own Member, through a one-time browser
@@ -25,6 +25,7 @@ It runs from a clone of this repo; the published package has no bin for it.
 | `list_items`          | every live Item, with its State                                                                                                                                                     |
 | `list_recipes`        | every live Recipe, with its Ingredients; each Ingredient's `item` is its linked live Item, or `null`                                                                                |
 | `list_foods`          | every live Food, with its `place` and `perServing`                                                                                                                                  |
+| `list_categories`     | every live Category, with its id, name and default Shop (`defaultShopId`), so `add_catalogue_item`'s `categoryId` can be chosen                                                     |
 | `add_food`            | adds a Food from a name, optional place and serving label, per-serving Nutrition and `estimated` (true for a guess); returns its `id`                                              |
 | `log_food`            | logs a Log Entry for the signed-in Member from a `foodId` (the entry copies the Food's `estimated` flag), or a quick name and Nutrition (`estimated: true` flags a guess); totals are per-serving Nutrition × `servings` (default 1); `mealType` is guessed from `eatenAt`'s local time (before 11:00 breakfast, before 16:00 lunch, after 21:30 snack, else dinner); returns its `id` |
 | `add_catalogue_item`  | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first                                               |

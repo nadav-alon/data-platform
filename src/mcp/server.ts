@@ -4,7 +4,7 @@ import { catalogueItemSchema } from "../catalogue/catalogue-item.ts";
 import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
-import { readFoods, readItems, readRecipes } from "./household-reader.ts";
+import { readCategories, readFoods, readItems, readRecipes } from "./household-reader.ts";
 import { addFood, newFoodSchema } from "./food-writer.ts";
 import { logFood, logFoodInputSchema } from "./log-writer.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
@@ -57,10 +57,19 @@ export function createHouseholdServer(db: Firestore): McpServer {
     async () => asJson(await readFoods(db)),
   );
   server.registerTool(
+    "list_categories",
+    {
+      description:
+        "Every live Category in the Household's catalogue with its id, name and default Shop (`defaultShopId`), so a `categoryId` for add_catalogue_item can be chosen. Soft-deleted Categories are left out.",
+      annotations: READ_ONLY,
+    },
+    async () => asJson(await readCategories(db)),
+  );
+  server.registerTool(
     "add_catalogue_item",
     {
       description:
-        "Add a new Item to the Household's catalogue. `state` is enough, running low or out (default enough); `necessity` is essential, important or optional; `categoryId` names a live Category, and `shopId`, when given, a live Shop overriding the Category's default. Returns the new Item's id.",
+        "Add a new Item to the Household's catalogue. `state` is enough, running low or out (default enough); `necessity` is essential, important or optional; `categoryId` names a live Category (see list_categories), and `shopId`, when given, a live Shop overriding the Category's default. Returns the new Item's id.",
       inputSchema: {
         name: itemSchema.shape.name,
         state: itemSchema.shape.state.optional(),
