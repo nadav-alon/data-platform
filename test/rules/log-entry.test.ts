@@ -54,6 +54,12 @@ test("collection validation: a valid food entry and a valid quick entry are acce
   await assertOwnEntry("food entry", foodEntry, "accept");
   await assertOwnEntry("quick entry", quickEntry, "accept");
   await assertOwnEntry("synced entry", { ...foodEntry, googleHealthId: "gh-1" }, "accept");
+  await assertOwnEntry("stale synced entry", { ...foodEntry, googleHealthId: "gh-1", googleHealthStale: true }, "accept");
+});
+
+test("collection validation: googleHealthStale without googleHealthId, or false, is rejected", async () => {
+  await assertOwnEntry("stale without id", { ...foodEntry, googleHealthStale: true }, "reject");
+  await assertOwnEntry("stale false", { ...foodEntry, googleHealthId: "gh-1", googleHealthStale: false }, "reject");
 });
 
 test("collection validation: estimated: true is accepted; false and other values are rejected", async () => {

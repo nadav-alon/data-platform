@@ -94,3 +94,9 @@ test("the module's collection schemas hold Log Entries under a Member's log", ()
     logEntrySchema,
   );
 });
+
+test("googleHealthStale is true or absent, and only valid alongside googleHealthId", () => {
+  assert.ok(logEntrySchema.safeParse({ ...food, googleHealthId: "gh-1", googleHealthStale: true }).success);
+  assert.ok(!logEntrySchema.safeParse({ ...food, googleHealthId: "gh-1", googleHealthStale: false }).success);
+  assert.ok(!logEntrySchema.safeParse({ ...food, googleHealthStale: true }).success);
+});

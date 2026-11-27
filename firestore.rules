@@ -669,6 +669,7 @@ service cloud.firestore {
         && 'nutrition' in data
         && isValidNutrition(data.nutrition)
         && (!('googleHealthId' in data) || isNonEmptyString(data.googleHealthId))
+        && (!('googleHealthStale' in data) || (data.googleHealthStale == true && 'googleHealthId' in data))
         && isValidEstimated(data)
         && isValidDeletedAt(data);
     }

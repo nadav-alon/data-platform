@@ -66,10 +66,14 @@ export type LogEntrySource = z.infer<typeof logEntrySourceSchema>;
  * One thing a Member ate (see **Log Entry** in CONTEXT.md). `name` and `nutrition` are snapshots,
  * so editing a Food later never rewrites history; `nutrition` is the entry's totals, for all
  * `servings`. `googleHealthId` is the data point it was pushed as; absent means not yet synced.
+ * `googleHealthStale: true` says that data point no longer matches the entry, and is only valid
+ * alongside `googleHealthId`; `false` is spelled as absence. A soft-deleted entry still carrying
+ * `googleHealthId` is a pending removal from Google Health.
  * `estimated` says the numbers are an estimate, not a label or source; absent means they are not.
  * `eatenAt` accepts a `Date` as well as a Firestore timestamp, as the client writes it.
  */
-export const logEntrySchema = z.looseObject({
+export const logEntrySchema = z
+  .looseObject({
   eatenAt: z.union([z.date(), firestoreTimestampSchema]),
   mealType: mealTypeSchema,
   source: logEntrySourceSchema,
@@ -77,8 +81,13 @@ export const logEntrySchema = z.looseObject({
   servings: z.number().positive(),
   nutrition: nutritionSchema,
   googleHealthId: googleHealthIdSchema.optional(),
+  googleHealthStale: z.literal(true).optional(),
   estimated: z.literal(true).optional(),
   deletedAt: deletedAtSchema,
-});
+})
+  .refine((entry) => entry.googleHealthStale === undefined || entry.googleHealthId !== undefined, {
+    message: "googleHealthStale is only valid alongside googleHealthId",
+    path: ["googleHealthStale"],
+  });
 
 export type LogEntry = z.infer<typeof logEntrySchema>;
