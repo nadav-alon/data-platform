@@ -1,4 +1,5 @@
 import { collection, getDocs, type Firestore } from "firebase/firestore";
+import type { ZodType } from "zod";
 import {
   CATEGORIES_COLLECTION,
   categoryId,
@@ -18,6 +19,19 @@ import {
   type RecipeId,
 } from "../recipes/recipe.ts";
 
+/** Every live document of a collection, parsed by its schema and given its branded id. */
+async function readLive<T extends object, Id>(
+  db: Firestore,
+  collectionName: string,
+  schema: ZodType<T>,
+  toId: (id: string) => Id,
+): Promise<(T & { readonly id: Id })[]> {
+  const snapshot = await getDocs(collection(db, collectionName));
+  return snapshot.docs
+    .filter((document) => isLive(document.data()))
+    .map((document) => ({ ...schema.parse(document.data()), id: toId(document.id) }));
+}
+
 /** An Item as stored, with its document id. Soft-deleted Items are never returned. */
 export type ItemRecord = Item & { readonly id: ItemId };
 
@@ -26,10 +40,7 @@ export type ItemRecord = Item & { readonly id: ItemId };
  * fields. Rejects with Firestore's `permission-denied` when the signed-in user is not a Member.
  */
 export async function readItems(db: Firestore): Promise<ItemRecord[]> {
-  const snapshot = await getDocs(collection(db, ITEMS_COLLECTION));
-  return snapshot.docs
-    .filter((document) => isLive(document.data()))
-    .map((document) => ({ ...itemSchema.parse(document.data()), id: itemId(document.id) }));
+  return readLive(db, ITEMS_COLLECTION, itemSchema, itemId);
 }
 
 /** An Ingredient as stored, with the live Item it links to. */
@@ -81,10 +92,7 @@ export type FoodRecord = Food & { readonly id: FoodId };
  * with Firestore's `permission-denied` when the signed-in user is not a Member.
  */
 export async function readFoods(db: Firestore): Promise<FoodRecord[]> {
-  const snapshot = await getDocs(collection(db, FOODS_COLLECTION));
-  return snapshot.docs
-    .filter((document) => isLive(document.data()))
-    .map((document) => ({ ...foodSchema.parse(document.data()), id: foodId(document.id) }));
+  return readLive(db, FOODS_COLLECTION, foodSchema, foodId);
 }
 
 /** A Category as stored, with its document id. Soft-deleted Categories are never returned. */
@@ -95,8 +103,5 @@ export type CategoryRecord = Category & { readonly id: CategoryId };
  * Rejects with Firestore's `permission-denied` when the signed-in user is not a Member.
  */
 export async function readCategories(db: Firestore): Promise<CategoryRecord[]> {
-  const snapshot = await getDocs(collection(db, CATEGORIES_COLLECTION));
-  return snapshot.docs
-    .filter((document) => isLive(document.data()))
-    .map((document) => ({ ...categorySchema.parse(document.data()), id: categoryId(document.id) }));
+  return readLive(db, CATEGORIES_COLLECTION, categorySchema, categoryId);
 }

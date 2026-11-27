@@ -7,7 +7,7 @@ kit (`docs/local-kit.md`). Standing a Household up is in `docs/household-setup.m
 ## MCP server: read and update the Household from Claude Code
 
 A local stdio MCP server answers questions about the Household (its Items with their
-State, its Recipes with their Ingredients and each Ingredient's linked Item, its Foods) from a
+State, its Recipes with their Ingredients and each Ingredient's linked Item, its Foods, its Categories) from a
 Claude Code conversation, adds to it (catalogue Items, Recipes and Foods), logs what you ate to
 your own nutrition log, sets an Item's State ("mark milk out"), and links an Ingredient to an
 Item or marks it Assumed. It signs in with Google as your own Member, through a one-time browser
