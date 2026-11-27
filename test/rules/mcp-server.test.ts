@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAuth } from "firebase/auth";
-import { doc, getDoc, type Firestore } from "firebase/firestore";
+import { doc, getDoc, Timestamp, type Firestore } from "firebase/firestore";
 import { guessMealType } from "../../src/nutrition/meal-type.ts";
+import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
 
 /** Calls `tool` on a server over the signed-in Member's Firestore and parses its one JSON block. */
@@ -33,6 +34,7 @@ test("the server lists the three read tools, read only, and the six write tools,
       "add_catalogue_item",
       "add_food",
       "add_recipe",
+      "list_categories",
       "list_foods",
       "list_items",
       "list_recipes",
@@ -64,6 +66,29 @@ test("list_items and list_recipes return the raw live records as JSON", async ()
     (recipe) => recipe.id === "shortbread",
   );
   assert.equal(shortbread?.ingredients[1]?.item.state, "running low");
+});
+
+test("list_categories returns every live Category with its id, name and default Shop, and leaves out a soft-deleted one", async () => {
+  await seedLocalHousehold("owner-with-recipes");
+  await withEmulatorWriter(
+    (writer) =>
+      writer.set("categories/toys", {
+        name: "Toys",
+        defaultShopId: "grocery",
+        referenceCount: 0,
+        deletedAt: Timestamp.now(),
+      }),
+    { projectId: process.env.GCLOUD_PROJECT!, host: process.env.FIRESTORE_EMULATOR_HOST! },
+  );
+
+  const categories = await callTool("owner@example.com", "list_categories");
+
+  assert.equal(categories.isError, false);
+  const list = categories.json as { id: string; name: string; defaultShopId: string }[];
+  assert.deepEqual(
+    list.map(({ id, name, defaultShopId }) => ({ id, name, defaultShopId })),
+    [{ id: "pantry", name: "Pantry", defaultShopId: "grocery" }],
+  );
 });
 
 test("list_foods returns every live Food with its place and perServing, and leaves out a soft-deleted one", async () => {

@@ -1,4 +1,11 @@
 import { collection, getDocs, type Firestore } from "firebase/firestore";
+import {
+  CATEGORIES_COLLECTION,
+  categoryId,
+  categorySchema,
+  type Category,
+  type CategoryId,
+} from "../catalogue/category.ts";
 import { isLive } from "../core/deleted-at.ts";
 import { ITEMS_COLLECTION, itemId, itemSchema, type Item, type ItemId } from "../core/item.ts";
 import { FOODS_COLLECTION, foodId, foodSchema, type Food, type FoodId } from "../nutrition/food.ts";
@@ -78,4 +85,18 @@ export async function readFoods(db: Firestore): Promise<FoodRecord[]> {
   return snapshot.docs
     .filter((document) => isLive(document.data()))
     .map((document) => ({ ...foodSchema.parse(document.data()), id: foodId(document.id) }));
+}
+
+/** A Category as stored, with its document id. Soft-deleted Categories are never returned. */
+export type CategoryRecord = Category & { readonly id: CategoryId };
+
+/**
+ * Every live Category with its name and default Shop (`defaultShopId`), as stored. Raw data.
+ * Rejects with Firestore's `permission-denied` when the signed-in user is not a Member.
+ */
+export async function readCategories(db: Firestore): Promise<CategoryRecord[]> {
+  const snapshot = await getDocs(collection(db, CATEGORIES_COLLECTION));
+  return snapshot.docs
+    .filter((document) => isLive(document.data()))
+    .map((document) => ({ ...categorySchema.parse(document.data()), id: categoryId(document.id) }));
 }
