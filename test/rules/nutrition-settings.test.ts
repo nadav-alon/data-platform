@@ -30,8 +30,11 @@ async function assertOwnSettings(
   );
 }
 
-test("nutrition settings: a doc with and without googleHealthSync is accepted", async () => {
+test("nutrition settings: a doc with googleHealthSync is accepted", async () => {
   await assertOwnSettings("switch on", { googleHealthSync: true }, "accept");
+});
+
+test("nutrition settings: an empty doc is accepted", async () => {
   await assertOwnSettings("switch off", {}, "accept");
 });
 
@@ -51,9 +54,13 @@ test("nutrition settings: a Member reads and updates their own doc but cannot de
   await assertSucceeds(doc.set({ googleHealthSync: true }));
   await assertSucceeds(doc.get());
   await assertSucceeds(doc.set({}));
+  await assertFails(doc.set({ googleHealthSync: false }));
+  await assertFails(doc.set({ googleHealthSync: true, other: 1 }));
   await assertFails(doc.delete());
 });
 
+// Access-denial cases use bare assertFails, not the drift guard: assertFixture only writes, and a
+// reject fixture needs zod to disagree with the rules, but zod accepts the `{}` a stranger writes.
 test("nutrition settings: another Member, a non-member and an anonymous caller are denied", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedMember(rulesTestEnv.env, bob);
