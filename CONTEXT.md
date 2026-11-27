@@ -148,7 +148,11 @@ One thing a Member ate, one document in `nutritionLogs/{uid}/entries/{id}` in th
 when (`eatenAt`), which `mealType` (`breakfast`, `lunch`, `dinner` or `snack`), its `source` (a saved
 Food by `foodId`, or `quick` for a one-off with no Food), a `name` and the `nutrition` totals for
 `servings` (a positive number, 1.5 allowed), both snapshotted so editing a Food later never rewrites
-history. `googleHealthId` is the data point it was pushed as; absent means not yet synced.
+history. `googleHealthId` is the data point it was pushed as, and a pushed data point can't be edited, so its
+sync state is carried on the entry: no `googleHealthId` = not pushed; `googleHealthId` +
+`googleHealthStale: true` (`false` is spelled as absence; only valid alongside `googleHealthId`) = to be
+replaced; soft-deleted + `googleHealthId` = to be removed. The owning Member can set and clear both
+fields on a soft-deleted entry and change nothing else on it.
 It can be marked `estimated: true` when its numbers are a guess rather than a label or source;
 `false` is spelled as absence, as on a Food.
 A quick entry's `nutrition` is given per serving and multiplied by `servings`, as a Food's is.

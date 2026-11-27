@@ -669,6 +669,7 @@ service cloud.firestore {
         && 'nutrition' in data
         && isValidNutrition(data.nutrition)
         && (!('googleHealthId' in data) || isNonEmptyString(data.googleHealthId))
+        && (!('googleHealthStale' in data) || (data.googleHealthStale == true && 'googleHealthId' in data))
         && isValidEstimated(data)
         && isValidDeletedAt(data);
     }
@@ -990,6 +991,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /**
+     * A soft-deleted Log Entry that stays soft-deleted changes only its Google Health sync state
+     * (`googleHealthId`, `googleHealthStale`): a deleted entry still carrying `googleHealthId` is
+     * a pending removal there, and the push clears it once done. A live entry, or a restore, is free.
+     */
+    function deletedLogEntryChangesOnlySyncState(oldData, newData) {
+      return !isDeleted(oldData)
+        || !isDeleted(newData)
+        || newData.diff(oldData).affectedKeys().hasOnly(['googleHealthId', 'googleHealthStale']);
+    }
+
     /** A Member's Log Entries are private to them, and soft-deleted rather than removed. */
     match /nutritionLogs/{memberUid}/entries/{entryId} {
       allow read: if isMember() && isSelf(memberUid);
@@ -1000,7 +1012,8 @@ service cloud.firestore {
       allow update: if isMember()
         && isSelf(memberUid)
         && isValidLogEntry(request.resource.data)
-        && deletedAtUpdateValid(resource.data, request.resource.data);
+        && deletedAtUpdateValid(resource.data, request.resource.data)
+        && deletedLogEntryChangesOnlySyncState(resource.data, request.resource.data);
       allow delete: if false;
     }
 
