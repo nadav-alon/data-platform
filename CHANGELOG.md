@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.28.0
+
+Redeploy the rules.
+
+- **Log Entry**: optional `googleHealthStale: true`, only valid alongside `googleHealthId`: the pushed
+  data point no longer matches the entry. A soft-deleted entry now changes only `googleHealthId` and
+  `googleHealthStale` (set or cleared by its owner); a soft-deleted entry still carrying `googleHealthId`
+  is a pending removal from Google Health.
+
 ## v0.27.0
 
 No rules change to redeploy.
