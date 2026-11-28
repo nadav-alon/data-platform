@@ -118,6 +118,14 @@ test("update: the owner reads, edits and syncs their entry", async () => {
   await assertFails(doc.update({ estimated: false }));
 });
 
+test("update: the owner cannot rename an entry", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedEntry(alice);
+  const doc = entryDoc(rulesTestEnv.env.authenticatedContext(alice));
+  await assertFails(doc.update({ name: "Pizza" }));
+  await assertSucceeds(doc.update({ name: "Schnitzel plate", servings: 2 }));
+});
+
 test("soft delete: the owner soft-deletes and restores an entry", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedEntry(alice);
