@@ -1017,6 +1017,16 @@ service cloud.firestore {
         || newData.diff(oldData).affectedKeys().hasOnly(['googleHealthId', 'googleHealthStale']);
     }
 
+    /** A Log Entry's `name` is a snapshot of what was eaten and never changes after logging. */
+    function logEntryNameUnchanged(oldData, newData) {
+      return oldData.name == newData.name;
+    }
+
+    /** A Log Entry's `nutrition` is a snapshot of what was eaten and never changes after logging. */
+    function logEntryNutritionUnchanged(oldData, newData) {
+      return oldData.nutrition == newData.nutrition;
+    }
+
     /** A Member's Log Entries are private to them, and soft-deleted rather than removed. */
     match /nutritionLogs/{memberUid}/entries/{entryId} {
       allow read: if isMember() && isSelf(memberUid);
@@ -1028,6 +1038,8 @@ service cloud.firestore {
         && isSelf(memberUid)
         && isValidLogEntry(request.resource.data)
         && deletedAtUpdateValid(resource.data, request.resource.data)
+        && logEntryNameUnchanged(resource.data, request.resource.data)
+        && logEntryNutritionUnchanged(resource.data, request.resource.data)
         && deletedLogEntryChangesOnlySyncState(resource.data, request.resource.data);
       allow delete: if false;
     }
