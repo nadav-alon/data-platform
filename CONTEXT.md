@@ -158,7 +158,7 @@ history. `googleHealthId` is the data point it was pushed as, and a pushed data 
 sync state is carried on the entry: no `googleHealthId` = not pushed; `googleHealthId` +
 `googleHealthStale: true` (`false` is spelled as absence; only valid alongside `googleHealthId`) = to be
 replaced; soft-deleted + `googleHealthId` = to be removed. The owning Member can set and clear both
-fields on a soft-deleted entry and change nothing else on it.
+fields on a soft-deleted entry and change nothing else on it. Its `name` and `nutrition` never change after logging; servings, `mealType` and `eatenAt` can.
 It can be marked `estimated: true` when its numbers are a guess rather than a label or source;
 `false` is spelled as absence, as on a Food.
 A quick entry's `nutrition` is given per serving and multiplied by `servings`, as a Food's is.

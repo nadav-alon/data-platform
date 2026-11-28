@@ -126,6 +126,17 @@ test("update: the owner cannot rename an entry", async () => {
   await assertSucceeds(doc.update({ name: "Schnitzel plate", servings: 2 }));
 });
 
+test("update: the owner cannot change an entry's nutrition, but can change servings, meal type and eaten-at", async () => {
+  await seedHousehold(rulesTestEnv.env, alice);
+  await seedEntry(alice);
+  const doc = entryDoc(rulesTestEnv.env.authenticatedContext(alice));
+  await assertFails(doc.update({ nutrition: { ...nutrition, kcal: 1 } }));
+  await assertFails(doc.update({ "nutrition.kcal": 1 }));
+  await assertSucceeds(doc.update({ servings: 2 }));
+  await assertSucceeds(doc.update({ mealType: "dinner" }));
+  await assertSucceeds(doc.update({ eatenAt: new Date(1_700_000_100_000) }));
+});
+
 test("soft delete: the owner soft-deletes and restores an entry", async () => {
   await seedHousehold(rulesTestEnv.env, alice);
   await seedEntry(alice);
