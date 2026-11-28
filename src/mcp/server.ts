@@ -5,7 +5,7 @@ import { itemIdSchema, itemSchema } from "../core/item.ts";
 import { addCatalogueItem } from "./catalogue-writer.ts";
 import { setIngredientLink, setIngredientLinkSchema } from "./ingredient-writer.ts";
 import { readCategories, readFoods, readItems, readRecipes } from "./household-reader.ts";
-import { addFood, newFoodSchema } from "./food-writer.ts";
+import { addFood, newFoodSchema, setFoodNutrition, setFoodNutritionSchema } from "./food-writer.ts";
 import { logFood, logFoodInputSchema } from "./log-writer.ts";
 import { addRecipe, newRecipeSchema } from "./recipe-writer.ts";
 import { stateSchema } from "../core/state.ts";
@@ -23,7 +23,7 @@ function asJson(records: unknown): { content: [{ type: "text"; text: string }] }
 /**
  * The MCP server over one Household's Firestore. Its read tools return raw records: what is
  * makeable, and what to shop for, is left to the model to work out from them. Its writes,
- * `add_catalogue_item`, `add_food`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
+ * `add_catalogue_item`, `add_food`, `set_food_nutrition`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`, ask for no
  * confirmation of their own: the client's tool permission prompt is the only one. Connect it to a
  * transport with `server.connect`.
  */
@@ -92,6 +92,16 @@ export function createHouseholdServer(db: Firestore): McpServer {
       annotations: ADDS_ONLY,
     },
     async (food) => asJson({ id: await addFood(db, food) }),
+  );
+  server.registerTool(
+    "set_food_nutrition",
+    {
+      description:
+        "Change the Nutrition of one live Food, by an id from list_foods. `perServing` replaces its per-serving Nutrition (kcal, proteinG, carbsG, fatG) and is validated as add_food validates it. `estimated` replaces the Food's flag: pass `estimated: true` for a guess, and leave it out for numbers taken from a label or source (which clears the flag). Its other fields are kept, and Log Entries already logged from it keep the Nutrition they were logged with. Returns the Food's id.",
+      inputSchema: setFoodNutritionSchema,
+      annotations: UPDATES,
+    },
+    async (input) => asJson({ id: await setFoodNutrition(db, input) }),
   );
   server.registerTool(
     "log_food",
