@@ -1,5 +1,6 @@
 import { addDoc, collection, deleteField, doc, runTransaction, type Firestore } from "firebase/firestore";
 import { z } from "zod";
+import { isLive } from "../core/deleted-at.ts";
 import { FOODS_COLLECTION, foodId, foodIdSchema, foodSchema, type FoodId } from "../nutrition/food.ts";
 
 /**
@@ -39,7 +40,7 @@ export type SetFoodNutrition = z.input<typeof setFoodNutritionSchema>;
  * numbers are then taken from a label or source), keeping its other fields. Existing Log Entries
  * hold their own snapshot and are not touched. The input is validated by `setFoodNutritionSchema`
  * and the resulting Food by the Food schema before anything is sent; a `ZodError` is thrown when
- * either is refused, and an `Error` for an unknown or soft-deleted Food. The write is then checked
+ * either is refused (so a legacy Food that no longer passes the schema cannot be fixed here), and an `Error` for an unknown or soft-deleted Food. The write is then checked
  * by `firestore.rules` as the signed-in Member.
  */
 export async function setFoodNutrition(db: Firestore, input: SetFoodNutrition): Promise<FoodId> {
@@ -47,8 +48,8 @@ export async function setFoodNutrition(db: Firestore, input: SetFoodNutrition): 
   const ref = doc(db, FOODS_COLLECTION, id);
   await runTransaction(db, async (transaction) => {
     const data = (await transaction.get(ref)).data();
-    if (data === undefined || data.deletedAt !== undefined) {
-      throw new Error(`No live Food with id ${JSON.stringify(id)}`);
+    if (data === undefined || !isLive(data)) {
+      throw new Error(`No live Food ${JSON.stringify(id)}; see list_foods.`);
     }
     const { estimated: _estimated, ...rest } = data;
     foodSchema.parse({ ...rest, perServing, ...(estimated === undefined ? {} : { estimated }) });

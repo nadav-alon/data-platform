@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import { getAuth } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, Timestamp, type Firestore } from "firebase/firestore";
 import { guessMealType } from "../../src/nutrition/meal-type.ts";
+import { NUTRITION_LOGS_COLLECTION } from "../../src/nutrition/log-entry.ts";
 import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
+
+/** The Nutrition the set_food_nutrition tests write. */
+const NEW_PER_SERVING = { kcal: 500, proteinG: 40, carbsG: 50, fatG: 10 };
 
 /** Calls `tool` on a server over the signed-in Member's Firestore and parses its one JSON block. */
 async function callTool(
@@ -139,14 +143,14 @@ test("set_food_nutrition changes a Food's Nutrition and estimated flag, which li
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
     const owner = getAuth(db.app).currentUser?.uid ?? "";
-    const entries = async () => (await getDocs(collection(db, "nutritionLogs", owner, "entries"))).docs.map((d) => [d.id, d.data()]);
+    const entries = async () => (await getDocs(collection(db, NUTRITION_LOGS_COLLECTION, owner, "entries"))).docs.map((d) => [d.id, d.data()]);
     const listed = async () => {
       const result = await client.callTool({ name: "list_foods" });
       const foods = JSON.parse((result.content as { text: string }[])[0]?.text ?? "[]") as Record<string, unknown>[];
       return foods.find((f) => f.id === "schnitzel-plate");
     };
     const before = await entries();
-    const perServing = { kcal: 500, proteinG: 40, carbsG: 50, fatG: 10 };
+    const perServing = NEW_PER_SERVING;
 
     const set = await client.callTool({
       name: "set_food_nutrition",
@@ -161,6 +165,14 @@ test("set_food_nutrition changes a Food's Nutrition and estimated flag, which li
     assert.equal(estimated?.estimated, true);
     assert.equal(estimated?.name, "Chicken schnitzel plate");
     assert.equal(sourced?.estimated, undefined, "left out clears the flag");
+    const bar = { kcal: 200, proteinG: 25, carbsG: 20, fatG: 6 };
+    await client.callTool({
+      name: "set_food_nutrition",
+      arguments: { foodId: "protein-bar", perServing: bar, estimated: true },
+    });
+    const barDoc = (await getDoc(doc(db, "foods", "protein-bar"))).data();
+    assert.equal(barDoc?.estimated, true, "set on a Food that started without the flag");
+    assert.deepEqual(barDoc?.perServing, bar);
     assert.deepEqual(await entries(), before);
   } finally {
     await closeMcp();
@@ -170,7 +182,7 @@ test("set_food_nutrition changes a Food's Nutrition and estimated flag, which li
 
 test("set_food_nutrition refuses invalid Nutrition, an unknown Food and a soft-deleted Food, and changes nothing", async () => {
   await seedLocalHousehold("owner-with-foods");
-  const perServing = { kcal: 500, proteinG: 40, carbsG: 50, fatG: 10 };
+  const perServing = NEW_PER_SERVING;
   const refusals: Record<string, unknown>[] = [
     { foodId: "schnitzel-plate", perServing: { ...perServing, kcal: -1 } },
     { foodId: "schnitzel-plate", perServing: { kcal: 5 } },
@@ -180,9 +192,17 @@ test("set_food_nutrition refuses invalid Nutrition, an unknown Food and a soft-d
   for (const args of refusals) {
     assert.equal((await callTool("owner@example.com", "set_food_nutrition", args)).isError, true, JSON.stringify(args));
   }
-  const foods = (await callTool("owner@example.com", "list_foods")).json as { id: string; perServing: unknown }[];
-  assert.notDeepEqual(foods.find((f) => f.id === "schnitzel-plate")?.perServing, perServing);
-  assert.equal(foods.some((f) => f.id === "old-salad"), false);
+  const { db, close } = await signedInClient("owner@example.com");
+  try {
+    const schnitzel = (await getDoc(doc(db, "foods", "schnitzel-plate"))).data();
+    const oldSalad = (await getDoc(doc(db, "foods", "old-salad"))).data();
+    assert.deepEqual(schnitzel?.perServing, { kcal: 720, proteinG: 38, carbsG: 64, fatG: 33 });
+    assert.equal(schnitzel?.estimated, true);
+    assert.deepEqual(oldSalad?.perServing, { kcal: 180, proteinG: 6, carbsG: 14, fatG: 11 });
+    assert.equal((await getDoc(doc(db, "foods", "no-such-food"))).exists(), false);
+  } finally {
+    await close();
+  }
 });
 
 test("add_food's description tells Claude to save an estimate with estimated: true", async () => {
