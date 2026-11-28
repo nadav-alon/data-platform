@@ -168,6 +168,23 @@ test("set_food_nutrition changes a Food's Nutrition and estimated flag, which li
   }
 });
 
+test("set_food_nutrition refuses invalid Nutrition, an unknown Food and a soft-deleted Food, and changes nothing", async () => {
+  await seedLocalHousehold("owner-with-foods");
+  const perServing = { kcal: 500, proteinG: 40, carbsG: 50, fatG: 10 };
+  const refusals: Record<string, unknown>[] = [
+    { foodId: "schnitzel-plate", perServing: { ...perServing, kcal: -1 } },
+    { foodId: "schnitzel-plate", perServing: { kcal: 5 } },
+    { foodId: "no-such-food", perServing },
+    { foodId: "old-salad", perServing },
+  ];
+  for (const args of refusals) {
+    assert.equal((await callTool("owner@example.com", "set_food_nutrition", args)).isError, true, JSON.stringify(args));
+  }
+  const foods = (await callTool("owner@example.com", "list_foods")).json as { id: string; perServing: unknown }[];
+  assert.notDeepEqual(foods.find((f) => f.id === "schnitzel-plate")?.perServing, perServing);
+  assert.equal(foods.some((f) => f.id === "old-salad"), false);
+});
+
 test("add_food's description tells Claude to save an estimate with estimated: true", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
