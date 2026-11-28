@@ -1,6 +1,6 @@
 {
   "name": "data-platform",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "type": "module",
   "sideEffects": false,
   "private": true,

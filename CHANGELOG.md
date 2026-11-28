@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.30.0
+
+No rules change to redeploy.
+
+- **MCP**: `set_food_nutrition` replaces a live Food's `perServing` Nutrition and `estimated` flag, validated
+  as `add_food` validates them; an unknown or soft-deleted Food is refused and Log Entries are untouched.
+
 ## v0.29.0
 
 Redeploy `firestore.rules`: they now accept a Member's own `nutritionSettings/{uid}` doc.

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAuth } from "firebase/auth";
-import { doc, getDoc, Timestamp, type Firestore } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, Timestamp, type Firestore } from "firebase/firestore";
 import { guessMealType } from "../../src/nutrition/meal-type.ts";
 import { withEmulatorWriter } from "../../src/local/admin-writer.ts";
 import { connectedMcpClient, seedLocalHousehold, signedInClient } from "./mcp-client.ts";
@@ -25,7 +25,7 @@ async function callTool(
   }
 }
 
-test("the server lists the four read tools, read only, and the six write tools, which are not", async () => {
+test("the server lists the four read tools, read only, and the seven write tools, which are not", async () => {
   const { db, close } = await signedInClient("owner@example.com");
   const { client, close: closeMcp } = await connectedMcpClient(db);
   try {
@@ -39,6 +39,7 @@ test("the server lists the four read tools, read only, and the six write tools, 
       "list_items",
       "list_recipes",
       "log_food",
+      "set_food_nutrition",
       "set_ingredient_link",
       "set_item_state",
     ]);
@@ -130,6 +131,41 @@ test("add_food adds a Food that list_foods then returns, with estimated kept; a 
   assert.equal(saved?.place, "night market");
   assert.equal(saved?.estimated, true);
   assert.deepEqual(saved?.perServing, perServing);
+});
+
+test("set_food_nutrition changes a Food's Nutrition and estimated flag, which list_foods then shows, and leaves its Log Entries alone", async () => {
+  await seedLocalHousehold("owner-with-foods");
+  const { db, close } = await signedInClient("owner@example.com");
+  const { client, close: closeMcp } = await connectedMcpClient(db);
+  try {
+    const owner = getAuth(db.app).currentUser?.uid ?? "";
+    const entries = async () => (await getDocs(collection(db, "nutritionLogs", owner, "entries"))).docs.map((d) => [d.id, d.data()]);
+    const listed = async () => {
+      const result = await client.callTool({ name: "list_foods" });
+      const foods = JSON.parse((result.content as { text: string }[])[0]?.text ?? "[]") as Record<string, unknown>[];
+      return foods.find((f) => f.id === "schnitzel-plate");
+    };
+    const before = await entries();
+    const perServing = { kcal: 500, proteinG: 40, carbsG: 50, fatG: 10 };
+
+    const set = await client.callTool({
+      name: "set_food_nutrition",
+      arguments: { foodId: "schnitzel-plate", perServing, estimated: true },
+    });
+    const estimated = await listed();
+    await client.callTool({ name: "set_food_nutrition", arguments: { foodId: "schnitzel-plate", perServing } });
+    const sourced = await listed();
+
+    assert.equal(set.isError, undefined);
+    assert.deepEqual(estimated?.perServing, perServing);
+    assert.equal(estimated?.estimated, true);
+    assert.equal(estimated?.name, "Chicken schnitzel plate");
+    assert.equal(sourced?.estimated, undefined, "left out clears the flag");
+    assert.deepEqual(await entries(), before);
+  } finally {
+    await closeMcp();
+    await close();
+  }
 });
 
 test("add_food's description tells Claude to save an estimate with estimated: true", async () => {

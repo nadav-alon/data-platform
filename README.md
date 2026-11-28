@@ -14,7 +14,7 @@ Item or marks it Assumed. It signs in with Google as your own Member, through a 
 sign-in, so every read and write passes `firestore.rules`: no service account, no Admin SDK. A
 soft-deleted record is never returned. The read tools return raw data; Claude works out what is
 makeable or what to shop for.
-The writes are `add_catalogue_item`, `add_food`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`;
+The writes are `add_catalogue_item`, `add_food`, `set_food_nutrition`, `log_food`, `add_recipe`, `set_item_state` and `set_ingredient_link`;
 each is validated by the domain zod schemas before it is sent. `add_recipe` takes a structured
 Recipe that Claude has read from a URL or pasted text (the server has no scraper). The server asks
 no confirmation of its own: Claude Code's tool-permission prompt is the only one.
@@ -27,6 +27,7 @@ It runs from a clone of this repo; the published package has no bin for it.
 | `list_foods`          | every live Food, with its `place` and `perServing`                                                                                                                                  |
 | `list_categories`     | every live Category, with its id, name and default Shop (`defaultShopId`), so `add_catalogue_item`'s `categoryId` can be chosen                                                     |
 | `add_food`            | adds a Food from a name, optional place and serving label, per-serving Nutrition and `estimated` (true for a guess); returns its `id`                                              |
+| `set_food_nutrition` | replaces a live Food's per-serving Nutrition and `estimated` flag (left out clears it), validated as `add_food` validates them; Log Entries already logged keep their numbers; returns its `id` |
 | `log_food`            | logs a Log Entry for the signed-in Member from a `foodId` (the entry copies the Food's `estimated` flag), or a quick name and Nutrition (`estimated: true` flags a guess); totals are per-serving Nutrition × `servings` (default 1); `mealType` is guessed from `eatenAt`'s local time (before 11:00 breakfast, before 16:00 lunch, after 21:30 snack, else dinner); returns its `id` |
 | `add_catalogue_item`  | adds a new Item with its CatalogueItem (Category, Necessity, optional Shop override, Aisle, Tags); validated by the zod schemas first                                               |
 | `add_recipe`          | adds a live Recipe with its Ingredients from structured input; validated by the Recipe zod schema first; returns its `id`                                                           |
